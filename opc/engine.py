@@ -10520,7 +10520,7 @@ class OPCEngine:
 
     @staticmethod
     def _primary_external_collaboration_tools(task: Task, allowed_tools: set[str]) -> set[str]:
-        """Return the tool schemas worth expanding for this specific turn."""
+        """根據回合模式篩選本回合值得展開參數契約的主要協作工具。"""
         allowed = {str(tool).strip() for tool in allowed_tools if str(tool).strip()}
         turn_mode = resolve_company_turn_mode(task)
         if turn_mode == "dispatch_required":
@@ -10533,19 +10533,25 @@ class OPCEngine:
             preferred = {"inbox", "reply_message", "send_dm", "ask_peer_and_wait", "respond_meeting"}
         return allowed.intersection(preferred)
 
-    # Checkpoint types that represent "a task is parked waiting for user input".
-    # Invariant: a pending row of these types is only valid while its task is
-    # actually in a waiting status; every other path must terminate them.
+    # Checkpoint 類型：代表「任務暫停等待使用者輸入」。
+    # 不變量：這些類型的 pending 行僅在任務確實處於等待狀態時有效；
+    # 其他任何路徑都必須終止它們。
     _TASK_WAIT_CHECKPOINT_TYPES = ("task_user_input", "task_peer_wait")
 
     async def _supersede_stale_task_wait_checkpoints(self, task_id: str, *, reason: str) -> None:
-        """Terminate pending task-wait checkpoints once their task moves on.
+        """終止過期的任務等待檢查點 — 任務已不再等待時清除 pending 行。
 
-        The company runtime can carry a paused work item forward through its own
-        machinery (approval-card grants, a fresh review attempt) without ever
-        replying through the engine checkpoint. If the checkpoint row stays
-        pending it will capture the user's next unrelated chat message and route
-        it into a resume of a task that is no longer waiting.
+        功能說明：
+            公司運行時可能透過自身機制（審批卡授權、新審查嘗試）推進暫停的
+            工作項目，而不經過引擎檢查點回覆。若檢查點行保持 pending，會錯誤
+            捕獲使用者下一則無關訊息並路由到已不再等待的任務。
+
+        參數：
+            task_id (str)：任務 ID。
+            reason (str)：終止原因（用於日誌）。
+
+        被誰引用：
+            - _execute_registered_task_attempt()：任務完結時呼叫
         """
         if not task_id or not self.store:
             return
@@ -10570,12 +10576,18 @@ class OPCEngine:
 
     @staticmethod
     def _checkpoint_awaits_approval_decision(checkpoint: ExecutionCheckpoint) -> bool:
-        """Whether a parked task-wait checkpoint is waiting on a permission decision.
+        """判斷暫停的任務等待檢查點是否正在等待權限審批決策。
 
-        Approval escalations park the task with the pending permission request
-        recorded under ``payload.runtime_v2.permission_requests``. Those prompts
-        are decided through their approval card, whose reply always targets the
-        checkpoint explicitly; free-form chat text is never the decision.
+        功能說明：
+            審批升級會將任務暫停，並將待處理的權限請求記錄在
+            payload.runtime_v2.permission_requests 中。這些提示透過審批卡
+            決定，其回覆始終明確指向檢查點；自由文字聊天永遠不是決策。
+
+        參數：
+            checkpoint (ExecutionCheckpoint)：待檢查的檢查點。
+
+        返回值：
+            bool — 若為 task_user_input 類型且含 permission_requests 則 True。
         """
         if str(checkpoint.checkpoint_type or "").strip() != "task_user_input":
             return False
@@ -10587,12 +10599,18 @@ class OPCEngine:
         return isinstance(requests, list) and len(requests) > 0
 
     async def _checkpoint_task_still_waiting(self, checkpoint: ExecutionCheckpoint) -> bool:
-        """Whether a task-wait checkpoint still matches a genuinely waiting task.
+        """判斷任務等待檢查點是否仍對應真正等待中的任務。
 
-        Lazily resolves orphaned rows (task finished, failed, superseded by a
-        new review attempt, or deleted) as ``stale`` so historical dirty data
-        self-heals the first time it is considered for a resume. Non-task-wait
-        checkpoint types are always considered live here.
+        功能說明：
+            延遲解析孤立行（任務已完成、失敗、被新審查嘗試取代或已刪除），
+            標記為 stale，使歷史脏資料在首次考慮恢復時自動修復。
+            非任務等待類型的檢查點始終視為有效。
+
+        參數：
+            checkpoint (ExecutionCheckpoint)：待驗證的檢查點。
+
+        返回值：
+            bool — True 表示檢查點仍有效可恢復；False 表示已過期。
         """
         if str(checkpoint.checkpoint_type or "").strip() not in self._TASK_WAIT_CHECKPOINT_TYPES:
             return True
@@ -10635,10 +10653,13 @@ class OPCEngine:
         return False
 
     async def _task_work_item_closed_reason(self, task: Task) -> str:
-        """Non-empty reason when the task's delegation work item is closed.
+        """回傳任務關聯的委派工作項目已關閉的原因（空字串表示仍活躍）。
 
-        Returns "" when the task has no linked work item, the item cannot be
-        loaded, or the item is still in a live phase — i.e. keep the checkpoint.
+        參數：
+            task (Task)：待檢查的任務。
+
+        返回值：
+            str — 非空表示工作項目已關閉（含原因）；空字串表示保留檢查點。
         """
         work_item_id = linked_work_item_id_for_task(task)
         if not work_item_id or not self.store:
@@ -10662,6 +10683,14 @@ class OPCEngine:
         return ""
 
     async def _save_execution_checkpoint(self, data: dict[str, Any]) -> None:
+        """儲存執行檢查點到資料庫並取代同任務同類型的舊檢查點。
+
+        參數：
+            data (dict)：檢查點資料（含 project_id, session_id, checkpoint_type, task_id, payload）。
+
+        被誰引用：
+            - _save_routing_checkpoint()、_save_task_pause_checkpoint() 等
+        """
         assert self.store
         payload = dict(data.get("payload", {}))
         if not str(payload.get("basis_hash", "") or "").strip():
@@ -10714,6 +10743,7 @@ class OPCEngine:
 
     @staticmethod
     def _checkpoint_basis_hash(payload: dict[str, Any]) -> str:
+        """根據檢查點 payload 的關鍵欄位計算 SHA1 雜湊（用於去重/取代判斷）。"""
         basis = {
             "task_id": str(payload.get("task_id", "") or payload.get("waiting_task_id", "") or "").strip(),
             **work_item_identity_payload_from_metadata(
@@ -10745,6 +10775,7 @@ class OPCEngine:
         payload: dict[str, Any],
         session_id: str | None = None,
     ) -> None:
+        """儲存路由檢查點 — 記錄使用者原始訊息和路由決策供後續恢復。"""
         await self._save_execution_checkpoint(
             {
                 "project_id": self.project_id or "default",
@@ -10758,18 +10789,32 @@ class OPCEngine:
         )
 
     def _checkpoint_execution_mode_for_task(self, task: Task) -> str:
-        """Execution mode to record on a pause checkpoint.
+        """決定暫停檢查點應記錄的執行模式。
 
-        Work-item runtime membership is the durable signal; the
-        ``execution_mode`` metadata field is volatile and has been observed to
-        degrade to ``task_mode`` after a resume, which then misroutes the next
-        resume away from the company state machine.
+        功能說明：
+            工作項目運行時成員關係是持久信號；execution_mode metadata 欄位
+            是易變的，觀察到恢復後會退化為 task_mode，導致下次恢復錯誤路由。
+
+        參數：
+            task (Task)：待記錄的任務。
+
+        返回值：
+            str — 執行模式字串（company_mode 或 single_agent）。
         """
         if is_work_item_runtime_metadata(task.metadata):
             return ExecutionMode.COMPANY_MODE.value
         return str(task.metadata.get("execution_mode", ExecutionMode.SINGLE_AGENT.value))
 
     async def _save_task_pause_checkpoint(self, task: Task, result: TaskResult) -> None:
+        """儲存任務暫停檢查點 — 任務進入等待審查/人類輸入狀態時呼叫。
+
+        參數：
+            task (Task)：暫停的任務。
+            result (TaskResult)：含 pause_request 的結果。
+
+        被誰引用：
+            - _execute_registered_task_attempt()：結果狀態為 AWAITING_* 時
+        """
         pause_request = dict(result.artifacts.get("pause_request", {})) if result.artifacts else {}
         runtime_payload = self._build_runtime_checkpoint_payload(task, result)
         review_level = str(
@@ -10839,6 +10884,15 @@ class OPCEngine:
         )
 
     async def _save_peer_pause_checkpoint(self, task: Task, result: TaskResult) -> None:
+        """儲存同儕等待檢查點 — 任務進入 AWAITING_PEER 狀態時呼叫。
+
+        參數：
+            task (Task)：等待同儕回應的任務。
+            result (TaskResult)：執行結果。
+
+        被誰引用：
+            - _execute_registered_task_attempt()：結果狀態為 AWAITING_PEER 時
+        """
         peer_wait = dict(task.metadata.get("peer_wait", {}))
         runtime_payload = self._build_runtime_checkpoint_payload(task, result)
         await self._save_execution_checkpoint(
@@ -10867,6 +10921,18 @@ class OPCEngine:
         self,
         session_id: str | None = None,
     ) -> ExecutionCheckpoint | None:
+        """取得指定工作階段最新的 pending 檢查點（含公司運行時暫停檢查點）。
+
+        參數：
+            session_id (str | None)：工作階段 ID。
+
+        返回值：
+            ExecutionCheckpoint | None — 最新 pending 檢查點或 None。
+
+        被誰引用：
+            - process_message()：判斷使用者回覆是否應恢復檢查點
+            - UI 快照建構器：每次同步時查詢
+        """
         if not self.store:
             return None
         project_id = self.project_id or "default"
@@ -10963,7 +11029,7 @@ class OPCEngine:
         return await self._ensure_checkpoint_runtime_v2_payload(selected_suspend_checkpoint) if selected_suspend_checkpoint else None
 
     async def _company_runtime_parent_session_for_session_id(self, session_id: str | None) -> str:
-        """Resolve any durable task session to its company runtime session."""
+        """將任意持久任務工作階段解析為其所屬的公司運行時工作階段。"""
         if not self.store:
             return ""
         sid = str(session_id or "").strip()
@@ -10992,12 +11058,14 @@ class OPCEngine:
 
     @staticmethod
     def _checkpoint_is_user_visible(checkpoint: ExecutionCheckpoint) -> bool:
+        """判斷檢查點是否對使用者可見（manager 級別審查不直接展示）。"""
         payload = dict(checkpoint.payload or {})
         review_level = str(payload.get("review_level", "") or "").strip().lower()
         return review_level != "manager"
 
     @classmethod
     def _checkpoint_is_company_scoped(cls, checkpoint_type: str | None) -> bool:
+        """判斷檢查點類型是否屬於公司模式範圍。"""
         normalized = str(checkpoint_type or "").strip()
         return (
             normalized.startswith("company_")
@@ -11010,6 +11078,7 @@ class OPCEngine:
         reply_metadata: dict[str, Any] | None,
         checkpoint: ExecutionCheckpoint,
     ) -> bool:
+        """判斷回覆 metadata 是否明確指向指定檢查點（UI 顯式回覆）。"""
         metadata = dict(reply_metadata or {})
         explicit_id = str(metadata.get("response_to_checkpoint_id", "") or "").strip()
         explicit_type = str(metadata.get("response_to_checkpoint_type", "") or "").strip()
@@ -11027,6 +11096,7 @@ class OPCEngine:
     def _explicit_checkpoint_reply(
         reply_metadata: dict[str, Any] | None,
     ) -> tuple[str, str]:
+        """從回覆 metadata 提取顯式指定的檢查點 ID 和類型。"""
         metadata = dict(reply_metadata or {})
         return (
             str(metadata.get("response_to_checkpoint_id", "") or "").strip(),
@@ -11037,6 +11107,7 @@ class OPCEngine:
         self,
         checkpoint_id: str,
     ) -> ExecutionCheckpoint | None:
+        """根據 ID 載入執行檢查點（先嘗試直接查詢，再 fallback 到列表掃描）。"""
         checkpoint_id = str(checkpoint_id or "").strip()
         if not checkpoint_id or not self.store:
             return None
@@ -11076,6 +11147,7 @@ class OPCEngine:
         checkpoint: ExecutionCheckpoint,
         session_id: str | None,
     ) -> bool:
+        """判斷檢查點是否對回覆所在的工作階段可見（含公司運行時子工作階段）。"""
         requested_session_id = str(session_id or "").strip()
         if not requested_session_id:
             return False
@@ -11123,6 +11195,20 @@ class OPCEngine:
         reply_metadata: dict[str, Any] | None = None,
         requested_mode: str | None = None,
     ) -> str | None:
+        """嘗試恢復檢查點 — 根據使用者回覆和 metadata 路由到對應的恢復處理器。
+
+        參數：
+            user_reply (str)：使用者回覆文字。
+            session_id (str | None)：工作階段 ID。
+            reply_metadata (dict | None)：回覆 metadata（含顯式檢查點 ID 等）。
+            requested_mode (str | None)：請求的模式（task/company）。
+
+        返回值：
+            str | None — 恢復結果文字；None 表示無檢查點可恢復。
+
+        被誰引用：
+            - process_message()：優先嘗試恢復檢查點
+        """
         explicit_checkpoint_id, explicit_checkpoint_type = self._explicit_checkpoint_reply(reply_metadata)
         if explicit_checkpoint_id:
             checkpoint = await self._load_execution_checkpoint_by_id(explicit_checkpoint_id)
@@ -11213,6 +11299,7 @@ class OPCEngine:
         return None
 
     async def _resume_routing_checkpoint(self, checkpoint: ExecutionCheckpoint, user_reply: str) -> str:
+        """恢復路由檢查點 — 將使用者補充資訊附加到原始訊息後重新處理。"""
         payload = checkpoint.payload
         original_message = payload.get("original_message", "")
         if not original_message:
@@ -11236,12 +11323,19 @@ class OPCEngine:
         return response.content if response else "No response generated after resume."
 
     async def _release_work_item_human_wait(self, task: Task, *, reason: str) -> bool:
-        """Push a work item parked in ``awaiting_human`` back to ``ready``.
+        """將暫停於 awaiting_human 的工作項目推回 ready 狀態。
 
-        This is the state-machine half of resuming an answered human wait: the
-        phase moves through the legal ``AWAITING_HUMAN → READY`` recovery exit
-        and any stale claim is released so the company dispatcher can re-claim
-        the item on its next pass. Returns True when a phase write happened.
+        功能說明：
+            這是恢復已回答的人類等待的狀態機部分：phase 通過合法的
+            AWAITING_HUMAN → READY 恢復出口移動，並釋放過期的 claim，
+            使公司調度器能在下次遍歷時重新認領該項目。
+
+        參數：
+            task (Task)：關聯的任務。
+            reason (str)：釋放原因。
+
+        返回值：
+            bool — True 表示 phase 寫入成功。
         """
         if not self.store or not hasattr(self.store, "update_delegation_work_item"):
             return False
@@ -11297,6 +11391,7 @@ class OPCEngine:
         return True
 
     async def _resume_task_checkpoint(self, checkpoint: ExecutionCheckpoint, user_reply: str) -> str:
+        """恢復任務等待檢查點 — 將使用者輸入注入任務後重新執行。"""
         assert self.store
         checkpoint = await self._ensure_checkpoint_runtime_v2_payload(checkpoint)
         payload = checkpoint.payload
@@ -11393,6 +11488,7 @@ class OPCEngine:
         return await self._execute_single_agent([task], task.assigned_external_agent)
 
     async def _resume_peer_checkpoint(self, checkpoint: ExecutionCheckpoint, user_reply: str) -> str:
+        """恢復同儕等待檢查點 — 解析同儕等待後重新執行任務。"""
         assert self.store and self.communication
         checkpoint = await self._ensure_checkpoint_runtime_v2_payload(checkpoint)
         payload = checkpoint.payload
@@ -11458,6 +11554,7 @@ class OPCEngine:
         payload_updates: dict[str, Any] | None = None,
         expected_statuses: set[str] | None = None,
     ) -> bool:
+        """更新公司運行時檢查點狀態（支援 compare-and-set 原子轉換）。"""
         if not self.store:
             return False
         payload = {**dict(checkpoint.payload or {}), **dict(payload_updates or {})}
@@ -11500,6 +11597,7 @@ class OPCEngine:
         tasks: list[Task],
         payload: dict[str, Any],
     ) -> None:
+        """重置公司執行器運行時狀態以準備恢復。"""
         runtime = getattr(getattr(self, "company_executor", None), "runtime", None)
         reset = getattr(runtime, "reset_for_company_runtime_resume", None)
         if callable(reset):
@@ -11509,6 +11607,7 @@ class OPCEngine:
         self,
         checkpoint: ExecutionCheckpoint,
     ) -> tuple[dict[str, Any], str, CompanyWorkItemRuntimePlan, list[Task]] | None:
+        """載入公司暫停檢查點的運行時上下文（payload、session、plan、tasks）。"""
         assert self.store
         payload = dict(checkpoint.payload or {})
         parent_session_id = str(
@@ -11547,6 +11646,7 @@ class OPCEngine:
         parent_session_id: str,
         checkpoint_id: str,
     ) -> str:
+        """解析公司運行時的 UI 錨點任務 ID（用於前端定位）。"""
         if not self.store:
             return ""
         identity_index = await load_company_runtime_identity_index(
@@ -11568,7 +11668,7 @@ class OPCEngine:
         resume_state: str,
         error: BaseException | str,
     ) -> None:
-        """Fail a resume closed: restore the durable hold before publishing pending."""
+        """恢復失敗時還原檢查點為 pending — 重新建立持久暫停並發佈事件。"""
 
         if not self.store:
             return
@@ -11624,6 +11724,7 @@ class OPCEngine:
         resume_state: str,
         error: BaseException,
     ) -> None:
+        """取消時還原檢查點為 pending（shield 保護異步恢復）。"""
         recovery = asyncio.create_task(
             self._restore_company_suspend_checkpoint_pending(
                 checkpoint,
@@ -11644,7 +11745,7 @@ class OPCEngine:
         *,
         parent_session_id: str,
     ) -> None:
-        """Publish one successful resume and its UI projection as one boundary."""
+        """完成公司暫停檢查點恢復 — 標記 resolved 並重新開啟 UI 錨點。"""
 
         if not self.store:
             return
@@ -11702,6 +11803,7 @@ class OPCEngine:
         tasks: list[Task],
         resume_task_ids: set[str] | None = None,
     ) -> tuple[list[Task], CompanyExecutorDriverOwnership | None] | None:
+        """交接公司暫停檢查點 — 原子性地將檢查點從 pending 轉為 resuming 並準備任務。"""
         assert self.company_executor
         if not self.store:
             return None
@@ -11803,6 +11905,7 @@ class OPCEngine:
         *,
         preferred_task_ids: set[str] | None = None,
     ) -> CompanyExecutorDriverOwnership | None:
+        """取得公司執行器驅動所有權（註冊到 ActiveTaskRunRegistry 防止並發）。"""
         task = CompanyWorkItemExecutor._driver_ownership_task(
             tasks,
             preferred_task_ids=preferred_task_ids,
@@ -11828,6 +11931,7 @@ class OPCEngine:
     def _company_executor_driver_context(
         ownership: CompanyExecutorDriverOwnership | None,
     ):
+        """回傳驅動所有權的上下文管理器（無所有權時回傳 nullcontext）。"""
         return ownership.bind() if ownership is not None else nullcontext()
 
     async def _company_suspend_resume_candidate_task_ids(
@@ -11836,6 +11940,7 @@ class OPCEngine:
         *,
         exclude_task_ids: set[str] | None = None,
     ) -> set[str]:
+        """篩選公司暫停恢復的候選任務 ID（仍持有持久暫停標記者）。"""
         if not self.store:
             return set()
         excluded = {str(item).strip() for item in set(exclude_task_ids or set()) if str(item).strip()}
@@ -11882,6 +11987,7 @@ class OPCEngine:
         parent_session_id: str,
         final_decider_task_id: str,
     ) -> tuple[bool, str | None]:
+        """最終決策者完成後恢復剩餘的公司運行時任務。"""
         assert self.company_executor
         target_progressed = await self._company_followup_target_progressed(
             final_decider_task_id
@@ -11979,6 +12085,7 @@ class OPCEngine:
                 driver_ownership.release()
 
     async def _company_followup_target_progressed(self, task_id: str) -> bool:
+        """判斷最終決策者任務是否已記錄持久仲裁動作。"""
         if not self.store:
             return False
         task_id = str(task_id or "").strip()
@@ -12001,6 +12108,7 @@ class OPCEngine:
         checkpoint: ExecutionCheckpoint,
         user_reply: str,
     ) -> str:
+        """透過最終決策者恢復公司暫停檢查點（先執行 CEO 任務再恢復剩餘）。"""
         assert self.store and self.company_executor
         loaded = await self._load_company_suspend_checkpoint_runtime(checkpoint)
         if loaded is None:
@@ -12098,6 +12206,7 @@ class OPCEngine:
         checkpoint: ExecutionCheckpoint,
         user_reply: str,
     ) -> str:
+        """強制恢復公司暫停檢查點 — 直接執行公司執行器完成所有任務。"""
         assert self.store and self.company_executor
         loaded = await self._load_company_suspend_checkpoint_runtime(checkpoint)
         if loaded is None:
@@ -12152,6 +12261,7 @@ class OPCEngine:
         checkpoint: ExecutionCheckpoint,
         user_reply: str,
     ) -> str:
+        """恢復公司運行時門禁檢查點 — 處理人類審批/拒絕決策後繼續執行。"""
         assert self.store and self.company_executor
         checkpoint = await self._ensure_checkpoint_runtime_v2_payload(checkpoint)
         payload = checkpoint.payload
@@ -12316,6 +12426,7 @@ class OPCEngine:
         tasks: list[Task],
         plan: CompanyWorkItemRuntimePlan,
     ) -> None:
+        """儲存公司交付回饋追蹤檢查點（供使用者後續approve/feedback/ignore）。"""
         if self.company_executor and hasattr(self.company_executor, "_save_feedback_checkpoint"):
             self.company_executor._active_plan = plan
             self.company_executor._active_tasks = tasks
@@ -12364,6 +12475,7 @@ class OPCEngine:
         work_item_tasks: list[Task],
         feedback: dict[str, Any],
     ) -> dict[str, Any]:
+        """評估公司回饋 — 使用 LLM 將使用者回饋歸因到具體員工和工作項目。"""
         fallback = self._fallback_company_feedback_evaluation(work_item_tasks, feedback)
         if not self.llm:
             return fallback
@@ -12452,6 +12564,7 @@ class OPCEngine:
             return fallback
 
     def _fallback_company_feedback_evaluation(self, work_item_tasks: list[Task], feedback: dict[str, Any]) -> dict[str, Any]:
+        """LLM 不可用時的簡化回饋評估（將整體結果歸因到所有員工）。"""
         label = str(feedback.get("label", "")).strip()
         if label == "fully_approved":
             overall_outcome = "success"
@@ -12485,6 +12598,7 @@ class OPCEngine:
         }
 
     def _runtime_topology_from_tasks(self, tasks: list[Task], waiting_task: Task) -> dict[str, Any]:
+        """從任務 metadata 中提取運行時拓撲資訊。"""
         for task in [waiting_task, *list(tasks or [])]:
             topology = dict(getattr(task, "metadata", {}).get("runtime_topology", {}) or {})
             if topology:
@@ -12493,6 +12607,7 @@ class OPCEngine:
 
     @staticmethod
     def _runtime_seat_for_role(runtime_topology: dict[str, Any], role_id: str) -> dict[str, Any]:
+        """從運行時拓撲中取得指定角色的席位資料。"""
         role = str(role_id or "").strip()
         for seat in list(runtime_topology.get("seats", []) or []):
             seat_data = dict(seat or {})
@@ -12502,6 +12617,7 @@ class OPCEngine:
 
     @staticmethod
     def _task_runtime_value(tasks: list[Task], key: str, default: str = "") -> str:
+        """從任務列表中取得第一個非空的指定 metadata 值。"""
         for task in list(tasks or []):
             value = str(getattr(task, "metadata", {}).get(key, "") or "").strip()
             if value:
@@ -12515,6 +12631,7 @@ class OPCEngine:
         source: dict[str, Any],
         tasks: list[Task],
     ) -> dict[str, Any]:
+        """建構員工自我演化的 Prompt 契約（含任務摘要、組織圖、交付物規範）。"""
         feedback = str(source.get("human_feedback", "") or "").strip()
         action = str(source.get("human_action", "") or "approve").strip()
         review_text = (
@@ -12570,6 +12687,7 @@ class OPCEngine:
         source: dict[str, Any],
         assignments: dict[str, dict[str, Any]],
     ) -> DelegationWorkItem | None:
+        """建立公司自我演化的根工作項目（DelegationWorkItem）。"""
         if not self.store or not hasattr(self.store, "save_delegation_work_item"):
             return None
         all_tasks = list(tasks or [])
@@ -12734,6 +12852,7 @@ class OPCEngine:
         tasks: list[Task],
         root_work_item: DelegationWorkItem,
     ) -> None:
+        """準備自我演化運行時恢復任務 — 填充缺失的 delegation metadata。"""
         run_id = str(getattr(root_work_item, "run_id", "") or "").strip()
         if not run_id:
             return
@@ -12762,6 +12881,7 @@ class OPCEngine:
         checkpoint_id: str,
         run_id: str,
     ) -> dict[str, list[dict[str, Any]]]:
+        """收集公司自我演化結果 — 從工作項目 metadata 中提取已記錄的 patches。"""
         recorded: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
         if not self.store or not run_id or not hasattr(self.store, "list_delegation_work_items"):
@@ -12799,6 +12919,7 @@ class OPCEngine:
         feedback: str = "",
         reply_metadata: dict[str, Any] | None = None,
     ) -> str:
+        """執行公司交付自我演化檢查點 — 根據使用者動作觸發員工經驗更新。"""
         assert self.store
         if str(action or "").strip().lower() == "ignore":
             return await self.ignore_company_delivery_feedback_checkpoint(
@@ -12955,6 +13076,7 @@ class OPCEngine:
         return "Self-evolution completed. No employee experience updates were needed."
 
     def _self_evolution_assignments_by_role(self, tasks: list[Task]) -> dict[str, dict[str, Any]]:
+        """按角色 ID 分組任務的員工分配資訊。"""
         assignments: dict[str, dict[str, Any]] = {}
         for task in tasks:
             assignment = dict(getattr(task, "metadata", {}).get("employee_assignment", {}) or {})
@@ -12978,6 +13100,7 @@ class OPCEngine:
         return assignments
 
     def _self_evolution_task_payloads(self, tasks: list[Task]) -> list[dict[str, Any]]:
+        """建構自我演化用的任務摘要 payload 列表。"""
         payloads: list[dict[str, Any]] = []
         for task in tasks:
             assignment = dict(getattr(task, "metadata", {}).get("employee_assignment", {}) or {})
@@ -12999,6 +13122,7 @@ class OPCEngine:
         return payloads
 
     def _self_evolution_org_graph(self) -> dict[str, list[str]]:
+        """建構組織圖（角色 → 下屬角色列表）供自我演化使用。"""
         if not self.org_engine:
             return {}
         graph: dict[str, list[str]] = {}
@@ -13016,6 +13140,7 @@ class OPCEngine:
         return graph
 
     def _normalize_staffing_selection(self, value: Any) -> dict[str, str]:
+        """標準化人員配置選擇值為 {role_id: agent_id} 字典。"""
         if isinstance(value, dict):
             kind = str(value.get("kind") or value.get("source") or "").strip().lower()
             selected_id = str(
@@ -13042,9 +13167,11 @@ class OPCEngine:
 
     @staticmethod
     def _normalize_staffing_experience_mode(value: Any) -> str:
+        """標準化人員配置經驗模式字串。"""
         return "template_only" if str(value or "").strip() == "template_only" else "with_experience"
 
     def _parse_cli_staffing_selection_overrides(self, reply: str) -> dict[str, dict[str, str]]:
+        """解析 CLI 人員配置選擇覆寫（格式：role=agent 每行一個）。"""
         overrides: dict[str, dict[str, str]] = {}
         for token in re.split(r"[\s,]+", reply.strip()):
             if "=" not in token:
@@ -13063,6 +13190,7 @@ class OPCEngine:
         payload: dict[str, Any],
         reply_metadata: dict[str, Any] | None,
     ) -> dict[str, str]:
+        """從 checkpoint payload 和回覆 metadata 中提取角色→代理覆寫映射。"""
         overrides: dict[str, str] = {}
         for role in list(payload.get("staffing_roles", []) or []):
             role_id = str(role.get("role_id", "") or "").strip()
@@ -13090,6 +13218,7 @@ class OPCEngine:
         *,
         reply_metadata: dict[str, Any] | None = None,
     ) -> str:
+        """恢復人員配置選擇檢查點 — 處理使用者對角色代理選擇的確認。"""
         assert self.store and self.talent_market
         payload = checkpoint.payload
         original_message = str(payload.get("original_message", ""))
@@ -13288,6 +13417,7 @@ class OPCEngine:
         *,
         reply_metadata: dict[str, Any] | None = None,
     ) -> str:
+        """恢復招聘確認檢查點 — 處理使用者對招聘計劃的批准/修改。"""
         assert self.store and self.company_recruiter and self.talent_market
         payload = checkpoint.payload
         original_message = str(payload.get("original_message", ""))
@@ -13586,6 +13716,7 @@ class OPCEngine:
         return revised_plan.summary or self.company_recruiter.render_recruitment_summary(revised_plan)
 
     async def _resume_reorg_checkpoint(self, checkpoint: ExecutionCheckpoint, user_reply: str) -> str:
+        """恢復組織重組檢查點 — 處理使用者對重組提案的批准/拒絕。"""
         assert self.store and self.reorg_manager
         payload = checkpoint.payload
         proposal_id = payload.get("proposal_id", "")
@@ -13693,6 +13824,7 @@ class OPCEngine:
         )
 
     async def _maybe_handle_reorg_message(self, content: str, session_id: str | None) -> str | None:
+        """嘗試將使用者訊息解析為組織重組命令（/reorg 開頭）。"""
         assert self.reorg_manager and self.store
         stripped = content.strip()
         if not stripped.lower().startswith("reorg "):
@@ -13769,6 +13901,7 @@ class OPCEngine:
         return None
 
     def _parse_reorg_payload(self, payload: str) -> dict[str, Any] | None:
+        """解析重組命令的 JSON payload。"""
         try:
             data = json.loads(payload)
         except Exception:
@@ -13778,6 +13911,7 @@ class OPCEngine:
         return data if isinstance(data, dict) else None
 
     async def _save_reorg_checkpoint(self, proposal: ReorgProposal) -> None:
+        """儲存組織重組提案檢查點（等待使用者批准）。"""
         await self._save_execution_checkpoint(
             {
                 "project_id": proposal.project_id,
@@ -13793,6 +13927,7 @@ class OPCEngine:
         )
 
     def _format_reorg_summary(self, proposal: ReorgProposal) -> str:
+        """格式化組織重組提案摘要供使用者檢視。"""
         return (
             f"Reorg proposal `{proposal.proposal_id}`\n"
             f"Status: {proposal.status.value}\n"
@@ -13815,6 +13950,7 @@ class OPCEngine:
         source_role_id: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> ReorgProposal:
+        """提出公司組織重組提案。"""
         assert self.reorg_manager
         proposal = await self.reorg_manager.propose_reorg(
             project_id=self.project_id or "default",
@@ -13837,14 +13973,17 @@ class OPCEngine:
         approved: bool,
         notes: str = "",
     ) -> ReorgProposal:
+        """批准或拒絕公司組織重組提案。"""
         assert self.reorg_manager
         return await self.reorg_manager.set_reorg_approval(proposal_id, approved=approved, notes=notes)
 
     async def apply_company_reorg(self, proposal_id: str) -> dict[str, Any]:
+        """套用已批准的公司組織重組提案。"""
         assert self.reorg_manager
         return await self.reorg_manager.apply_reorg(proposal_id)
 
     async def show_company_reorg(self, proposal_id: str) -> ReorgProposal | None:
+        """查詢指定 ID 的組織重組提案。"""
         assert self.store
         return await self.store.get_reorg_proposal(proposal_id)
 
@@ -13857,6 +13996,7 @@ class OPCEngine:
         session_id: str | None = None,
         task_id: str | None = None,
     ) -> dict[str, Any]:
+        """建議任務調整（由角色發起的輕量重組）。"""
         assert self.reorg_manager
         return await self.reorg_manager.suggest_task_adjustment(
             project_id=self.project_id or "default",
@@ -13871,6 +14011,7 @@ class OPCEngine:
 
     @staticmethod
     def _normalize_requested_mode(value: Any) -> str:
+        """標準化請求模式字串（task/company）。"""
         normalized = str(value or "task").strip().lower()
         if normalized == "project":
             return "task"
@@ -13880,16 +14021,22 @@ class OPCEngine:
 
     @staticmethod
     def _is_delegate_usable(delegate: "OPCEngine") -> bool:
-        """A cached delegate is only reusable while its store connection is open."""
+        """判斷快取的委派引擎是否仍可用（store 連線未關閉）。"""
         store = getattr(delegate, "store", None)
         return bool(store is None or getattr(store, "is_ready", True))
 
     async def _get_project_delegate(self, project_id: str) -> OPCEngine:
-        """Return an initialized engine dedicated to ``project_id``.
+        """取得指定專案的委派引擎實例（跨專案操作時使用獨立引擎）。
 
-        A live engine owns one store/memory/runtime context.  When callers reuse
-        an initialized engine for another project, delegate instead of rebinding
-        the active store under in-flight sessions.
+        功能說明：
+            每個引擎擁有一個 store/memory/runtime 上下文。當呼叫者需要
+            操作其他專案時，委派到獨立引擎而非重新綁定當前 store。
+
+        參數：
+            project_id (str)：目標專案 ID。
+
+        返回值：
+            OPCEngine — 已初始化的專案委派引擎（或自身若同專案）。
         """
         normalized_project_id = str(project_id or "").strip() or "default"
         current_project_id = str(self.project_id or "default").strip() or "default"
