@@ -23,9 +23,14 @@ from __future__ import annotations  # 啟用延遲型別註解評估，支援前
 
 import uuid  # 標準庫：產生任務/訊息/代理的唯一 ID
 from dataclasses import dataclass, field  # 標準庫：定義輕量級資料類別
-from datetime import datetime  # 標準庫：時間戳記（建立/更新時間）
+from datetime import datetime, timezone  # 標準庫：時間戳記（建立/更新時間）
 from enum import Enum  # 標準庫：定義列舉類型
 from typing import Any, Literal  # 標準庫：型別註解（Any 為通用型別，Literal 為字面量型別）
+
+
+def _utcnow() -> datetime:
+    """Return the current UTC time with timezone info (replaces naive datetime.now)."""
+    return datetime.now(timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -365,7 +370,7 @@ class UserMessage:
     user_id: str  # 使用者唯一識別碼
     content: str  # 訊息文字內容
     attachments: list[Any] = field(default_factory=list)  # 附件列表（AttachmentRef 或 base64）
-    timestamp: datetime = field(default_factory=datetime.now)  # 訊息時間戳記
+    timestamp: datetime = field(default_factory=_utcnow)  # 訊息時間戳記
     session_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # 工作階段 ID（自動產生）
     project_context: str | None = None  # 專案上下文標識（可選）
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata（頻道特定資訊）
@@ -461,7 +466,7 @@ class Task:
     execution_lock: bool = False  # 執行鎖（防止並發執行）
     context_snapshot: dict = field(default_factory=dict)  # 上下文快照（執行時的環境狀態）
     assigned_external_agent: str | None = None  # 指派的外部代理名稱
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
     deadline: datetime | None = None  # 截止時間（可選）
     result: dict | None = None  # 執行結果
     parent_id: str | None = None  # 父任務 ID（子任務時）
@@ -605,8 +610,8 @@ class DelegationRun:
     recovery_pointer: dict[str, Any] = field(default_factory=dict)  # 恢復指標（崩潰恢復用）
     project_dossier: dict[str, Any] = field(default_factory=dict)  # 專案檔案（背景資訊）
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -627,8 +632,8 @@ class DelegationCell:
     member_role_ids: list[str] = field(default_factory=list)  # 成員角色 ID 列表
     status: str = "idle"  # 單元狀態（"idle"/"active"/"done"）
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # 公司模式邊界說明：
@@ -680,8 +685,8 @@ class DelegationWorkItem:
     claimed_by_role_runtime_session_id: str = ""  # 認領者的角色運行時工作階段 ID
     claimed_by_seat_id: str = ""  # 認領者的席位 ID
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
     def __post_init__(self) -> None:
         """初始化後處理：確保 phase 為 Phase 列舉實例，metadata 為字典。"""
@@ -712,7 +717,7 @@ class DelegationEvent:
     role_id: str | None = None  # 關聯的角色 ID
     event_type: str = "created"  # 事件類型（"created"/"dispatched"/"completed"/"failed" 等）
     payload: dict[str, Any] = field(default_factory=dict)  # 事件酬載
-    created_at: datetime = field(default_factory=datetime.now)  # 事件時間
+    created_at: datetime = field(default_factory=_utcnow)  # 事件時間
 
 
 # ---------------------------------------------------------------------------
@@ -762,8 +767,8 @@ class RoleRuntimeSession:
     # 由 OrgConfig.role_serial_queue_enabled 控制（公司模式預設啟用）。
     pending_work_item_ids: list[str] = field(default_factory=list)  # 待處理工作項目 ID 佇列
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # 向下相容別名：舊版程式碼可能引用 DelegationRoleSession
@@ -818,8 +823,8 @@ class CompanyMemberSession:
     current_work_item: dict[str, Any] = field(default_factory=dict)  # 當前工作項目快照
     manager_digest: dict[str, Any] = field(default_factory=dict)  # 經理摘要
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # ---------------------------------------------------------------------------
@@ -847,8 +852,8 @@ class TeamInstance:
     seat_ids: list[str] = field(default_factory=list)  # 席位 ID 列表
     role_ids: list[str] = field(default_factory=list)  # 角色 ID 列表
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -888,8 +893,8 @@ class SeatState:
     latest_notification: dict[str, Any] = field(default_factory=dict)  # 最新通知
     manager_digest: dict[str, Any] = field(default_factory=dict)  # 經理摘要
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # ---------------------------------------------------------------------------
@@ -1235,7 +1240,7 @@ class OrgSnapshot:
     company_profile: str = CompanyProfile.CORPORATE.value  # 公司設定檔類型
     active_tasks: list[dict[str, Any]] = field(default_factory=list)  # 活動任務列表
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1273,8 +1278,8 @@ class ReorgProposal:
     impact_summary: dict[str, Any] = field(default_factory=dict)  # 影響摘要
     approval_notes: str = ""  # 審批備註
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # ---------------------------------------------------------------------------
@@ -1376,7 +1381,7 @@ class RuntimeLLMEvent:
     event_type: str  # 事件類型（"start"/"chunk"/"complete"/"error"）
     payload: dict[str, Any] = field(default_factory=dict)  # 事件酬載
     model: str = ""  # 使用的模型名稱
-    timestamp: datetime = field(default_factory=datetime.now)  # 事件時間
+    timestamp: datetime = field(default_factory=_utcnow)  # 事件時間
 
 
 @dataclass
@@ -1399,7 +1404,7 @@ class ExternalSession:
     run_mode: str = "batch"  # 運行模式（"batch"/"interactive"）
     status: str = "unknown"  # 工作階段狀態
     metadata: dict = field(default_factory=dict)  # 擴展 metadata
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1421,8 +1426,8 @@ class ExecutionCheckpoint:
     status: str = "pending"  # 檢查點狀態
     task_id: str | None = None  # 關聯的任務 ID
     payload: dict[str, Any] = field(default_factory=dict)  # 狀態快照酬載
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 # ---------------------------------------------------------------------------
@@ -1476,8 +1481,8 @@ class CommsEnvelope:
     refs: dict[str, Any] = field(default_factory=dict)  # 關聯引用
     transport_metadata: dict[str, Any] = field(default_factory=dict)  # 傳輸 metadata
     payload: dict[str, Any] = field(default_factory=dict)  # 結構化酬載
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1517,7 +1522,7 @@ class ResidentAssignmentEnvelope:
     team_memory_digest: str = ""  # 團隊記憶摘要
     artifact_refs: list[str] = field(default_factory=list)  # 產出物引用
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 @dataclass
 class AgentMessage:
@@ -1548,7 +1553,7 @@ class AgentMessage:
     reply_to_msg_id: str | None = None  # 回覆的訊息 ID
     task_id: str | None = None  # 關聯的任務 ID
     status: MessageStatus = MessageStatus.SENT  # 訊息狀態
-    timestamp: datetime = field(default_factory=datetime.now)  # 發送時間
+    timestamp: datetime = field(default_factory=_utcnow)  # 發送時間
     processed_at: datetime | None = None  # 處理時間
     transport_kind: CommsTransportKind = CommsTransportKind.DM  # 傳輸類型
     semantic_type: CommsSemanticType = CommsSemanticType.WORK_UPDATE  # 語義類型
@@ -1616,9 +1621,9 @@ class MeetingRoom:
     outcome: dict | None = None  # 會議結果
     transcript: list[dict] = field(default_factory=list)  # 會議記錄
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
-    last_activity_at: datetime = field(default_factory=datetime.now)  # 最後活動時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
+    last_activity_at: datetime = field(default_factory=_utcnow)  # 最後活動時間
     deadline_at: datetime | None = None  # 截止時間
 
 
@@ -1637,7 +1642,7 @@ class WorkItemDecisionRecord:
     category: str = "general"  # 決策分類
     summary: str = ""  # 決策摘要
     details: dict[str, Any] = field(default_factory=dict)  # 決策詳情
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1653,7 +1658,7 @@ class ArtifactRecord:
     location: str = ""  # 產出物位置（路徑或 URL）
     status: str = "active"  # 產出物狀態
     details: dict[str, Any] = field(default_factory=dict)  # 產出物詳情
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1665,7 +1670,7 @@ class RoleMemoryRecord:
     scope: str = "project"  # 記憶範圍（"project"/"global"）
     summary: str = ""  # 記憶摘要
     details: dict[str, Any] = field(default_factory=dict)  # 記憶詳情
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1693,7 +1698,7 @@ class HandoffRecord:
     ack_message_id: str | None = None  # 確認訊息 ID
     response_message_id: str | None = None  # 回應訊息 ID
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1705,7 +1710,7 @@ class ReorgEventRecord:
     event_kind: ReorgEventKind = ReorgEventKind.PROPOSED  # 事件類型
     summary: str = ""  # 事件摘要
     details: dict[str, Any] = field(default_factory=dict)  # 事件詳情
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 # ---------------------------------------------------------------------------
@@ -1723,8 +1728,8 @@ class SessionRecord:
     status: str = "active"  # 狀態（"active"/"completed"/"archived"）
     summary: str = ""  # 工作階段摘要
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1738,7 +1743,7 @@ class SessionMessageRecord:
     parent_message_id: str | None = None  # 父訊息 ID（回覆時）
     summary_flag: bool = False  # 是否為摘要訊息
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1749,7 +1754,7 @@ class SessionPartRecord:
     session_id: str = ""  # 所屬工作階段 ID
     part_type: str = "text"  # 部分類型（"text"/"tool_call"/"tool_result"/"image"）
     payload: dict[str, Any] = field(default_factory=dict)  # 部分酬載
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1760,7 +1765,7 @@ class SessionCompactionRecord:
     compaction_message_id: str = ""  # 壓縮後訊息 ID
     source_boundary_message_id: str = ""  # 來源邊界訊息 ID
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1774,8 +1779,8 @@ class SessionMemorySnapshotRecord:
     summary_text: str = ""  # 摘要文字
     memory_text: str = ""  # 記憶文字
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1789,7 +1794,7 @@ class AgentCompactionRecord:
     compaction_message_id: str = ""  # 壓縮後訊息 ID
     source_boundary_message_id: str = ""  # 來源邊界訊息 ID
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1807,8 +1812,8 @@ class AgentMemorySnapshotRecord:
     summary_text: str = ""  # 摘要文字
     memory_text: str = ""  # 記憶文字
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1821,7 +1826,7 @@ class SessionLinkRecord:
     task_id: str | None = None  # 關聯的任務 ID
     link_type: str = "child_session"  # 連結類型（"child_session"/"related"/"forked"）
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 # ---------------------------------------------------------------------------
@@ -1888,8 +1893,8 @@ class Organization:
     budget_monthly_cents: int = 0  # 月度預算（美分）
     spent_monthly_cents: int = 0  # 月度已花費（美分）
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
-    updated_at: datetime = field(default_factory=datetime.now)  # 更新時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
 
 
 @dataclass
@@ -1914,7 +1919,7 @@ class Goal:
     priority: int = 5  # 優先級（1-10）
     deadline: datetime | None = None  # 截止時間
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 @dataclass
@@ -1936,7 +1941,7 @@ class CostEvent:
     tokens_in: int = 0  # 輸入 Token 數
     tokens_out: int = 0  # 輸出 Token 數
     cost_usd: float = 0.0  # 成本（USD）
-    timestamp: datetime = field(default_factory=datetime.now)  # 事件時間
+    timestamp: datetime = field(default_factory=_utcnow)  # 事件時間
 
 
 @dataclass
@@ -1963,7 +1968,7 @@ class OrgAgent:
     status: str = "idle"  # 代理狀態
     capabilities: str = ""  # 能力描述
     metadata: dict[str, Any] = field(default_factory=dict)  # 擴展 metadata
-    created_at: datetime = field(default_factory=datetime.now)  # 建立時間
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
 
 
 # ---------------------------------------------------------------------------
@@ -1984,5 +1989,5 @@ class OPCEvent:
     """
     event_type: str  # 事件類型（如 "task_created"、"work_item_completed"）
     payload: dict = field(default_factory=dict)  # 事件酬載
-    timestamp: datetime = field(default_factory=datetime.now)  # 事件時間
+    timestamp: datetime = field(default_factory=_utcnow)  # 事件時間
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # 事件唯一 ID

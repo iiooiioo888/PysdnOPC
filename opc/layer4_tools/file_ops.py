@@ -23,6 +23,15 @@ class PatchApplyError(RuntimeError):
     """Raised when an apply_patch payload cannot be applied safely."""
 
 
+def _is_within_base(path: Path, base: Path) -> bool:
+    """Check that *path* is contained within *base* after symlink resolution."""
+    try:
+        path.resolve().relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def _resolve_task_path(path: str, task: Any | None = None) -> Path:
     candidate = Path(path)
     if candidate.is_absolute():
@@ -46,7 +55,15 @@ def _resolve_task_path(path: str, task: Any | None = None) -> Path:
             if not base_dir:
                 base_dir = str(resolved)
     if base_dir:
-        return Path(base_dir) / candidate
+        joined = Path(base_dir) / candidate
+        # Path-traversal guard: reject relative paths that escape the workspace
+        # root via ".." sequences (e.g. "../../etc/passwd").
+        if ".." in candidate.parts:
+            if not _is_within_base(joined, Path(base_dir)):
+                raise ValueError(
+                    f"Path traversal detected: {path!r} escapes workspace root {base_dir!r}"
+                )
+        return joined
     return candidate
 
 
