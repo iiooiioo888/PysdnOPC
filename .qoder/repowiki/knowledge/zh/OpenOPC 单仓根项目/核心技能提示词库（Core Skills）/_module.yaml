@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: skills
+title: 核心技能提示词库（Core Skills）
+scope:
+    - skills/
+source_files: []
+depends_on: []
+related_to: []

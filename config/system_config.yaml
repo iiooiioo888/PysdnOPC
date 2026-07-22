@@ -1,0 +1,372 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OPC 系統設定檔
+# 此檔案控制 OPC 引擎的核心行為，包括執行時、沙箱、權限等設定。
+# ─────────────────────────────────────────────────────────────────────────────
+
+system:
+  # 自動批准低於此成本的任務（美元）
+  auto_approve_below_cost: 10.0
+  # 上下文壓縮觸發閾值（0.0-1.0），超過此比例時開始壓縮
+  context_compression_threshold: 0.85
+  # 預設通訊頻道
+  default_channel: cli
+  # 上報逾時時間（秒）
+  escalation_timeout_seconds: 300
+  # 日誌層級：DEBUG, INFO, WARNING, ERROR
+  log_level: INFO
+  # 代理最大迭代次數
+  max_agent_iterations: 50
+  # OPC 主目錄路徑（留空使用預設）
+  opc_home: ''
+  # 瀏覽器設定
+  browser:
+    mode: embedded          # 瀏覽器模式：embedded（內建）或 external（外部）
+    headless: true          # 無頭模式（不顯示瀏覽器視窗）
+    chrome_channel: chrome  # Chrome 頻道
+    chrome_executable_path: ''  # Chrome 執行檔路徑（留空自動偵測）
+    user_data_dir: ''       # 使用者資料目錄
+    args: []                # 額外瀏覽器參數
+  # 原生執行時設定
+  native_runtime:
+    enabled: true           # 啟用原生執行時
+    stream_llm: true        # 串流 LLM 回應
+    emit_runtime_events: true  # 發出執行時事件
+    event_protocol_version: v2  # 事件協定版本
+    enable_tool_hooks: true    # 啟用工具掛鉤
+    converge_on_parallel_failure: true  # 平行執行失敗時收斂
+    max_parallel_read_tools: 6  # 最大平行讀取工具數
+    tool_result_budget_chars: 20000  # 工具結果字元預算
+    microcompact_chars: 8000   # 微壓縮字元數
+    history_snip_trigger_messages: 40  # 歷史剪裁觸發訊息數
+    subagent_max_depth: 3      # 子代理最大深度
+    auto_extract_durable_memory: false  # 自動提取持久記憶
+    durable_memory_extract_min_messages: 4  # 持久記憶提取最小訊息數
+    durable_memory_max_input_chars: 12000   # 持久記憶最大輸入字元數
+    # 提示詞前綴穩定性設定
+    prompt_prefix_stability:
+      enabled: true
+      separate_dynamic_context: true
+      emit_cache_fingerprint_events: true
+    # 提示詞框架設定
+    prompt_harness:
+      enabled: true
+      split_static_dynamic: true
+      emit_delta_messages: true
+      cache_static_prefix_only: true
+      artifact_messages_enabled: true
+      section_dedup_enabled: true
+      reinject_after_compaction: true
+    # 反應式壓縮設定
+    reactive_compaction:
+      enabled: true
+      max_overflow_retries: 2
+      circuit_breaker_failures: 2
+    # 上下文使用量報告
+    context_usage_reporting:
+      enabled: true
+      emit_runtime_events: true
+    # 驗證策略設定
+    verification_policy:
+      # 原生自我驗證閘門（產生 `verify` 子代理重新檢查完成的回合）。
+      # 預設停用：會增加延遲/成本，且對非程式碼工作價值較低；
+      # 公司模式已有經理審查閘門作為品質檢查。
+      # 設為 true 可重新啟用任務和公司模式的驗證。
+      # 參見 opc/layer3_agent/runtime_v2/runtime.py。
+      enabled: false
+      min_todos_for_verification: 3
+      require_on_code_edits: true
+      require_on_risky_tools: true
+      verifier_profile: verify
+      skip_metadata_key: skip_verification
+    # 背景工作階段記憶
+    background_session_memory:
+      enabled: true
+      update_interval_messages: 4
+      max_input_chars: 6000
+    # 預取設定
+    prefetch:
+      enabled: true
+      session_memory: true
+      focused_memory: true
+      skills_summary: true
+      project_memory_candidates: true
+      max_chars: 4000
+    # 工具感知微壓縮
+    tool_aware_microcompact:
+      enabled: true
+      preserve_recent_messages: 8
+      tool_result_char_budget: 4000
+      assistant_char_budget: 3000
+      preserve_failure_outputs: true
+    # 產物壓縮設定
+    artifact_compaction:
+      enabled: true
+      session_memory_fast_path: true
+      reinject_tool_surface_delta: true
+      reinject_skills_delta: true
+      reinject_active_subagents: true
+      reinject_verification_state: true
+      reinject_permission_state: true
+      prompt_too_long_retry: true
+      max_prompt_too_long_retries: 3
+      artifact_char_budget: 12000
+    # 任務帳本設定
+    task_ledger:
+      enabled: true
+      max_items: 24
+      persist_to_runtime_session: true
+      persist_to_task_metadata: true
+      emit_runtime_events: true
+    # 串流工具啟動
+    streaming_tool_start:
+      enabled: true
+      safe_read_only_only: true
+      require_allow_prediction: true
+    # 驗證合約
+    verification_contract:
+      enabled: true
+      append_status_to_final: true
+      require_explicit_status: true
+    # 執行環境設定
+    execution_environment:
+      # Worktree 虛擬環境設定
+      worktree_venv:
+        enabled: true
+        provider: auto      # 提供者：auto, uv, pip
+        venv_dir: .opc-venv
+        editable_project: true
+        requirements_files: []
+        auto_detect_requirements: true
+        system_site_packages: false
+        fail_if_prepare_fails: false
+      # 沙箱設定
+      sandbox:
+        enabled: true
+        default_mode: workspace-write  # 預設模式：workspace-write, read-only
+        fail_if_unavailable: false
+        allow_direct_fallback: true
+        allow_network: true
+        # Windows 沙箱設定
+        windows:
+          mode: elevated
+          wrapper: none
+        # Linux 沙箱設定
+        linux:
+          mode: workspace-write
+          wrapper: auto
+        # macOS 沙箱設定
+        macos:
+          mode: workspace-write
+          wrapper: auto
+  # 任務模式設定
+  task_mode:
+    sub_agent_timeout_sec: 86400  # 子代理逾時時間（秒）
+  # 需要確認的操作清單
+  require_confirmation:
+  - deploy to production    # 部署到生產環境
+  - send external emails    # 發送外部郵件
+  - modify database schema  # 修改資料庫結構
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 自治設定
+# 控制 AI 代理的自主決策權限和審批流程。
+# ─────────────────────────────────────────────────────────────────────────────
+autonomy:
+  enabled: true             # 啟用自治功能
+  mode: bounded             # 自治模式：bounded（有限）, full（完全）
+  approval_model: ''        # 審批模型（留空使用預設）
+  approval_confidence_threshold: 0.7  # 審批信心閾值
+  learned_policy_threshold: 0.8       # 學習策略閾值
+  max_auto_approve_risk: medium       # 最大自動批准風險：low, medium, high
+  allow_native_tool_auto_approval: true   # 允許原生工具自動批准
+  allow_external_agent_auto_approval: true  # 允許外部代理自動批准
+  learn_from_feedback: true     # 從回饋中學習
+  save_external_sessions: true  # 儲存外部工作階段
+  tool_first_use_approval: true # 工具首次使用需審批
+  # 工具審批豁免清單
+  tool_approval_exemptions:
+  - read_inbox
+  - send_dm
+  - ask_peer_and_wait
+  - reply_message
+  - broadcast_issue
+  - annotate_task
+  - start_meeting
+  - respond_meeting
+  - ack_handoff
+  - review_handoff
+  - propose_task_adjustment
+  - propose_runtime_replan
+  - request_user_input
+  - todo_read
+  - todo_write
+  command_review_window: 20  # 命令審查視窗（訊息數）
+  # 敏感關鍵字清單（觸發額外審查）
+  sensitive_keywords:
+  - token
+  - password
+  - secret
+  - api key
+  - credential
+  - private key
+  - payment
+  - database schema
+  - drop table
+  - rm -rf
+  - terraform destroy
+  - deploy to production
+  - send email
+  # 安全命令前綴（自動允許）
+  safe_command_prefixes:
+  - ls
+  - pwd
+  - echo
+  - rg
+  - git status
+  - git diff
+  - curl
+  - wget
+  - yt-dlp
+  - aria2c
+  - ffmpeg
+  # 權限 v2 設定
+  permissions_v2:
+    enabled: true
+    fail_closed: true       # 失敗時關閉（拒絕存取）
+    classifier_enabled: true  # 啟用分類器
+    shell_ast_validation: true  # Shell AST 驗證
+    llm_classifier_model: ''    # LLM 分類器模型
+    # 分類器閾值
+    classifier_thresholds:
+      allow: 0.2   # 允許閾值
+      ask: 0.5     # 詢問閾值
+      deny: 0.8    # 拒絕閾值
+    # 拒絕記憶設定
+    denial_memory:
+      enabled: true
+      repeat_threshold: 2
+    # 沙箱策略
+    sandbox_policy:
+      treat_network_as_risky: true
+      treat_external_paths_as_high_risk: true
+      explicit_prefix_allowlist: []
+    # 候選提取器
+    candidate_extractors:
+    - path
+    - file_path
+    - directory
+    - working_directory
+    - target_output_dir
+    - workspace_path
+    - command
+    - cmd
+    - url
+    default_scope: once  # 預設範圍：once, session, project, global
+    # 允許的範圍
+    allow_scopes:
+    - once
+    - session
+    - project
+    - global
+    allow_tools: []      # 允許的工具清單
+    deny_tools: []       # 拒絕的工具清單
+    allowed_paths: []    # 允許的路徑清單
+    denied_paths: []     # 拒絕的路徑清單
+    # 安全 Shell 前綴（自動允許）
+    safe_shell_prefixes:
+    - ls
+    - pwd
+    - echo
+    - rg
+    - git status
+    - git diff
+    - curl
+    - wget
+    - yt-dlp
+    - aria2c
+    - ffmpeg
+    - python -V
+    - python3 -V
+    - node -v
+    - npm -v
+    # 詢問 Shell 前綴（需要確認）
+    ask_shell_prefixes:
+    - git commit
+    - git push
+    - npm install
+    - pip install
+    - pnpm install
+    - cargo test
+    - pytest
+    # 危險 Shell 模式（自動拒絕）
+    dangerous_shell_patterns:
+    - \brm\s+-rf\b
+    - \bdrop\s+table\b
+    - \btruncate\b
+    - \bterraform\s+destroy\b
+    - \bgit\s+push\s+--force\b
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MCP 伺服器設定
+# 配置 Model Context Protocol 伺服器連線。
+# ─────────────────────────────────────────────────────────────────────────────
+mcp_servers:
+# ── 本機 MCP 伺服器 (stdio) ──────────────────────────────────────
+# 原生 Python Playwright 瀏覽器工具預設啟用。
+# 除非您明確需要外部 MCP 伺服器，否則保持此瀏覽器 MCP 項目停用。
+- name: browser
+  type: local
+  command: ["npx", "@playwright/mcp@latest", "--headless"]
+  enabled: false
+  env: {}
+  tools_filter: []
+  startup_timeout: 30.0
+
+# 範例：GitHub MCP 伺服器（取消註解並設定 GITHUB_TOKEN）
+# - name: github
+#   type: local
+#   command: ["npx", "-y", "@modelcontextprotocol/server-github"]
+#   enabled: true
+#   env:
+#     GITHUB_TOKEN: "your-github-token"
+#   tools_filter: []
+#   startup_timeout: 30.0
+
+# 範例：檔案系統 MCP 伺服器
+# - name: filesystem
+#   type: local
+#   command: ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
+#   enabled: true
+
+# ── 遠端 MCP 伺服器 (StreamableHTTP / SSE) ──────────────────────
+# 範例：帶自訂標頭的遠端 MCP 伺服器
+# - name: remote-api
+#   type: remote
+#   url: "https://mcp.example.com/sse"
+#   enabled: true
+#   headers:
+#     Authorization: "Bearer your-token"
+#   startup_timeout: 30.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 功能設定
+# 控制各種系統功能的啟用狀態。
+# ─────────────────────────────────────────────────────────────────────────────
+capabilities:
+  enable_recovery: true     # 啟用恢復功能
+  local_first: true         # 本機優先
+  attach_remote_skill_summaries: true  # 附加遠端技能摘要
+  promote_remote_skills: true          # 提升遠端技能
+  remote_skill_source: skillhub        # 遠端技能來源
+  max_remote_skill_results: 5          # 最大遠端技能結果數
+  tool_failure_threshold: 2            # 工具失敗閾值
+  # SkillHub 設定
+  skillhub:
+    enabled: false
+    api_base: https://www.skillhub.club/api/v1
+    api_key: ''
+    api_key_env: SKILLHUB_API_KEY
+    search_limit: 5
+    method: hybrid
+    cache_remote_skills: true
+    promote_after_successes: 2

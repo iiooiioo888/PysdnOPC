@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: ""
+title: OpenOPC 单仓根项目
+scope:
+    - README.md
+    - README.zh-CN.md
+    - pyproject.toml
+    - .gitignore
+    - .gitattributes
+source_files: []
+depends_on: []
+related_to: []

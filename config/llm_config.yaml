@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM 設定檔
+# 此檔案配置大型語言模型的連線參數。
+# 注意：請勿提交 API 金鑰到版本控制。執行 `opc init` 後設定 api_key 或 api_key_env。
+# ─────────────────────────────────────────────────────────────────────────────
+llm:
+  # 預設模型（格式：provider/model-name）
+  default_model: "openai/gpt-5.4"
+  # API 基礎 URL
+  api_base: "https://openrouter.ai/api/v1"
+  # API 金鑰（直接設定或使用環境變數）
+  api_key: ""
+  # 使用環境變數提供 API 金鑰（推薦）
+  # api_key_env: "OPENROUTER_API_KEY"
+
+  # 生成溫度（0.0-2.0，越高越隨機）
+  temperature: 1
+  # 最大生成 token 數
+  max_tokens: 32768
+  # 路由設定（依任務類型路由到不同模型）
+  routing: {}
+  # 後備設定（主模型失敗時的備選）
+  fallback: {}
+
+  # 選填：總輸入上下文視窗大小，用作上下文使用量環的分母，
+  # 並觸發自動摘要。大多數 OpenAI / Anthropic 模型透過 litellm 自動偵測；
+  # litellm 無法對應的模型（如 deepseek/doubao/glm 或代理/自架端點）
+  # 後備為 128000。僅當後備值不適合您的模型時才設定此項。
+  # 純量適用於預設模型：
+  # context_window: 200000
+  # 或依模型設定（優先於純量）；鍵名依模型名稱比對：
+  # context_window_overrides:
+  #   gpt-5.4: 400000
+  #   claude-sonnet-4.5: 200000

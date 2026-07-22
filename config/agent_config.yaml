@@ -1,0 +1,121 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# 外部代理設定檔
+# 此檔案配置外部 AI 代理（如 Claude Code、Codex、Cursor）的連線參數。
+# ─────────────────────────────────────────────────────────────────────────────
+external_agents:
+  # 偏好順序（當多個代理可用時的選擇優先級）
+  preferred_order:
+    - claude_code
+    - codex
+    - cursor
+    - opencode
+
+  # model_flag、new_session_flag、resume_session_flag 取決於您的 CLI 版本。
+  # 留空使用 CLI 預設值，或明確設定以獲得確定性行為。
+
+  # Codex 代理設定
+  codex:
+    enabled: true           # 啟用此代理
+    command: codex          # CLI 命令名稱
+    model: ""               # 模型（留空使用預設）
+    model_flag: "--model"   # 模型旗標
+    session_mode: auto      # 工作階段模式：auto, new, resume
+    session_id: ""          # 工作階段 ID
+    new_session_flag: ""    # 新工作階段旗標
+    resume_session_flag: "" # 恢復工作階段旗標
+    run_mode: interactive   # 執行模式：interactive, batch
+    interactive_timeout_seconds: 21600  # 互動逾時（秒）
+    approval_mode: auto     # 審批模式：auto, manual, full-auto
+    extra_args: []          # 額外參數
+
+  # Cursor 代理設定
+  cursor:
+    enabled: true
+    command: cursor-agent
+    model: ""
+    model_flag: ""
+    session_mode: auto
+    session_id: ""
+    new_session_flag: ""
+    resume_session_flag: ""
+    run_mode: interactive
+    interactive_timeout_seconds: 21600
+    approval_mode: full-auto
+    extra_args: []
+
+  # Claude Code 代理設定
+  claude_code:
+    enabled: true
+    command: claude
+    model: ""
+    model_flag: "--model"
+    session_mode: auto
+    session_id: ""
+    new_session_flag: ""
+    resume_session_flag: ""
+    run_mode: interactive
+    interactive_timeout_seconds: 21600
+    approval_mode: full-auto
+    extra_args: []
+
+  # OpenCode 代理設定
+  opencode:
+    enabled: true
+    command: opencode
+    model: ""
+    model_flag: "--model"
+    show_thinking: true     # 顯示思考過程
+    session_mode: auto
+    session_id: ""
+    new_session_flag: ""
+    resume_session_flag: ""
+    run_mode: interactive
+    interactive_timeout_seconds: 21600
+    approval_mode: full-auto
+    extra_args: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 原生子代理設定
+# 配置內建子代理的行為參數。
+# ─────────────────────────────────────────────────────────────────────────────
+native_subagents:
+  # 通用子代理
+  general:
+    enabled: true
+    model: ""               # 模型（留空使用預設）
+    max_iterations: 24      # 最大迭代次數
+    default_isolation: shared  # 隔離模式：shared, worktree
+    background: false       # 背景執行
+    allowed_tools: []       # 允許的工具清單
+  # 探索子代理
+  explore:
+    enabled: true
+    model: ""
+    max_iterations: 16
+    default_isolation: shared
+    background: false
+    allowed_tools: []
+  # 規劃子代理
+  plan:
+    enabled: true
+    model: ""
+    max_iterations: 16
+    default_isolation: shared
+    background: false
+    allowed_tools: []
+  # 實作子代理
+  implement:
+    enabled: true
+    model: ""
+    max_iterations: 24
+    default_isolation: worktree  # 使用 worktree 隔離
+    background: false
+    allowed_tools: []
+  # 驗證子代理
+  verify:
+    enabled: true
+    model: ""
+    max_iterations: 24
+    default_isolation: worktree
+    background: true        # 背景執行
+    allowed_tools: []

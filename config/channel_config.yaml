@@ -1,0 +1,145 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# 通訊頻道設定檔
+# 此檔案配置各種訊息頻道的連線參數。
+# 空的 `allow_from` 表示預設拒絕。使用 `["*"]` 允許所有發送者。
+# 安裝提供者擴充套件：`pip install -e .[channels-<provider>]`。
+# 橋接提供者：
+# - whatsapp: 需要可透過 `bridge_url` 存取的伴隨橋接
+# - mochat: 需要 Mochat 服務端點加上 `claw_token`
+# ─────────────────────────────────────────────────────────────────────────────
+channels:
+  send_progress: true       # 發送進度訊息
+  send_tool_hints: false    # 發送工具提示
+  # Telegram 頻道設定
+  telegram:
+    enabled: false
+    # 必填：token
+    token: ""
+    proxy: null             # 代理伺服器
+    reply_to_message: false # 回覆訊息
+    allow_from: []          # 允許的發送者清單
+  # WhatsApp 頻道設定（需要橋接）
+  whatsapp:
+    enabled: false
+    # 必填：bridge_url
+    bridge_url: ws://localhost:3001
+    bridge_token: ""
+    allow_from: []
+  # Discord 頻道設定
+  discord:
+    enabled: false
+    # 必填：token
+    token: ""
+    gateway_url: wss://gateway.discord.gg/?v=10&encoding=json
+    intents: 37377          # Discord intents 位元遮罩
+    group_policy: mention   # 群組策略：mention, open, closed
+    allow_from: []
+  # 飛書頻道設定
+  feishu:
+    enabled: false
+    # 必填：app_id, app_secret
+    app_id: ""
+    app_secret: ""
+    encrypt_key: ""
+    verification_token: ""
+    react_emoji: THUMBSUP   # 反應表情
+    allow_from: []
+  # Mochat 頻道設定（需要橋接）
+  mochat:
+    enabled: false
+    # 必填：base_url, claw_token, agent_user_id
+    base_url: https://mochat.io
+    socket_url: ""
+    socket_path: /socket.io
+    socket_disable_msgpack: false
+    socket_reconnect_delay_ms: 1000
+    socket_max_reconnect_delay_ms: 10000
+    socket_connect_timeout_ms: 10000
+    refresh_interval_ms: 30000
+    watch_timeout_ms: 25000
+    watch_limit: 100
+    retry_delay_ms: 500
+    max_retry_attempts: 0
+    claw_token: ""
+    agent_user_id: ""
+    sessions: []
+    panels: []
+    mention:
+      require_in_groups: false
+    groups: {}
+    reply_delay_mode: non-mention
+    reply_delay_ms: 120000
+    allow_from: []
+  # 釘釘頻道設定
+  dingtalk:
+    enabled: false
+    # 必填：client_id, client_secret
+    client_id: ""
+    client_secret: ""
+    allow_from: []
+  # Email 頻道設定
+  email:
+    enabled: false
+    # 執行時使用前必填：consent_granted 加上 IMAP/SMTP 憑證
+    consent_granted: false  # 同意授權
+    # IMAP 設定（收信）
+    imap_host: ""
+    imap_port: 993
+    imap_username: ""
+    imap_password: ""
+    imap_mailbox: INBOX
+    imap_use_ssl: true
+    # SMTP 設定（發信）
+    smtp_host: ""
+    smtp_port: 587
+    smtp_username: ""
+    smtp_password: ""
+    smtp_use_tls: true
+    smtp_use_ssl: false
+    from_address: ""        # 寄件者地址
+    auto_reply_enabled: true  # 啟用自動回覆
+    poll_interval_seconds: 30  # 輪詢間隔（秒）
+    mark_seen: true         # 標記已讀
+    max_body_chars: 12000   # 最大內文字元數
+    subject_prefix: "Re: "  # 主旨前綴
+    allow_from: []
+  # Slack 頻道設定
+  slack:
+    enabled: false
+    # 必填：bot_token, app_token
+    mode: socket            # 模式：socket, webhook
+    webhook_path: /slack/events
+    bot_token: ""
+    app_token: ""
+    user_token_read_only: true
+    reply_in_thread: true   # 在執行緒中回覆
+    react_emoji: eyes       # 反應表情
+    group_policy: mention   # 群組策略
+    group_allow_from: []
+    dm:                     # 直接訊息設定
+      enabled: true
+      policy: open
+      allow_from: []
+    allow_from: []
+  # QQ 頻道設定
+  qq:
+    enabled: false
+    # 必填：app_id, secret
+    app_id: ""
+    secret: ""
+    allow_from: []
+  # Matrix 頻道設定
+  matrix:
+    enabled: false
+    # 必填：homeserver, access_token, user_id
+    homeserver: https://matrix.org
+    access_token: ""
+    user_id: ""
+    device_id: ""
+    e2ee_enabled: true      # 啟用端對端加密
+    sync_stop_grace_seconds: 2
+    max_media_bytes: 20971520  # 最大媒體位元組數
+    group_policy: open
+    group_allow_from: []
+    allow_room_mentions: false
+    allow_from: []

@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: config_and_docs
+title: OpenOPC 运行时配置与文档资源
+scope:
+    - config/
+    - docs/
+    - scripts/
+    - .opc/
+source_files: []
+depends_on: []
+related_to: []

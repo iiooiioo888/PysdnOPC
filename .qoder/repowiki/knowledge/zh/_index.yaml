@@ -1,0 +1,65 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: main
+nodes_managed: true
+exported_at: "2026-07-22T07:24:07Z"
+modules:
+    "":
+        dir_name: OpenOPC 单仓根项目
+        title: OpenOPC 单仓根项目
+        scope:
+            - README.md
+            - README.zh-CN.md
+            - pyproject.toml
+            - .gitignore
+            - .gitattributes
+        source_files: []
+        children:
+            - config_and_docs
+            - presentation
+            - skills
+            - tests
+        depends_on: []
+        related_to: []
+    config_and_docs:
+        dir_name: OpenOPC 运行时配置与文档资源
+        title: OpenOPC 运行时配置与文档资源
+        scope:
+            - config/
+            - docs/
+            - scripts/
+            - .opc/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    presentation:
+        dir_name: 外部协作 CLI 与 MCP 客户端
+        title: 外部协作 CLI 与 MCP 客户端
+        scope:
+            - opc/cli_collab.py
+            - opc/mcp_client.py
+            - opc/__init__.py
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    skills:
+        dir_name: 核心技能提示词库（Core Skills）
+        title: 核心技能提示词库（Core Skills）
+        scope:
+            - skills/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    tests:
+        dir_name: 单元测试与端到端测试套件
+        title: 单元测试与端到端测试套件
+        scope:
+            - tests/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: presentation
+title: 外部协作 CLI 与 MCP 客户端
+scope:
+    - opc/cli_collab.py
+    - opc/mcp_client.py
+    - opc/__init__.py
+source_files: []
+depends_on: []
+related_to: []
