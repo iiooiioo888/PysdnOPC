@@ -58,6 +58,7 @@ interface SocketHandlers {
   onOrgSavedDelete?: (payload: { ok: boolean; name: string; error?: string }) => void
   onCommsState?: (payload: CommsStatePayload) => void
   onCommsMessage?: (payload: CommsMessagePayload) => void
+  onLlmConfig?: (payload: LlmConfigPayload) => void
 }
 
 export interface CommsMessageItem {
@@ -69,6 +70,24 @@ export interface CommsMessageItem {
   blocking: boolean
   path: string
   bucket?: 'new' | 'seen' | 'sent'
+}
+
+export interface LlmConfigRoleEntry {
+  role_id: string
+  name: string
+  model: string
+}
+
+export interface LlmConfigPayload {
+  default_model: string
+  api_base: string
+  api_key_env: string
+  api_key_set: boolean
+  temperature: number
+  max_tokens: number
+  tier_routing: Record<string, string>
+  degrade_chain: Record<string, string>
+  roles: LlmConfigRoleEntry[]
 }
 
 /** @deprecated Use CommsMessageItem instead */
@@ -520,6 +539,16 @@ export class VisualSocketClient {
     this.send({ type: 'org_info' })
   }
 
+  // ── LLM Config ─────────────────────────────────────────────────────────
+
+  llmConfigGet(): void {
+    this.send({ type: 'llm_config_get' })
+  }
+
+  llmConfigSet(data: Record<string, unknown>): void {
+    this.send({ type: 'llm_config_set', ...data })
+  }
+
   // ── Phase 4: Talent Market, Employee Detail, Reorg ───────────────────
 
   talentImport(repoPath: string): void {
@@ -847,6 +876,9 @@ export class VisualSocketClient {
         break
       case 'org_saved_delete':
         this.handlers.onOrgSavedDelete?.(parsed.payload as { ok: boolean; name: string; error?: string })
+        break
+      case 'llm_config':
+        this.handlers.onLlmConfig?.(parsed.payload as unknown as LlmConfigPayload)
         break
       case 'pong':
         this.handlePong()

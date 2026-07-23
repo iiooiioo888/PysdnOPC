@@ -34,6 +34,7 @@ const TASK_AGENT_LABELS: Record<TaskPreferredAgent, string> = {
   claude_code: 'Claude Code',
   cursor: 'Cursor',
   opencode: 'OpenCode',
+  qwen_code: 'Qwen Code',
 }
 
 interface PendingAttachment {

@@ -2878,7 +2878,7 @@ _SLASH_DEFAULT_LIMIT = 20
 _SLASH_MAX_LIMIT = 100
 _VALID_CHAT_MODES = {"task", "company"}
 _VALID_COMPANY_PROFILES = {"corporate", "custom"}
-_VALID_PREFERRED_AGENTS = {"native", "codex", "claude_code", "cursor", "opencode"}
+_VALID_PREFERRED_AGENTS = {"native", "codex", "claude_code", "cursor", "opencode", "qwen_code"}
 
 
 @dataclass(frozen=True)

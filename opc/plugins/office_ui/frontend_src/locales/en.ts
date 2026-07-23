@@ -185,6 +185,26 @@ export const en: Record<string, string> = {
   'settings.save': 'Save Settings',
   'settings.reset': 'Reset Settings',
 
+  // ── LLM Settings ─────────────────────────────────────────────────
+  'llm.title': 'LLM Model Settings',
+  'llm.globalSettings': 'Global Settings',
+  'llm.defaultModel': 'Default Model',
+  'llm.apiBase': 'API Base URL',
+  'llm.apiKeyEnv': 'API Key Env Variable',
+  'llm.apiKey': 'API Key',
+  'llm.temperature': 'Temperature',
+  'llm.maxTokens': 'Max Tokens',
+  'llm.tierRouting': 'Tier Routing',
+  'llm.tierHint': 'Route to different model tiers based on task importance',
+  'llm.degradeChain': 'Degrade Chain',
+  'llm.degradeHint': 'Automatically switch to cheaper models when budget is tight',
+  'llm.roleModels': 'Per-Role Model Assignment',
+  'llm.roleHint': 'Assign a specific LLM model to each role (leave empty for global default)',
+  'llm.noRoles': 'No roles yet. Create roles in the Organization page first.',
+  'llm.roleName': 'Role',
+  'llm.roleModel': 'Model',
+  'llm.saved': 'Settings saved',
+
   // ── Error Messages ────────────────────────────────────────────────
   'error.network': 'Network Error',
   'error.timeout': 'Timeout',

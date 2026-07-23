@@ -121,6 +121,7 @@ class OrgEngine:
                 can_spawn=list(role.can_spawn),
                 tools=tools,
                 preferred_external_agent=role.preferred_external_agent,
+                model=getattr(role, "model", "") or "",
                 prompt_refs=self._resolve_prompt_refs(role.prompt_refs),
                 skill_refs=list(role.skill_refs),
                 handoff_template_ref=role.handoff_template_ref,

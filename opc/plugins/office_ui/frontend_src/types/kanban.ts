@@ -261,7 +261,7 @@ export interface WorkerNotification {
 // ── Session (merged task + channel) ──────────────────────────────────────────
 
 export type SessionMode = 'primary' | 'child'
-export type TaskPreferredAgent = 'native' | 'codex' | 'claude_code' | 'cursor' | 'opencode'
+export type TaskPreferredAgent = 'native' | 'codex' | 'claude_code' | 'cursor' | 'opencode' | 'qwen_code'
 
 export interface Session {
   projectId: string

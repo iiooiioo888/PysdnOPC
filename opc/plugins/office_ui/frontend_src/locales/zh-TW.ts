@@ -185,6 +185,26 @@ export const zhTW: Record<string, string> = {
   'settings.save': '儲存設定',
   'settings.reset': '重設設定',
 
+  // ── LLM 設定 ─────────────────────────────────────────────────────
+  'llm.title': 'LLM 模型設定',
+  'llm.globalSettings': '全域設定',
+  'llm.defaultModel': '預設模型',
+  'llm.apiBase': 'API Base URL',
+  'llm.apiKeyEnv': 'API Key 環境變數',
+  'llm.apiKey': 'API 金鑰',
+  'llm.temperature': '溫度',
+  'llm.maxTokens': '最大 Token 數',
+  'llm.tierRouting': '分層路由',
+  'llm.tierHint': '根據任務重要性選擇不同層級的模型',
+  'llm.degradeChain': '降級鏈',
+  'llm.degradeHint': '預算緊張時自動切換到較便宜的模型',
+  'llm.roleModels': '角色模型指派',
+  'llm.roleHint': '為每個角色指定使用的 LLM 模型（留空使用全域預設）',
+  'llm.noRoles': '尚無角色。請先在組織頁面建立角色。',
+  'llm.roleName': '角色',
+  'llm.roleModel': '模型',
+  'llm.saved': '設定已儲存',
+
   // ── 錯誤訊息 ──────────────────────────────────────────────────────
   'error.network': '網路錯誤',
   'error.timeout': '逾時',

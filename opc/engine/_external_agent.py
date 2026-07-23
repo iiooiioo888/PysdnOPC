@@ -1524,6 +1524,10 @@ class ExternalAgentMixin:
         if company_mode:
             rendered_task_brief = str(layers.primary_task_brief or "").strip()
         description_parts: list[str] = []
+        # Inject role identity & operating context (same as native agent system prompt)
+        role_identity_block = self._build_external_role_identity_context(task, role_id)
+        if role_identity_block:
+            description_parts.append(role_identity_block)
         if contract_text:
             description_parts.append(f"## Runtime Contract (MANDATORY)\n{contract_text}")
         if layers.recovery_context:
@@ -1575,6 +1579,56 @@ class ExternalAgentMixin:
             metadata=dict(task.metadata),
         )
         return self._mark_external_prompt_contract(task_copy)
+
+    def _build_external_role_identity_context(self, task: Task, role_id: str = "") -> str:
+        """Build role identity & operating context block for external agents.
+
+        Mirrors the native agent system prompt: role name, responsibility,
+        core operating principles, and role-specific prompt_refs.
+        """
+        if not self.org_engine:
+            return ""
+        try:
+            if role_id:
+                role = self.org_engine.get_agent(role_id)
+            elif task.assigned_to:
+                role = self.org_engine.get_role_for_work_item(task.assigned_to, task.tags)
+            else:
+                role = self.org_engine.get_role_for_domain(task.tags)
+        except Exception:
+            return ""
+        if not role:
+            return ""
+        role_name = str(getattr(role, "name", "") or getattr(role, "id", "") or "").strip()
+        responsibility = str(getattr(role, "responsibility", "") or "").strip()
+        if not role_name and not responsibility:
+            return ""
+        parts: list[str] = []
+        # Role identity header (same as native agent)
+        header = f"You are {role_name}, an OpenOPC task execution agent.\n"
+        if responsibility:
+            header += f"Role: {responsibility}\n"
+        header += "\nYou accomplish standalone user tasks by using the tools available to your role."
+        parts.append(f"## Role Identity\n{header}")
+        # Core operating principles (same as native agent)
+        parts.append(
+            "## Core Operating Principles\n"
+            "- Use available context and tools before asking the user for missing information.\n"
+            "- Own the user's goal within the explicit scope and keep moving with the best evidence available.\n"
+            "- Be honest about uncertainty, failed attempts, unavailable tools, and unverified results.\n"
+            "- Prefer concrete, evidence-backed progress over describing hypothetical work.\n"
+            "- Keep implementation changes scoped to the request and consistent with the project.\n"
+            "- Before final delivery, check the user's goal against the actual changes, artifacts, and paths you touched.\n"
+            "- When you change code, files, UI behavior, commands, or generated artifacts, prefer executable evidence: "
+            "targeted tests, lint/type checks, smoke commands, or direct artifact inspection."
+        )
+        # Role-specific prompt_refs (custom operating instructions)
+        prompt_refs = getattr(role, "prompt_refs", None) or []
+        if prompt_refs:
+            refs_text = "\n\n".join(str(ref).strip() for ref in prompt_refs if str(ref).strip())
+            if refs_text:
+                parts.append(f"## Role Operating Instructions\n{refs_text}")
+        return "\n\n".join(parts)
 
     def _build_external_memory_paths_context(
         self,

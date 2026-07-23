@@ -329,6 +329,7 @@ _TASK_MODE_PREFERRED_AGENTS = frozenset({
     "claude_code",
     "cursor",
     "opencode",
+    "qwen_code",
 })
 
 _PERSISTED_WORKER_NOTIFICATION_KINDS = frozenset({
@@ -4741,3 +4742,5 @@ class WSHandler(
     # Register handlers defined after _HANDLERS class-level dict
     _HANDLERS["comms_state"] = "_handle_comms_state"
     _HANDLERS["comms_read_message"] = "_handle_comms_read_message"
+    _HANDLERS["llm_config_get"] = "_handle_llm_config_get"
+    _HANDLERS["llm_config_set"] = "_handle_llm_config_set"

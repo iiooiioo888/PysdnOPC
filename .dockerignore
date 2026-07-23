@@ -1,0 +1,53 @@
+# OPC runtime data (mounted as volume, not baked into image)
+.opc/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.git_old/
+.github/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Test / CI
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+.tmp-test/
+
+# IDE / editor
+.vscode/
+.idea/
+.qoder/
+*.swp
+*.swo
+
+# Node modules (frontend is pre-built in frontend_dist)
+node_modules/
+opc/plugins/office_ui/frontend_src/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docs and misc
+docs/
+*.log
+.codex
+.claude
+.tmp/
+tmp/

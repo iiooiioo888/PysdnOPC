@@ -333,3 +333,65 @@ After all installation and verification, output this JSON structure as your fina
 - **Recoverable**: If an install fails, report clearly what failed and why
 - **Apple Silicon aware**: On macOS arm64, check if tools have native ARM builds
 - **Windows paths**: Use forward slashes in JSON, or escape backslashes (`\\`)
+
+---
+
+## OpenOPC Docker Quick Start
+
+OpenOPC ships a multi-stage `Dockerfile` at the repository root. The image is
+built with `uv sync --frozen` for reproducible installs and runs as a non-root
+user (`opc`, UID 1000).
+
+### Build
+
+```bash
+docker build -t openopc .
+```
+
+### Run (CLI help)
+
+```bash
+docker run --rm openopc
+# equivalent to: docker run --rm openopc opc --help
+```
+
+### Run with a persistent workspace
+
+Mount a host directory as the `.opc` runtime state volume so sessions, memory,
+and configuration survive container restarts:
+
+```bash
+# Linux / macOS
+docker run --rm -it \
+  -v "$PWD/.opc:/home/opc/.opc" \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  openopc chat
+
+# Windows (PowerShell)
+docker run --rm -it `
+  -v "${PWD}/.opc:/home/opc/.opc" `
+  -e OPENAI_API_KEY="$env:OPENAI_API_KEY" `
+  openopc chat
+```
+
+### Run a specific subcommand
+
+```bash
+docker run --rm openopc init
+docker run --rm openopc status
+```
+
+### Environment variables
+
+Pass LLM API keys and other secrets via `-e` or `--env-file .env`:
+
+```bash
+docker run --rm --env-file .env openopc chat
+```
+
+### Notes
+
+- The container does **not** include Playwright browsers. If browser tools are
+  needed, extend the image with `RUN playwright install --with-deps chromium`.
+- The default `ENTRYPOINT` is `opc`; append any subcommand after the image name.
+- The image targets `linux/amd64` and `linux/arm64` (Python 3.11-slim base).

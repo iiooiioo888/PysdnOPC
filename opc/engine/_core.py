@@ -4773,6 +4773,16 @@ class OPCEngine(
 
             for agent_name, adapter in candidates:
                 run_adapter, resume_metadata = await self._configure_external_adapter_for_task(task, adapter)
+                # Inject per-role model into external adapter config
+                role_model = self._resolve_role_model_for_task(task)
+                if role_model:
+                    adapter_config = getattr(run_adapter, "config", None)
+                    if adapter_config is not None and hasattr(adapter_config, "model_copy"):
+                        cloned = adapter_config.model_copy(deep=True)
+                        cloned.model = role_model
+                        if not cloned.model_flag:
+                            cloned.model_flag = "--model"
+                        run_adapter = run_adapter.__class__(config=cloned)
                 adapter_config = getattr(run_adapter, "config", None)
                 session_mode = str(getattr(adapter_config, "session_mode", "") or "").strip().lower()
                 run_mode = str(getattr(adapter_config, "run_mode", "batch") or "batch").strip().lower()
@@ -5273,6 +5283,19 @@ class OPCEngine(
         if self.on_progress:
             await self.on_progress("[CapabilityRecovery] Attached local skill recovery context and retrying.")
 
+    def _resolve_role_model_for_task(self, task: Task) -> str:
+        """Resolve the per-role LLM model for a task (empty string = use global default)."""
+        if not self.org_engine:
+            return ""
+        try:
+            if task.assigned_to:
+                role = self.org_engine.get_role_for_work_item(task.assigned_to, task.tags)
+            else:
+                role = self.org_engine.get_role_for_domain(task.tags)
+            return str(getattr(role, "model", "") or "").strip()
+        except Exception:
+            return ""
+
     async def _run_native_agent(self, task: Task) -> TaskResult:
         """建立並執行原生代理 — 根據任務分配的角色實例化 NativeAgent。
 
@@ -5293,9 +5316,18 @@ class OPCEngine(
         else:
             role = self.org_engine.get_role_for_domain(task.tags)
 
+        # Use per-role model if configured
+        agent_llm = self.llm
+        role_model = str(getattr(role, "model", "") or "").strip()
+        if role_model and role_model != self.llm.config.default_model:
+            from opc.llm import LLMProvider
+            role_llm_config = self.llm.config.model_copy(deep=True)
+            role_llm_config.default_model = role_model
+            agent_llm = LLMProvider(role_llm_config, opc_home=getattr(self.llm, "opc_home", None))
+
         agent = NativeAgent(
             role=role,
-            llm=self.llm,
+            llm=agent_llm,
             tool_registry=self.tool_registry,
             context_assembler=self.context_assembler,
             memory=self.memory,

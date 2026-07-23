@@ -14,6 +14,7 @@ import { useBoardStore, type BoardStoreState } from './kanban/BoardStore'
 import { WorkspacePage } from './workspace/WorkspacePage'
 import { DashboardPage } from './dashboard/DashboardPage'
 import { TemplatesPage } from './dashboard/TemplatesPage'
+import { LlmSettingsPage } from './settings/LlmSettingsPage'
 import '../dashboard/dashboard.css'
 import '../dashboard/templates.css'
 import { useChatStore, type ChatStoreState } from './chat/ChatStore'
@@ -73,7 +74,7 @@ const SESSION_DETAIL_REFRESH_LOW_VALUE_RUNTIME_EVENTS = new Set([
 ])
 
 type ThemeName = 'midnight' | 'neon' | 'paper' | 'retro' | 'terminal' | 'cozy' | 'openopc'
-type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor' | 'dashboard' | 'templates'
+type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor' | 'dashboard' | 'templates' | 'settings'
 type AppExecMode = 'task' | 'company' | 'org'
 
 function defaultWsUrl(): string {
@@ -110,7 +111,7 @@ function orgIdForExecMode(mode: AppExecMode, orgId?: string | null): string | un
 
 function normalizeTaskPreferredAgent(value?: string): TaskPreferredAgent {
   const normalized = String(value ?? '').trim().toLowerCase().replace('-', '_')
-  if (normalized === 'codex' || normalized === 'claude_code' || normalized === 'cursor' || normalized === 'opencode') {
+  if (normalized === 'codex' || normalized === 'claude_code' || normalized === 'cursor' || normalized === 'opencode' || normalized === 'qwen_code') {
     return normalized
   }
   return 'native'
@@ -2364,6 +2365,7 @@ export default function App() {
             <button className={`page-nav-btn${activePage === 'office' ? ' active' : ''}`} onClick={() => setActivePage('office')}>{t('nav.game')}</button>
             <button className={`page-nav-btn${activePage === 'org' ? ' active' : ''}`} onClick={() => setActivePage('org')}>{t('nav.org')}</button>
             <button className={`page-nav-btn${activePage === 'templates' ? ' active' : ''}`} onClick={() => setActivePage('templates')}>🏗️ {t('nav.templates', '模板')}</button>
+            <button className={`page-nav-btn${activePage === 'settings' ? ' active' : ''}`} onClick={() => setActivePage('settings')}>⚙️ {t('nav.settings', '設定')}</button>
           </div>
           <div className="stat-chips">
             <span className="stat-chip"><b>{metrics.totalAgents}</b> {t('stats.agents')}</span>
@@ -2511,6 +2513,11 @@ export default function App() {
             }
           }}
         />
+      )}
+
+      {/* LLM Settings Page */}
+      {activePage === 'settings' && (
+        <LlmSettingsPage wsClient={clientRef.current} />
       )}
 
       {/* Org Page */}

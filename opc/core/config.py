@@ -492,7 +492,7 @@ class ExternalAgentConfig(BaseModel):
 
 class AgentsConfig(BaseModel):
     """代理配置 — 外部代理和原生子代理的整體設定。"""
-    preferred_order: list[str] = Field(default_factory=lambda: ["claude_code", "cursor", "codex", "opencode"])
+    preferred_order: list[str] = Field(default_factory=lambda: ["claude_code", "cursor", "codex", "opencode", "qwen_code"])
     agents: dict[str, ExternalAgentConfig] = Field(default_factory=lambda: {
         "claude_code": ExternalAgentConfig(command="claude", run_mode="interactive", approval_mode="full-auto"),
         "cursor": ExternalAgentConfig(command="cursor-agent", run_mode="interactive", approval_mode="full-auto"),
@@ -500,6 +500,12 @@ class AgentsConfig(BaseModel):
         "opencode": ExternalAgentConfig(
             command="opencode",
             model_flag="--model",
+            run_mode="interactive",
+            approval_mode="full-auto",
+            show_thinking=True,
+        ),
+        "qwen_code": ExternalAgentConfig(
+            command="qwen-code",
             run_mode="interactive",
             approval_mode="full-auto",
             show_thinking=True,
@@ -981,6 +987,7 @@ class RoleConfig(BaseModel):
     can_spawn: list[str] = Field(default_factory=list)  # 可以生成的子角色 ID 列表
     tools: list[str] = Field(default_factory=list)  # 可用工具列表
     preferred_external_agent: str | None = None  # 首選外部代理
+    model: str = ""  # 角色專用 LLM 模型（空字串表示使用全域預設）
     prompt_refs: list[str] = Field(default_factory=list)  # Prompt 引用列表
     skill_refs: list[str] = Field(default_factory=list)  # 技能引用列表
     handoff_template_ref: str | None = None  # 交接模板引用

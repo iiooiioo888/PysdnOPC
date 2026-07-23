@@ -1,0 +1,47 @@
+# =============================================================================
+# OpenOPC Development Environment
+# =============================================================================
+# Usage:
+#   1. cp .env.example .env   (fill in your API keys)
+#   2. docker compose up -d
+#   3. Open http://localhost:8765 for Office UI
+#   4. docker compose exec openopc opc <command>  (CLI access)
+# =============================================================================
+
+services:
+  openopc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: openopc
+    restart: unless-stopped
+    # Office UI (aiohttp + WebSocket)
+    ports:
+      - "${OPC_UI_PORT:-8765}:8765"
+    # Mount .opc/ persistence layer (config, DB, memory, logs, projects)
+    volumes:
+      - ./.opc:/app/.opc
+      # Optional: persistent chromadb vector store
+      - chromadb_data:/app/.opc/chroma_data
+    # Load environment variables from .env file
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Point OPC home to the mounted volume
+      - OPC_HOME=/app/.opc
+      # Ensure logs are visible in docker logs
+      - PYTHONUNBUFFERED=1
+    # Start Office UI server
+    command: ["ui", "--host", "0.0.0.0", "--port", "8765"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  chromadb_data:
+    driver: local

@@ -1855,6 +1855,7 @@ class AgentInfo:
     can_spawn: list[str] = field(default_factory=list)  # 可生成的子代理角色 ID 列表
     tools: list[str] = field(default_factory=list)  # 可用工具列表
     preferred_external_agent: str | None = None  # 首選外部代理
+    model: str = ""  # 角色專用 LLM 模型（空字串表示使用全域預設）
     prompt_refs: list[str] = field(default_factory=list)  # Prompt 引用路徑列表
     skill_refs: list[str] = field(default_factory=list)  # 技能引用路徑列表
     handoff_template_ref: str | None = None  # 交接模板引用

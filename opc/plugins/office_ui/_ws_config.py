@@ -861,3 +861,74 @@ class WsConfigMixin:
             await ws.send_json({"type": "comms_message", "payload": result.payload})
         except ServiceError as exc:
             await self._send_service_error(ws, exc, action="comms_read_message")
+
+    # ── LLM Config ────────────────────────────────────────────────────────
+
+    async def _handle_llm_config_get(self, ws: Any, data: dict) -> None:
+        """Return current LLM configuration and per-role model assignments."""
+        config = self.engine.config
+        llm = config.llm
+        roles_payload = []
+        for role in getattr(config.org, "roles", []) or []:
+            roles_payload.append({
+                "role_id": role.id,
+                "name": role.name,
+                "model": getattr(role, "model", "") or "",
+            })
+        await ws.send_json({"type": "llm_config", "payload": {
+            "default_model": llm.default_model,
+            "api_base": llm.api_base,
+            "api_key_env": llm.api_key_env,
+            "api_key_set": bool(llm.api_key),
+            "temperature": llm.temperature,
+            "max_tokens": llm.max_tokens,
+            "tier_routing": dict(llm.tier_routing) if llm.tier_routing else {},
+            "degrade_chain": dict(llm.degrade_chain) if llm.degrade_chain else {},
+            "roles": roles_payload,
+        }})
+
+    async def _handle_llm_config_set(self, ws: Any, data: dict) -> None:
+        """Update LLM configuration and/or per-role model assignments."""
+        config = self.engine.config
+        llm = config.llm
+
+        # Update global LLM settings
+        if "default_model" in data:
+            llm.default_model = str(data["default_model"]).strip()
+        if "api_base" in data:
+            llm.api_base = str(data["api_base"]).strip()
+        if "api_key_env" in data:
+            llm.api_key_env = str(data["api_key_env"]).strip()
+        if "api_key" in data and str(data["api_key"]).strip():
+            llm.api_key = str(data["api_key"]).strip()
+        if "temperature" in data:
+            try:
+                llm.temperature = max(0.0, min(2.0, float(data["temperature"])))
+            except (ValueError, TypeError):
+                pass
+        if "max_tokens" in data:
+            try:
+                llm.max_tokens = max(1, int(data["max_tokens"]))
+            except (ValueError, TypeError):
+                pass
+        if "tier_routing" in data and isinstance(data["tier_routing"], dict):
+            llm.tier_routing = {str(k): str(v) for k, v in data["tier_routing"].items() if v}
+        if "degrade_chain" in data and isinstance(data["degrade_chain"], dict):
+            llm.degrade_chain = {str(k): str(v) for k, v in data["degrade_chain"].items() if v}
+
+        # Update per-role model assignments
+        role_models = data.get("role_models")
+        if isinstance(role_models, dict):
+            for role in getattr(config.org, "roles", []) or []:
+                if role.id in role_models:
+                    role.model = str(role_models[role.id] or "").strip()
+
+        # Persist
+        try:
+            self._persist_runtime_config()
+        except Exception as exc:
+            logger.warning(f"Failed to persist LLM config: {exc}")
+            await self._send_ack(ws, ok=False, error=str(exc), action="llm_config_set")
+            return
+
+        await self._send_ack(ws, ok=True, action="llm_config_set")
