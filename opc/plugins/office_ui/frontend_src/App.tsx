@@ -12,6 +12,10 @@ import { getOfficeDeskSeats } from './game/map/InteractionZones'
 import type { AgentInfo, EmployeeDetailPayload, OrgCreateMemberInput, OrgSavedCreatePayload, OrgEmployee, OrgInfoPayload, OrgRole, ReorgProposalInfo, SavedOrgSummary, SocketStatus, TalentTemplate, VisualEvent, VisualSnapshot } from './types/visual'
 import { useBoardStore, type BoardStoreState } from './kanban/BoardStore'
 import { WorkspacePage } from './workspace/WorkspacePage'
+import { DashboardPage } from './dashboard/DashboardPage'
+import { TemplatesPage } from './dashboard/TemplatesPage'
+import '../dashboard/dashboard.css'
+import '../dashboard/templates.css'
 import { useChatStore, type ChatStoreState } from './chat/ChatStore'
 import { useSessionStore, type SessionStoreState } from './stores/SessionStore'
 import { useProjectStore, type ProjectStoreState } from './stores/ProjectStore'
@@ -69,7 +73,7 @@ const SESSION_DETAIL_REFRESH_LOW_VALUE_RUNTIME_EVENTS = new Set([
 ])
 
 type ThemeName = 'midnight' | 'neon' | 'paper' | 'retro' | 'terminal' | 'cozy' | 'openopc'
-type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor'
+type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor' | 'dashboard' | 'templates'
 type AppExecMode = 'task' | 'company' | 'org'
 
 function defaultWsUrl(): string {
@@ -2356,8 +2360,10 @@ export default function App() {
                 return total > 0 ? <span className="nav-unread-badge">{total > 99 ? '99+' : total}</span> : null
               })()}
             </button>
+            <button className={`page-nav-btn${activePage === 'dashboard' ? ' active' : ''}`} onClick={() => setActivePage('dashboard')}>📊 {t('nav.dashboard', '儀表盤')}</button>
             <button className={`page-nav-btn${activePage === 'office' ? ' active' : ''}`} onClick={() => setActivePage('office')}>{t('nav.game')}</button>
             <button className={`page-nav-btn${activePage === 'org' ? ' active' : ''}`} onClick={() => setActivePage('org')}>{t('nav.org')}</button>
+            <button className={`page-nav-btn${activePage === 'templates' ? ' active' : ''}`} onClick={() => setActivePage('templates')}>🏗️ {t('nav.templates', '模板')}</button>
           </div>
           <div className="stat-chips">
             <span className="stat-chip"><b>{metrics.totalAgents}</b> {t('stats.agents')}</span>
@@ -2484,6 +2490,26 @@ export default function App() {
           }}
           onOpenExecutionPanel={(taskId) => setExecutionPanelTaskId(taskId)}
           onCollabSync={() => clientRef.current?.collabSync(getActiveProjectId(), undefined, projectViewGenerationRef.current)}
+        />
+      )}
+
+      {/* Dashboard Page */}
+      {activePage === 'dashboard' && (
+        <DashboardPage wsClient={clientRef.current} />
+      )}
+
+      {/* Templates Page */}
+      {activePage === 'templates' && (
+        <TemplatesPage
+          onApplyTemplate={(templateId) => {
+            // Apply template via WebSocket
+            if (clientRef.current) {
+              clientRef.current.send(JSON.stringify({
+                action: 'apply_org_template',
+                template_id: templateId,
+              }))
+            }
+          }}
         />
       )}
 

@@ -1,0 +1,95 @@
+# 深度研究模板
+# 適用：深度分析、複雜研究、多維度報告
+kind: opc_org_architecture
+schema_version: 2
+organization_id: deep_research
+name: "深度研究團隊"
+description: "多角色協作的深度研究團隊"
+
+company:
+  name: "深度研究團隊"
+  mission: "產出深入、全面的研究成果"
+
+roles:
+  - id: manager
+    name: "研究總監"
+    description: "制定研究框架，協調團隊，整合成果"
+    responsibilities:
+      - "設計研究框架和方法論"
+      - "分配研究子任務"
+      - "整合各維度研究成果"
+      - "評審最終產出"
+    model_tier: heavy
+
+  - id: researcher_primary
+    name: "主研究員"
+    description: "負責核心維度的深度研究"
+    responsibilities:
+      - "深入研究核心主題"
+      - "收集一手和二手資料"
+      - "形成研究觀點"
+    model_tier: medium
+    tools:
+      - web_search
+      - web_fetch
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+  - id: researcher_secondary
+    name: "輔助研究員"
+    description: "負責補充維度的研究"
+    responsibilities:
+      - "研究相關背景和上下文"
+      - "收集對比數據"
+      - "提供不同視角"
+    model_tier: medium
+    tools:
+      - web_search
+      - web_fetch
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+  - id: analyst
+    name: "分析師"
+    description: "數據分析和洞察提取"
+    responsibilities:
+      - "分析研究數據"
+      - "提取關鍵洞察"
+      - "生成可視化圖表"
+    model_tier: medium
+    tools:
+      - python_exec
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+  - id: writer
+    name: "報告撰寫"
+    description: "整合研究成果為最終報告"
+    responsibilities:
+      - "整合各維度研究成果"
+      - "撰寫結構化報告"
+      - "確保邏輯連貫"
+    model_tier: medium
+    tools:
+      - file_ops
+      - document_generator
+    runtime_policy:
+      review_role: manager
+
+talent_templates:
+  - id: researcher_primary
+    name: "主研究員模板"
+    system_prompt: |
+      你是一位資深的行業研究員。
+      深入研究核心主題，收集多源數據，形成有洞察力的觀點。
+      始終標注來源，區分事實和推測。
+
+  - id: analyst
+    name: "分析師模板"
+    system_prompt: |
+      你是一位專業的數據分析師。
+      從數據中提取洞察，建立分析模型，生成清晰的可視化。
+      所有結論必須有數據支撐。

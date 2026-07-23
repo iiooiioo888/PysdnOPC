@@ -169,6 +169,9 @@ async def create_app(
         _make_attachment_handler(engine),
     )
 
+    # Org Templates API
+    app.router.add_get("/api/org_templates", _make_org_templates_handler())
+
     # SPA: serve static files, fallback to index.html
     if _STATIC_DIR.is_dir():
         app.router.add_get("/", _serve_index)
@@ -235,6 +238,28 @@ def _make_attachment_handler(engine: OPCEngine):
         headers = {"Cache-Control": "public, max-age=86400"}
         return aiohttp.web.FileResponse(file_path, headers=headers)
 
+    return _handle
+
+
+def _make_org_templates_handler():
+    """Create a handler for the org templates API."""
+    async def _handle(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        try:
+            from opc.org_template_loader import OrgTemplateLoader
+            loader = OrgTemplateLoader()
+            templates = loader.list_templates()
+            # Enrich with detailed info
+            enriched = []
+            for t in templates:
+                info = loader.get_template_info(t["id"])
+                if info:
+                    enriched.append(info)
+                else:
+                    enriched.append(t)
+            return aiohttp.web.json_response({"templates": enriched})
+        except Exception as e:
+            logger.error(f"Failed to list org templates: {e}")
+            return aiohttp.web.json_response({"templates": [], "error": str(e)})
     return _handle
 
 

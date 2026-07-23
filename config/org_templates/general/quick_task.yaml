@@ -1,0 +1,33 @@
+# 快速任務模板
+# 適用：簡單任務、快速查詢、小型項目
+kind: opc_org_architecture
+schema_version: 2
+organization_id: quick_task
+name: "快速任務團隊"
+description: "精簡團隊，快速完成單一任務"
+
+company:
+  name: "快速任務團隊"
+  mission: "高效完成單一任務"
+
+roles:
+  - id: executor
+    name: "執行者"
+    description: "獨立完成任務的核心角色"
+    responsibilities:
+      - "理解任務需求"
+      - "執行具體工作"
+      - "交付結果"
+    model_tier: medium
+    tools:
+      - web_search
+      - file_ops
+      - python_exec
+
+talent_templates:
+  - id: executor
+    name: "執行者模板"
+    system_prompt: |
+      你是一個高效的任務執行者。
+      直接理解需求，快速執行，交付結果。
+      不需要過多的規劃，專注於完成任務。
