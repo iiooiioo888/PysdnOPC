@@ -19,6 +19,49 @@ from opc.core.models import (
     TaskResult,
     TaskStatus,
 )
+import hashlib
+import shutil
+import uuid
+from types import SimpleNamespace
+
+from opc.core.attachment_content import can_extract_text, extract_attachment_text
+from opc.core.attachment_store import AttachmentRef, AttachmentStore
+from opc.core.company_tools import (
+    company_collaboration_enabled_for_task,
+    resolve_company_turn_mode,
+    resolve_task_collaboration_tools,
+)
+from opc.core.models import WorkItemExecutionStrategy
+from opc.engine._core import AGENT_SELECTION_PROMPT
+from opc.layer1_perception.context_assembler import ContextAssembler, ExternalContextLayers
+from opc.layer2_organization.prompt_contract import (
+    has_prompt_contract,
+    is_report_prompt_turn,
+    make_prompt_contract,
+    prompt_contract_from_work_item,
+)
+from opc.layer2_organization.recruiter import normalize_recruitment_agent_choice
+from opc.layer2_organization.session_scoping import (
+    external_resume_allowed_for_scope,
+    is_top_level_company_session,
+)
+from opc.layer2_organization.work_item_identity import (
+    projection_id_for_task,
+    turn_type_for_task,
+    work_item_identity_payload,
+    work_item_identity_payload_for_task,
+)
+from opc.layer2_organization.work_item_links import linked_work_item_id_for_task
+from opc.layer3_agent.external_session_identity import (
+    is_provider_session_token,
+    provider_token_from_external_session,
+)
+from opc.layer3_agent.prompt_harness.builder import (
+    _final_decider_role_id,
+    _memory_skill_user_facing,
+)
+from opc.layer4_tools.collaboration import build_external_cli_tool_contract_lines
+from opc.layer5_memory.memory_manager import MemoryManager
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

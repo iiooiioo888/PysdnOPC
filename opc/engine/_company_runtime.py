@@ -5,6 +5,33 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+import asyncio
+import json
+from contextlib import nullcontext
+from datetime import datetime
+
+from opc.core.active_task_runs import ActiveTaskRunAdmissionClosed
+from opc.core.models import ExecutionCheckpoint, Task, TaskStatus
+from opc.engine._core import (
+    COMPANY_FEEDBACK_ATTRIBUTION_PROMPT,
+    _COMPANY_RUNTIME_CONTROL_METADATA_KEYS,
+    _COMPANY_RUNTIME_SUSPEND_CHECKPOINT_TYPES,
+)
+from opc.layer2_organization.company_mode import (
+    CompanyExecutorDriverOwnership,
+    CompanyWorkItemExecutor,
+    deserialize_company_work_item_runtime_plan,
+    serialize_company_work_item_runtime_plan,
+)
+from opc.layer2_organization.company_runtime_identity import load_company_runtime_identity_index
+from opc.layer2_organization.org_work_item_planner import CompanyWorkItemRuntimePlan
+from opc.layer2_organization.phase import DONE_PHASES
+from opc.layer2_organization.work_item_identity import (
+    projection_id_for_task,
+    rework_projection_id_for_gate,
+    work_item_identity_payload_for_task,
+)
+from opc.layer2_organization.work_item_links import linked_work_item_id_for_task
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

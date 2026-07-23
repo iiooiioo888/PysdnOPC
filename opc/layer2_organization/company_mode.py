@@ -21,6 +21,7 @@ from opc.core.active_task_runs import (
     ActiveTaskRunAdmissionClosed,
     ActiveTaskRunRegistry,
 )
+from typing import Mapping
 from opc.core.config import DEFAULT_EXTERNAL_AGENT_STARTUP_TIMEOUT_SECONDS, DEFAULT_ORGANIZATION_ID
 from opc.core.models import (
     AdaptiveRoleProfile,
@@ -3902,7 +3903,7 @@ class CompanyWorkItemExecutor:
                                 "seat_id": work_item.seat_id,
                                 "fingerprint": fingerprint,
                                 "work_kind": work_kind,
-                                "previous_status": status,
+                                "previous_status": str(phase),
                                 "needs_manager_attention": True,
                             },
                         )

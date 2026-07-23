@@ -18,6 +18,7 @@ from opc.layer3_agent.adapters.base import (
     ExternalAgentStdinPolicy,
     ExternalApprovalRequest,
 )
+from pathlib import Path
 
 
 class CodexAdapter(ExternalAgentAdapter):

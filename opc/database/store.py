@@ -79,6 +79,7 @@ from opc.core.models import (  # 領域資料模型
     WorkItemDecisionRecord,
     normalize_role_runtime_status,
 )
+import aiosqlite
 from opc.core.models import Phase  # Phase 狀態機
 from opc.core.transcript_visibility import (  # 對話可見性
     normalize_transcript_detail_level,

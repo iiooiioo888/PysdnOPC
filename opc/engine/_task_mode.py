@@ -18,6 +18,9 @@ from opc.core.models import (
     TaskStatus,
     WorkItemExecutionStrategy,
 )
+from opc.layer2_organization.company_mode import serialize_company_work_item_runtime_plan
+from opc.layer2_organization.org_work_item_planner import CompanyWorkItemRuntimePlan
+from opc.layer2_organization.work_item_identity import turn_type_for_task
 from opc.layer2_organization.recruiter import normalize_recruitment_agent_choice
 
 if TYPE_CHECKING:
@@ -688,6 +691,7 @@ class TaskModeMixin:
                     },
                 )
             await self.store.save_task(task)
+            await self._record_lifecycle_created(task)
 
         return await self._execute_single_agent(tasks, preferred_external_agent)
 

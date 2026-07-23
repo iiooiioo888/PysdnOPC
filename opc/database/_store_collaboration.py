@@ -5,6 +5,28 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from opc.database._utils import _json_dumps, _json_loads
+import uuid
+from datetime import datetime
+
+from opc.core.models import (
+    AgentMessage,
+    ApprovalDecision,
+    CommsSemanticType,
+    CommsState,
+    CommsTransportKind,
+    CostEvent,
+    ExecutionCheckpoint,
+    ExternalSession,
+    Goal,
+    GoalLevel,
+    GoalStatus,
+    MessageStatus,
+    MessageUrgency,
+    OPCEvent,
+    OrgAgent,
+    Organization,
+    TaskStatus,
+)
 
 if TYPE_CHECKING:
     from opc.database.store import OPCStore

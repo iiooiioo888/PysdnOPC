@@ -267,6 +267,7 @@ from opc.layer5_memory.capability_manager import CapabilityManager  # 能力管�
 from opc.layer5_memory.skill_library import SkillLibrary  # 技能庫
 # --- Layer 6：觀測層 ---
 from opc.layer6_observability.cost_tracker import CostTracker  # 成本追蹤器
+from opc.layer6_observability.lifecycle_recorder import TaskLifecycleRecorder  # 任務生命週期記錄器
 from opc.layer6_observability.opc_logger import setup_logging  # 日誌設定
 
 # ---------------------------------------------------------------------------
@@ -554,6 +555,7 @@ class OPCEngine(
         self.company_executor: CompanyWorkItemExecutor | None = None  # Layer 2：公司工作項目執行器
         self.reorg_manager: ReorgManager | None = None  # Layer 2：組織重組管理器
         self.cost_tracker: CostTracker | None = None  # Layer 6：成本追蹤器
+        self.lifecycle_recorder: TaskLifecycleRecorder | None = None  # Layer 6：任務生命週期記錄器
         self.approval_engine: ApprovalEngine | None = None  # Layer 2：審批引擎
         self.external_broker: ExternalAgentBroker | None = None  # Layer 3：外部代理經紀人
         self.secretary: SecretaryService | None = None  # Layer 2：秘書服務
@@ -853,6 +855,7 @@ class OPCEngine(
 
         # Layer 6: Cost tracking
         self.cost_tracker = CostTracker(self.store, self.event_bus)
+        self.lifecycle_recorder = TaskLifecycleRecorder(self.opc_home)
 
         # Layer 1: Perception
         self.context_loader = ContextLoader(
@@ -1013,6 +1016,89 @@ class OPCEngine(
         if self.on_runtime_event is None:
             return
         await self.on_runtime_event(event)
+
+    async def _record_lifecycle_event(self, task: Task, status: "TaskStatus") -> None:
+        """記錄任務生命週期結構化事件（供 Better Loop 等外部分析工具使用）。"""
+        if self.lifecycle_recorder is None:
+            return
+        metadata = dict(getattr(task, "metadata", {}) or {})
+        mode = str(metadata.get("mode", "") or metadata.get("execution_mode", "") or "task").strip() or "task"
+        agent = str(
+            metadata.get("selected_execution_agent", "")
+            or task.assigned_external_agent
+            or task.assigned_to
+            or ""
+        ).strip()
+        role_id = str(metadata.get("work_item_role_id", "") or task.assigned_to or "").strip()
+        outcome = getattr(status, "value", str(status)).strip().lower()
+        try:
+            await self.lifecycle_recorder.record_task_completed(
+                task_id=task.id,
+                project_id=str(task.project_id or self.project_id or "default"),
+                session_id=str(task.session_id or ""),
+                mode=mode,
+                outcome=outcome,
+                agent=agent,
+                role_id=role_id,
+                title=str(getattr(task, "title", "") or ""),
+                metadata={
+                    "turn_type": str(metadata.get("work_item_turn_type", "") or ""),
+                    "runtime_kind": str(metadata.get("runtime_kind", "") or ""),
+                },
+            )
+        except Exception:
+            logger.opt(exception=True).debug("Failed to record lifecycle event for task {}", task.id)
+
+    async def _record_lifecycle_started(self, task: Task) -> None:
+        """記錄任務啟動結構化事件。"""
+        if self.lifecycle_recorder is None:
+            return
+        metadata = dict(getattr(task, "metadata", {}) or {})
+        mode = str(metadata.get("mode", "") or metadata.get("execution_mode", "") or "task").strip() or "task"
+        agent = str(
+            metadata.get("selected_execution_agent", "")
+            or task.assigned_external_agent
+            or task.assigned_to
+            or ""
+        ).strip()
+        role_id = str(metadata.get("work_item_role_id", "") or task.assigned_to or "").strip()
+        try:
+            await self.lifecycle_recorder.record_task_started(
+                task_id=task.id,
+                project_id=str(task.project_id or self.project_id or "default"),
+                session_id=str(task.session_id or ""),
+                mode=mode,
+                agent=agent,
+                role_id=role_id,
+            )
+        except Exception:
+            logger.opt(exception=True).debug("Failed to record lifecycle started for task {}", task.id)
+
+    async def _record_lifecycle_created(self, task: Task) -> None:
+        """記錄任務建立結構化事件。"""
+        if self.lifecycle_recorder is None:
+            return
+        metadata = dict(getattr(task, "metadata", {}) or {})
+        mode = str(metadata.get("mode", "") or metadata.get("execution_mode", "") or "task").strip() or "task"
+        agent = str(
+            metadata.get("selected_execution_agent", "")
+            or task.assigned_external_agent
+            or task.assigned_to
+            or ""
+        ).strip()
+        role_id = str(metadata.get("work_item_role_id", "") or task.assigned_to or "").strip()
+        try:
+            await self.lifecycle_recorder.record_task_created(
+                task_id=task.id,
+                project_id=str(task.project_id or self.project_id or "default"),
+                session_id=str(task.session_id or ""),
+                mode=mode,
+                title=str(getattr(task, "title", "") or ""),
+                agent=agent,
+                role_id=role_id,
+            )
+        except Exception:
+            logger.opt(exception=True).debug("Failed to record lifecycle created for task {}", task.id)
 
     async def _emit_company_runtime_event(self, event_type: str, payload: dict[str, Any]) -> None:
         await self.event_bus.publish(
@@ -5002,6 +5088,7 @@ class OPCEngine(
         task.status = result.status
         task.result = {"content": result.content, "artifacts": result.artifacts}
         await self.store.save_task(task)
+        await self._record_lifecycle_event(task, result.status)
         if self.memory and task.session_id and self._uses_shared_role_session(task):
             assignment = dict(task.metadata.get("employee_assignment", {}) or {})
             await self.memory.record_assistant_turn(

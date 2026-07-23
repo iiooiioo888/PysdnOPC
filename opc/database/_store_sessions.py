@@ -15,6 +15,10 @@ from opc.core.models import (
     SessionPartRecord,
     SessionRecord,
 )
+from opc.core.transcript_visibility import (
+    normalize_transcript_detail_level,
+    transcript_visibility_sql,
+)
 from opc.database._utils import _json_dumps, _json_loads
 
 if TYPE_CHECKING:

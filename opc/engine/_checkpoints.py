@@ -5,6 +5,33 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+import hashlib
+import json
+import time
+import uuid
+from datetime import datetime
+
+from opc.core.models import (
+    ApprovalAction,
+    ExecutionCheckpoint,
+    ExecutionMode,
+    OPCEvent,
+    Phase,
+    Task,
+    TaskResult,
+    TaskStatus,
+    UserMessage,
+)
+from opc.engine._core import _REVIEW_WAITING_STATUSES
+from opc.layer2_organization.company_mode import deserialize_company_work_item_runtime_plan
+from opc.layer2_organization.company_runtime_identity import (
+    build_company_runtime_identity_index,
+    load_company_runtime_identity_index,
+)
+from opc.layer2_organization.phase import InvalidPhaseTransition
+from opc.layer2_organization.work_item_identity import work_item_identity_payload_from_metadata
+from opc.layer2_organization.work_item_links import linked_work_item_id_for_task
+from opc.layer2_organization.work_item_runtime import is_work_item_runtime_metadata
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

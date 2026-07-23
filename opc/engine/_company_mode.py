@@ -21,6 +21,39 @@ from opc.core.models import (
     TaskStatus,
     TeamInstance,
 )
+from opc.core.config import DEFAULT_ORGANIZATION_ID
+from opc.core.models import (
+    CompanyProfile,
+    DelegationEvent,
+    ExecutionCheckpoint,
+    RoleRuntimeSession,
+    SeatState,
+    SessionLinkRecord,
+    WorkItemExecutionStrategy,
+)
+from opc.engine._core import _COMPANY_RUNTIME_SUSPEND_CHECKPOINT_TYPES, _WAITING_TASK_STATUSES
+from opc.layer2_organization.company_mode import serialized_company_plan_from_metadata
+from opc.layer2_organization.company_runtime_identity import is_company_runtime_task
+from opc.layer2_organization.metadata_ownership import build_work_item_owner_execution_copy
+from opc.layer2_organization.prompt_contract import make_prompt_contract
+from opc.layer2_organization.recruiter import (
+    normalize_recruitment_agent_choice,
+    resolve_effective_execution_agent,
+)
+from opc.layer2_organization.session_scoping import task_session_scope_id
+from opc.layer2_organization.work_item_identity import (
+    canonical_work_item_turn_type_for_kind,
+    mark_work_item_projection,
+    turn_type_for_task,
+    turn_type_for_work_item,
+    work_item_identity_payload,
+    work_item_projection_id_from_metadata,
+)
+from opc.layer2_organization.work_item_links import linked_work_item_id_for_task
+from opc.layer2_organization.work_item_runtime import is_work_item_runtime_metadata
+from opc.layer2_organization.work_item_runtime_invariants import (
+    validate_work_item_runtime_projection,
+)
 from opc.layer2_organization.company_mode import (
     CompanyRuntimeSpec,
     CompanyWorkItemExecutor,
@@ -1589,6 +1622,7 @@ class CompanyModeMixin:
                 task.assigned_external_agent = use_external
             task.status = TaskStatus.RUNNING
             await self.store.save_task(task)
+            await self._record_lifecycle_started(task)
             result = await self._execute_task(task)
             results.append(result.content)
 

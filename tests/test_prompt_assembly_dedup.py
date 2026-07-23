@@ -48,6 +48,7 @@ from opc.layer5_memory.memory_manager import MemoryManager
 from opc.layer2_organization import comms as _comms
 from opc.layer2_organization.collaboration_policy import render_ownership_contract
 from opc.layer5_memory.skill_library import Skill, SkillLibrary
+from typing import Any
 
 
 # ----------------------------------------------------------------------

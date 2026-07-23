@@ -11,6 +11,11 @@ from opc.plugins.office_ui.snapshot_builder import (
     build_transcript_ui_messages,
     collapse_adjacent_transcript_duplicates,
 )
+import asyncio
+import inspect
+import time
+import uuid
+from datetime import datetime
 from opc.plugins.office_ui._ws_utils import (
     _PERSISTED_WORKER_NOTIFICATION_KINDS,
     _add_execution_turn_aliases,

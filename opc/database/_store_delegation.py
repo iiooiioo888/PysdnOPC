@@ -5,6 +5,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from opc.database._utils import _json_dumps, _json_loads
+from datetime import datetime
+
+from opc.core.models import (
+    DelegationEvent,
+    OrgSnapshot,
+    ReorgEventKind,
+    ReorgEventRecord,
+    ReorgProposal,
+    ReorgProposalStatus,
+    ReorgRiskLevel,
+    ReorgScope,
+    normalize_role_runtime_status,
+)
 
 if TYPE_CHECKING:
     from opc.database.store import OPCStore

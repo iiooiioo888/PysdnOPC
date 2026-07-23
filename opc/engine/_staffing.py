@@ -5,6 +5,32 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+import json
+import re
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+from opc.core.config import DEFAULT_ORGANIZATION_ID
+from opc.core.models import CompanyProfile, ExecutionCheckpoint, ExecutionMode, ModeSelection
+from opc.engine._core import ExternalRecruiterLLMAdapter
+from opc.layer2_organization.company_mode import (
+    CompanyRuntimeSpec,
+    deserialize_company_runtime_spec,
+    serialize_company_runtime_spec,
+)
+from opc.layer2_organization.recruiter import (
+    apply_recruitment_role_agent_overrides,
+    build_fallback_role_ids,
+    build_recruitment_feedback,
+    build_recruitment_plan_from_payload,
+    build_staffing_experience_modes,
+    build_staffing_overrides,
+    extract_recruitment_role_agent_overrides,
+    normalize_recruitment_agent_choice,
+    recruitment_plan_requires_confirmation,
+    serialize_recruitment_plan,
+)
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

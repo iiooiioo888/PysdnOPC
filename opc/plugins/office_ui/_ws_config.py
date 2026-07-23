@@ -13,6 +13,23 @@ from opc.plugins.office_ui._ws_utils import (
     _ACTIVE_SAVED_ORG_STATE_KEY,
     _saved_org_path,
 )
+from opc.core.org_config import (
+    allocate_org_config_id,
+    apply_org_config_payload_to_config,
+    build_org_config_payload_from_config,
+    load_org_config_payload,
+    org_config_path,
+    org_config_relative_path,
+    read_org_index,
+    validate_runnable_org_config,
+    validate_saved_org_id,
+    write_org_config_payload,
+    write_org_index,
+)
+from opc.plugins.office_ui.org_architecture_snapshot import (
+    apply_org_architecture_snapshot,
+    parse_org_architecture_snapshot,
+)
 
 if TYPE_CHECKING:
     from opc.plugins.office_ui.ws_handler import WSHandler
