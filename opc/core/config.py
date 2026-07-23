@@ -510,6 +510,7 @@ class AgentsConfig(BaseModel):
             run_mode="interactive",
             approval_mode="full-auto",
             show_thinking=True,
+            auth_type="openai",
         ),
     })
     native_subagents: dict[str, "NativeSubagentProfileConfig"] = Field(default_factory=dict)

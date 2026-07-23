@@ -82,7 +82,9 @@ external_agents:
     command: qwen-code
     model: ""
     model_flag: ""
-    auth_type: ""           # 認證類型（如 api_key, oauth），留空表示未配置
+    auth_type: "openai"     # 認證類型（openai, api_key, oauth）。非交互模式必須設定。
+                            # 亦可透過環境變數 QWEN_CODE_AUTH_TYPE 或
+                            # DASHSCOPE_API_KEY / QWEN_API_KEY 自動推斷。
     show_thinking: true     # 顯示思考過程
     session_mode: auto
     session_id: ""

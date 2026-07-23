@@ -94,10 +94,35 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         merged = dict(os.environ if env is None else env)
         if str(self.config.approval_mode or "auto").strip().lower() == "full-auto":
             merged["QWEN_CODE_AUTO_APPROVE"] = "1"
+        # Ensure API key is available for --auth-type openai
+        self._ensure_api_key_in_env(merged)
         # Windows: ensure Node.js is discoverable by the qwen-code subprocess
         if os.name == "nt":
             merged = self._ensure_nodejs_in_path(merged)
         return merged
+
+    @staticmethod
+    def _ensure_api_key_in_env(env: dict[str, str]) -> None:
+        """Propagate DashScope/Qwen API key so qwen-code can authenticate.
+
+        When ``--auth-type openai`` is used, qwen-code looks for an API key
+        in standard env vars.  This ensures the key is discoverable regardless
+        of which source variable the user configured.
+        """
+        # Resolve the API key from known sources
+        api_key = (
+            env.get("DASHSCOPE_API_KEY")
+            or env.get("QWEN_API_KEY")
+            or ""
+        ).strip()
+        if not api_key:
+            return
+        # Ensure DASHSCOPE_API_KEY is set (qwen-code primary)
+        if not env.get("DASHSCOPE_API_KEY"):
+            env["DASHSCOPE_API_KEY"] = api_key
+        # Ensure OPENAI_API_KEY is set (openai auth-type fallback)
+        if not env.get("OPENAI_API_KEY"):
+            env["OPENAI_API_KEY"] = api_key
 
     @staticmethod
     def _ensure_nodejs_in_path(env: dict[str, str]) -> dict[str, str]:
@@ -359,8 +384,28 @@ class QwenCodeAdapter(ExternalAgentAdapter):
             return ["--model", self.config.model]
         return []
 
+    def resolve_auth_type(self) -> str:
+        """Resolve the effective auth type for qwen-code.
+
+        Resolution order:
+        1. Explicit ``auth_type`` in agent config
+        2. ``QWEN_CODE_AUTH_TYPE`` environment variable
+        3. Auto-detect: if ``DASHSCOPE_API_KEY`` or ``QWEN_API_KEY`` is set → ``openai``
+        4. Empty string (unconfigured)
+        """
+        configured = str(getattr(self.config, "auth_type", "") or "").strip()
+        if configured:
+            return configured
+        env_auth = str(os.environ.get("QWEN_CODE_AUTH_TYPE") or "").strip()
+        if env_auth:
+            return env_auth
+        # Auto-detect from API key presence
+        if os.environ.get("DASHSCOPE_API_KEY") or os.environ.get("QWEN_API_KEY"):
+            return "openai"
+        return ""
+
     def _build_auth_type_args(self) -> list[str]:
-        auth_type = str(getattr(self.config, "auth_type", "") or "").strip()
+        auth_type = self.resolve_auth_type()
         if auth_type:
             return ["--auth-type", auth_type]
         return []

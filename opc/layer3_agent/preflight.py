@@ -268,10 +268,17 @@ def run_external_agent_preflight(
 
         # qwen_code 需要配置認證才能正常運行
         if agent_name == "qwen_code":
-            auth_type = str(getattr(agent_config, "auth_type", "") or "").strip()
-            if not auth_type:
+            from opc.layer3_agent.adapters.qwen_code_adapter import QwenCodeAdapter
+
+            resolved_auth = (
+                adapter.resolve_auth_type()
+                if isinstance(adapter, QwenCodeAdapter)
+                else str(getattr(agent_config, "auth_type", "") or "").strip()
+            )
+            if not resolved_auth:
                 result.issues.append(
-                    "qwen-code authentication not configured; set auth_type in agent config"
+                    "qwen-code authentication not configured; set auth_type in agent config "
+                    "or export QWEN_CODE_AUTH_TYPE / DASHSCOPE_API_KEY"
                 )
                 results.append(result)
                 continue
