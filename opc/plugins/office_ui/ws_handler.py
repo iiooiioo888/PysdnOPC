@@ -4676,6 +4676,7 @@ class WSHandler(
         "create_session":      "_handle_create_session",
         "session_update_config": "_handle_session_update_config",
         "session_detail":      "_handle_session_detail",
+        "runtime_logs":        "_handle_runtime_logs",
         "session_send":        "_handle_session_send",
         "session_stop":        "_handle_session_stop",
         "session_resume":      "_handle_session_resume",

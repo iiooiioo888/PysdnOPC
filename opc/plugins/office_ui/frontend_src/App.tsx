@@ -15,8 +15,8 @@ import { WorkspacePage } from './workspace/WorkspacePage'
 import { DashboardPage } from './dashboard/DashboardPage'
 import { TemplatesPage } from './dashboard/TemplatesPage'
 import { LlmSettingsPage } from './settings/LlmSettingsPage'
-import '../dashboard/dashboard.css'
-import '../dashboard/templates.css'
+import './dashboard/dashboard.css'
+import './dashboard/templates.css'
 import { useChatStore, type ChatStoreState } from './chat/ChatStore'
 import { useSessionStore, type SessionStoreState } from './stores/SessionStore'
 import { useProjectStore, type ProjectStoreState } from './stores/ProjectStore'
@@ -529,6 +529,7 @@ export default function App() {
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null)
   const [executionPanelTaskId, setExecutionPanelTaskId] = useState<string | null>(null)
   const [outdoorOverride, setOutdoorOverride] = useState<'auto' | 'day' | 'night'>(() => readOutdoorOverrideUi())
+  const runtimeLogsAckHandlersRef = useRef<Set<(payload: Record<string, unknown>) => void>>(new Set())
 
   const normalizeProjectId = useCallback((value: unknown): string => {
     const projectId = typeof value === 'string' ? value.trim() : ''
@@ -1038,6 +1039,13 @@ export default function App() {
       },
       onAck: (payload) => {
         try {
+          // Route runtime_logs responses to registered handlers
+          if (payload.action === 'runtime_logs' || 'runtime_events' in payload) {
+            for (const handler of runtimeLogsAckHandlersRef.current) {
+              handler(payload)
+            }
+            return
+          }
           if (payload.ok === false) {
             if (payload.action === 'create_session') {
               clearPendingSessionCreate()
@@ -2497,7 +2505,15 @@ export default function App() {
 
       {/* Dashboard Page */}
       {activePage === 'dashboard' && (
-        <DashboardPage sessions={sessionStore.sessions} />
+        <DashboardPage
+          sessions={sessionStore.sessions}
+          projectId={getActiveProjectId()}
+          sendRuntimeLogs={(pid, taskId) => clientRef.current?.requestRuntimeLogs(pid, taskId)}
+          onRuntimeLogsAck={(handler) => {
+            runtimeLogsAckHandlersRef.current.add(handler)
+            return () => { runtimeLogsAckHandlersRef.current.delete(handler) }
+          }}
+        />
       )}
 
       {/* Templates Page */}

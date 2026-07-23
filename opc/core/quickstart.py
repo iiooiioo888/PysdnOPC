@@ -43,26 +43,28 @@ class QuickStartResult:
         }
 
 
-# 已知的 API key 環境變數
+# 已知的 API key 環境變數（國內優先排序）
 _KNOWN_API_KEY_ENVS = [
+    "DEEPSEEK_API_KEY",
+    "DASHSCOPE_API_KEY",
+    "QWEN_API_KEY",
+    "ARK_API_KEY",
     "OPENROUTER_API_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
-    "DEEPSEEK_API_KEY",
     "GROQ_API_KEY",
     "MISTRAL_API_KEY",
     "TOGETHERAI_API_KEY",
-    "ARK_API_KEY",
 ]
 
-# 模型層級到預設模型的映射
+# 模型層級到預設模型的映射（國內模型優先）
 _TIER_DEFAULT_MODELS: dict[ModelTier, str] = {
-    ModelTier.CRITICAL: "openai/gpt-5.4",
-    ModelTier.REASONING: "openai/gpt-5.4",
-    ModelTier.ROUTINE: "openai/gpt-5.4-mini",
-    ModelTier.SUMMARY: "openai/gpt-5.4-nano",
+    ModelTier.CRITICAL: "deepseek/deepseek-reasoner",
+    ModelTier.REASONING: "deepseek/deepseek-reasoner",
+    ModelTier.ROUTINE: "deepseek/deepseek-chat",
+    ModelTier.SUMMARY: "deepseek/deepseek-chat",
 }
 
 
@@ -164,13 +166,16 @@ class QuickStartEngine:
         # 選擇模型
         model = _TIER_DEFAULT_MODELS.get(
             profile.model_tier,
-            "openai/gpt-5.4-mini",
+            "deepseek/deepseek-chat",
         )
+
+        # 根據模型推斷 API base
+        api_base = self._infer_api_base(model)
 
         # 構建 LLM 配置
         llm_config: dict[str, Any] = {
             "default_model": model,
-            "api_base": "https://openrouter.ai/api/v1",
+            "api_base": api_base,
             "temperature": self._infer_temperature(profile),
             "max_tokens": 32768,
         }
@@ -221,6 +226,21 @@ class QuickStartEngine:
 
         # 預設溫度
         return 0.5
+
+    @staticmethod
+    def _infer_api_base(model: str) -> str:
+        """根據模型名稱推斷 API base URL（國內優先）。"""
+        model_lower = model.lower()
+        if model_lower.startswith("deepseek/"):
+            return "https://api.deepseek.com"
+        if model_lower.startswith("openrouter/"):
+            return "https://openrouter.ai/api/v1"
+        if model_lower.startswith("openai/"):
+            return ""  # litellm 內建
+        if model_lower.startswith("anthropic/"):
+            return ""  # litellm 內建
+        # 國內模型預設使用 DeepSeek 端點
+        return "https://api.deepseek.com"
 
     def _infer_max_iterations(self, profile: IntentProfile) -> int:
         """根據複雜度推斷最大迭代次數。"""

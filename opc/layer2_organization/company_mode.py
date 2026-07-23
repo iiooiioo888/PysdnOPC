@@ -5462,7 +5462,59 @@ class CompanyWorkItemExecutor:
                     await self._emit_progress(f"[Company:{projection_id}] awaiting peer", task_id=task.id)
                     await self.save_task(task)
                 else:
-                    await self._emit_progress(f"[Company:{projection_id}] failed", task_id=task.id)
+                    # All execution agents (external + native) failed.
+                    # Transition to NEEDS_ATTENTION (maps to TaskStatus.BLOCKED)
+                    # so the work item does not stay stuck in RUNNING.
+                    failure_reasons: list[str] = []
+                    external_attempts = list(
+                        (result.artifacts or {}).get("external_attempts", []) or []
+                    )
+                    for attempt in external_attempts:
+                        agent_name = str(attempt.get("agent", "unknown"))
+                        reason = str(attempt.get("failure_reason", "") or "").strip()
+                        failure_reasons.append(
+                            f"external agent `{agent_name}`: {reason or 'unknown error'}"
+                        )
+                    native_content = str(result.content or "").strip()
+                    if native_content:
+                        failure_reasons.append(f"native agent: {native_content}")
+                    elif not external_attempts:
+                        failure_reasons.append("native agent: execution failed with no output")
+
+                    task.metadata = dict(task.metadata or {})
+                    task.metadata["delegation_failure_reasons"] = failure_reasons
+                    task.metadata["delegation_all_agents_failed"] = True
+                    task.metadata["delegation_failure_at"] = datetime.now().isoformat()
+
+                    await transition_work_item_from_task(
+                        self.store, task,
+                        target_status_or_phase=Phase.NEEDS_ATTENTION,
+                        reason="all_execution_agents_failed",
+                    )
+                    await self._append_progress(
+                        task,
+                        "All execution agents failed. Work item blocked.\n"
+                        + "\n".join(f"- {r}" for r in failure_reasons),
+                    )
+                    diagnostic_lines = [
+                        f"[Company:{projection_id}] all execution agents failed — work item blocked.",
+                        "",
+                        "Failure details:",
+                        *[f"  - {r}" for r in failure_reasons],
+                        "",
+                        "Suggested fixes:",
+                        "  1. Check external agent connectivity and credentials.",
+                        "  2. Verify the native LLM provider is reachable and has valid API keys.",
+                        "  3. Review the task description for ambiguity that may confuse agents.",
+                        "",
+                        "To reset this stuck task and retry:",
+                        f"  python scripts/reset_stuck_task.py --project <project> --session <session_id> --apply",
+                    ]
+                    await self._emit_progress(
+                        "\n".join(diagnostic_lines),
+                        task_id=task.id,
+                    )
+                    await self.save_task(task)
                 return result
 
             # Comms park check: if the agent sent any blocking messages

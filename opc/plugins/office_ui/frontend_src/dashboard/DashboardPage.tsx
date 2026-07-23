@@ -1,10 +1,16 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { RoleAggregatedStatus, RoleWorkItemRow, RoleWorkItemSummary, Session } from '../types/kanban'
+import { LlmConversationPanel } from './LlmConversationPanel'
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
 interface DashboardPageProps {
   sessions: Session[]
+  projectId?: string
+  /** WebSocket send function for runtime logs */
+  sendRuntimeLogs?: (projectId: string, taskId: string) => void
+  /** Ack handler registration for runtime logs responses */
+  onRuntimeLogsAck?: (handler: (payload: Record<string, unknown>) => void) => () => void
 }
 
 interface AggregatedRole {
@@ -107,7 +113,7 @@ function StatsBar({ stats }: { stats: DashboardStats }) {
   )
 }
 
-function WorkItemRow({ item }: { item: RoleWorkItemRow }) {
+function WorkItemRow({ item, onViewConversation }: { item: RoleWorkItemRow; onViewConversation?: (taskId: string) => void }) {
   const badge = columnBadge(item.kanbanColumn)
   const activityCount = item.activitySections
     ? item.activitySections.reduce((n, s) => n + (s.entries?.length ?? 0), 0)
@@ -123,11 +129,20 @@ function WorkItemRow({ item }: { item: RoleWorkItemRow }) {
       {item.kind && <span className="dash-wi-kind">{item.kind}</span>}
       {activityCount > 0 && <span className="dash-wi-activity">📝 {activityCount}</span>}
       <span className="dash-wi-time">{formatRelativeTime(item.updatedAt)}</span>
+      {item.executionTurnId && onViewConversation && (
+        <button
+          className="dash-wi-view-llm"
+          title="查看 LLM 對話"
+          onClick={(e) => { e.stopPropagation(); onViewConversation(item.executionTurnId!) }}
+        >
+          🧠
+        </button>
+      )}
     </div>
   )
 }
 
-function RoleCard({ role }: { role: AggregatedRole }) {
+function RoleCard({ role, onViewConversation }: { role: AggregatedRole; onViewConversation?: (taskId: string) => void }) {
   const config = STATUS_CONFIG[role.aggregatedStatus]
   const sortedItems = useMemo(
     () => [...role.workItems].sort((a, b) => b.updatedAt - a.updatedAt),
@@ -167,16 +182,27 @@ function RoleCard({ role }: { role: AggregatedRole }) {
         {sortedItems.length === 0 ? (
           <div className="dash-role-empty">尚無工作項目</div>
         ) : (
-          sortedItems.slice(0, 6).map(item => <WorkItemRow key={item.workItemId} item={item} />)
+          sortedItems.slice(0, 6).map(item => (
+            <WorkItemRow key={item.workItemId} item={item} onViewConversation={onViewConversation} />
+          ))
         )}
         {sortedItems.length > 6 && (
           <div className="dash-role-more">+{sortedItems.length - 6} 更多...</div>
         )}
       </div>
 
-      {/* Session source */}
+      {/* Session source + LLM conversation button */}
       <div className="dash-role-footer">
         <span className="dash-role-session">📂 {role.sessionTitle || role.sessionTaskId}</span>
+        {onViewConversation && (
+          <button
+            className="dash-role-view-llm"
+            title="查看此角色的 LLM 對話記錄"
+            onClick={() => onViewConversation(role.sessionTaskId)}
+          >
+            🧠 LLM 對話
+          </button>
+        )}
       </div>
     </div>
   )
@@ -184,7 +210,21 @@ function RoleCard({ role }: { role: AggregatedRole }) {
 
 /* ── Main Component ────────────────────────────────────────────────────── */
 
-export function DashboardPage({ sessions }: DashboardPageProps) {
+export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeLogsAck }: DashboardPageProps) {
+  const [conversationTaskId, setConversationTaskId] = useState<string | null>(null)
+
+  const handleViewConversation = useCallback((taskId: string) => {
+    setConversationTaskId(taskId)
+  }, [])
+
+  const handleCloseConversation = useCallback(() => {
+    setConversationTaskId(null)
+  }, [])
+
+  const sendRequest = useCallback((pid: string, taskId: string) => {
+    sendRuntimeLogs?.(pid, taskId)
+  }, [sendRuntimeLogs])
+
   // Aggregate role data from all company-mode primary sessions
   const { roles, stats } = useMemo(() => {
     const aggregatedRoles: AggregatedRole[] = []
@@ -268,10 +308,28 @@ export function DashboardPage({ sessions }: DashboardPageProps) {
         <>
           <StatsBar stats={stats} />
           <div className="dash-roles-grid">
-            {roles.map(role => <RoleCard key={role.roleKey} role={role} />)}
+            {roles.map(role => (
+              <RoleCard
+                key={role.roleKey}
+                role={role}
+                onViewConversation={sendRuntimeLogs ? handleViewConversation : undefined}
+              />
+            ))}
           </div>
         </>
       )}
+
+      {/* LLM Conversation Panel */}
+      {conversationTaskId && projectId && sendRuntimeLogs && (
+        <LlmConversationPanel
+          projectId={projectId}
+          taskId={conversationTaskId}
+          onClose={handleCloseConversation}
+          sendRequest={sendRequest}
+          onAck={onRuntimeLogsAck}
+        />
+      )}
     </div>
   )
+}
 }

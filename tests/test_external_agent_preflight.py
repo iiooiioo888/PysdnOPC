@@ -11,6 +11,7 @@ from opc.core.models import AgentStatus, Task, TaskResult, TaskStatus
 from opc.layer2_organization.approval import ApprovalEngine
 from opc.layer3_agent.adapters.codex_adapter import CodexAdapter
 from opc.layer3_agent.adapters.base import ExternalAgentAdapter
+from opc.layer3_agent.adapters.qwen_code_adapter import QwenCodeAdapter
 from opc.layer3_agent.external_broker import ExternalAgentBroker
 from opc.layer3_agent.preflight import (
     ExternalAgentPreflightResult,
@@ -180,3 +181,86 @@ class ExternalAgentPreflightTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(approval.called)
             contract = result.artifacts["workspace_permission_contract"]
             self.assertTrue(any(item["name"] == "workspace" and not item["ok"] for item in contract))
+
+    def test_qwen_code_preflight_reports_unavailable_without_auth_type(self) -> None:
+        """qwen_code 未配置 auth_type 時 preflight 應報告為不可用。"""
+        config = OPCConfig()
+        for name, agent_config in config.agents.agents.items():
+            agent_config.enabled = name == "qwen_code"
+        config.agents.agents["qwen_code"].command = "qwen-code"
+        config.agents.agents["qwen_code"].auth_type = ""  # 未配置認證
+
+        def _which(name: str) -> str | None:
+            if name == "qwen-code":
+                return "/usr/local/bin/qwen-code"
+            return None
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch("shutil.which", side_effect=_which):
+            root = Path(tmpdir)
+            results = run_external_agent_preflight(
+                config,
+                workspace_path=root / "workspace",
+                opc_home=root / ".opc",
+                probe_commands=False,
+                prepare_surfaces=False,
+            )
+
+        qwen = next(item for item in results if item.agent == "qwen_code")
+        self.assertTrue(qwen.available)  # binary found
+        self.assertFalse(qwen.ok)  # but not usable without auth
+        self.assertTrue(
+            any("authentication not configured" in issue for issue in qwen.issues)
+        )
+
+    def test_qwen_code_preflight_passes_with_auth_type(self) -> None:
+        """qwen_code 配置了 auth_type 時 preflight 應正常通過。"""
+        config = OPCConfig()
+        for name, agent_config in config.agents.agents.items():
+            agent_config.enabled = name == "qwen_code"
+        config.agents.agents["qwen_code"].command = "qwen-code"
+        config.agents.agents["qwen_code"].auth_type = "api_key"
+
+        def _which(name: str) -> str | None:
+            if name == "qwen-code":
+                return "/usr/local/bin/qwen-code"
+            return None
+
+        with tempfile.TemporaryDirectory() as tmpdir, patch("shutil.which", side_effect=_which):
+            root = Path(tmpdir)
+            results = run_external_agent_preflight(
+                config,
+                workspace_path=root / "workspace",
+                opc_home=root / ".opc",
+                probe_commands=False,
+                prepare_surfaces=False,
+            )
+
+        qwen = next(item for item in results if item.agent == "qwen_code")
+        self.assertTrue(qwen.available)
+        self.assertFalse(
+            any("authentication not configured" in issue for issue in qwen.issues)
+        )
+
+    def test_qwen_code_adapter_builds_auth_type_args(self) -> None:
+        """QwenCodeAdapter 配置了 auth_type 時命令應包含 --auth-type。"""
+        adapter = QwenCodeAdapter(config=ExternalAgentConfig(
+            command="qwen-code",
+            auth_type="api_key",
+        ))
+        task = Task(title="test", project_id="default")
+        with patch.object(adapter, "resolve_binary", return_value="qwen-code"):
+            cmd, _ = adapter.build_invocation(task)
+        self.assertIn("--auth-type", cmd)
+        idx = cmd.index("--auth-type")
+        self.assertEqual(cmd[idx + 1], "api_key")
+
+    def test_qwen_code_adapter_omits_auth_type_when_empty(self) -> None:
+        """QwenCodeAdapter 未配置 auth_type 時命令不應包含 --auth-type。"""
+        adapter = QwenCodeAdapter(config=ExternalAgentConfig(
+            command="qwen-code",
+            auth_type="",
+        ))
+        task = Task(title="test", project_id="default")
+        with patch.object(adapter, "resolve_binary", return_value="qwen-code"):
+            cmd, _ = adapter.build_invocation(task)
+        self.assertNotIn("--auth-type", cmd)

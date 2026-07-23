@@ -135,6 +135,11 @@ _MODEL_COST_PER_1K: dict[str, tuple[float, float]] = {
     # DeepSeek
     "deepseek-chat":              (0.00014, 0.00028),
     "deepseek-reasoner":          (0.00055, 0.00219),
+    # Qwen (DashScope)
+    "qwen-plus":                  (0.0008, 0.002),
+    "qwen-max":                   (0.003, 0.006),
+    "qwen-turbo":                 (0.0003, 0.0006),
+    "qwen-coder-plus":            (0.001, 0.002),
     # Google
     "gemini-2.0-flash":           (0.0001, 0.0004),
     "gemini-2.5-pro":             (0.00125, 0.010),
@@ -145,10 +150,10 @@ _MODEL_COST_PER_1K: dict[str, tuple[float, float]] = {
     "mistral-small-latest":       (0.001, 0.003),
 }
 
-# 等級預設模型（用戶未配置 routing 時使用）
+# 等級預設模型（用戶未配置 routing 時使用，國內模型優先）
 _TIER_DEFAULT_MODELS: dict[ModelTier, str] = {
-    ModelTier.HEAVY:  "anthropic/claude-sonnet-4-20250514",
-    ModelTier.MEDIUM: "openai/gpt-4o-mini",
+    ModelTier.HEAVY:  "deepseek/deepseek-reasoner",
+    ModelTier.MEDIUM: "deepseek/deepseek-chat",
     ModelTier.LIGHT:  "deepseek/deepseek-chat",
 }
 
@@ -190,7 +195,7 @@ class ModelRouter:
         budget_total: float = 0.0,
         quality_hint: str = "balanced",
     ) -> None:
-        self.default_model = default_model or "anthropic/claude-sonnet-4-20250514"
+        self.default_model = default_model or "deepseek/deepseek-chat"
         self.routing = routing or {}
         self.budget_total = budget_total
         self.budget_spent = 0.0

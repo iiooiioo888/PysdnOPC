@@ -376,7 +376,7 @@ def allocate_organization_id(config_dir: Path, organization_name: Any, *, prefer
 
 class LLMConfig(BaseModel):
     """LLM 配置 — 大型語言模型的連接和參數設定。"""
-    default_model: str = "anthropic/claude-sonnet-4-20250514"  # 預設模型（litellm 格式）
+    default_model: str = "deepseek/deepseek-chat"  # 預設模型（litellm 格式，國內優先）
     api_base: str = ""  # API 基礎 URL（自建代理時）
     api_key: str = ""  # API 金鑰（直接指定）
     api_key_env: str = ""  # API 金鑰環境變數名稱
@@ -488,11 +488,12 @@ class ExternalAgentConfig(BaseModel):
     status_heartbeat_seconds: int = 30
     approval_mode: ExternalAgentApprovalMode = "auto"
     show_thinking: bool = False
+    auth_type: str = ""  # 認證類型（如 api_key, oauth），留空表示未配置
 
 
 class AgentsConfig(BaseModel):
     """代理配置 — 外部代理和原生子代理的整體設定。"""
-    preferred_order: list[str] = Field(default_factory=lambda: ["claude_code", "cursor", "codex", "opencode", "qwen_code"])
+    preferred_order: list[str] = Field(default_factory=lambda: ["qwen_code", "opencode", "claude_code", "cursor", "codex"])
     agents: dict[str, ExternalAgentConfig] = Field(default_factory=lambda: {
         "claude_code": ExternalAgentConfig(command="claude", run_mode="interactive", approval_mode="full-auto"),
         "cursor": ExternalAgentConfig(command="cursor-agent", run_mode="interactive", approval_mode="full-auto"),

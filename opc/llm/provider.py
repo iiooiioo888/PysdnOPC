@@ -64,6 +64,16 @@ _VIDEO_MODEL_HINTS = (
     "video",
 )
 
+# Models that do NOT support the ``temperature`` parameter. Sending it causes
+# a BadRequestError on OpenAI's reasoning endpoints and some proxy providers.
+_NO_TEMPERATURE_MODEL_HINTS = (
+    "o1",
+    "o3",
+    "o4",
+)
+
+_NO_TEMPERATURE_WARNED: set[str] = set()
+
 _TOOL_PROTOCOL_ERROR_HINTS = (
     "no tool output found for function call",
     "no tool output found",
@@ -80,6 +90,39 @@ def _normalized_model_name(model: str) -> str:
     if "/" in model:
         return model.split("/", 1)[1].strip().lower()
     return model.strip().lower()
+
+
+# Known litellm provider prefixes — if a model name starts with one of these
+# followed by "/", it already has a valid prefix.
+_KNOWN_PROVIDER_PREFIXES = frozenset({
+    "openai", "anthropic", "azure", "google", "gemini", "vertex_ai",
+    "mistral", "groq", "together_ai", "deepseek", "cohere", "replicate",
+    "huggingface", "bedrock", "sagemaker", "openrouter", "perplexity",
+    "fireworks_ai", "ollama", "vllm", "databricks", "watsonx",
+    "dashscope", "qwen", "volcengine", "zhipu", "minimax", "moonshot",
+})
+
+
+def _ensure_provider_prefix(model: str) -> str:
+    """Auto-prepend ``openai/`` when the model name lacks a provider prefix.
+
+    Many domestic / self-hosted LLM endpoints expose an OpenAI-compatible API
+    but users often configure bare model names (e.g. ``mimo-v2.5-pro``).
+    litellm requires the ``provider/model`` format; without a prefix it
+    cannot route the request.  We default to ``openai/`` because the vast
+    majority of proxy endpoints speak the OpenAI chat-completions protocol.
+    """
+    if not model:
+        return model
+    if "/" in model:
+        prefix = model.split("/", 1)[0].strip().lower()
+        if prefix in _KNOWN_PROVIDER_PREFIXES:
+            return model
+        # Unknown prefix but has slash — still pass through (might be custom)
+        return model
+    # No slash at all → bare model name, prepend openai/
+    logger.debug("Model '{}' has no provider prefix; auto-prepending 'openai/'", model)
+    return f"openai/{model}"
 
 
 # Used when neither user config nor litellm can supply a window. Conservative
@@ -188,6 +231,50 @@ def _looks_like_video_capable_model(model: str) -> bool:
     return any(hint in normalized for hint in _VIDEO_MODEL_HINTS)
 
 
+def _model_supports_temperature(model: str) -> bool:
+    """Return False for models known to reject the ``temperature`` parameter.
+
+    OpenAI's o-series reasoning models (o1, o3, o4) do not accept temperature;
+    sending it triggers a 400 BadRequestError. We detect these by prefix
+    matching on the normalized model name (e.g. "o1", "o3-mini", "o4-mini").
+    """
+    normalized = _normalized_model_name(model)
+    for hint in _NO_TEMPERATURE_MODEL_HINTS:
+        if normalized == hint or normalized.startswith(f"{hint}-"):
+            return False
+    return True
+
+
+def _sanitize_call_params(
+    model: str,
+    temperature: float,
+    max_tokens: int,
+) -> tuple[float | None, int]:
+    """Validate and auto-correct LLM call parameters for the target model.
+
+    Returns (temperature_or_None, clamped_max_tokens).
+    - temperature is set to None when the model does not support it.
+    - max_tokens is clamped to the model's known output cap.
+    """
+    # Clamp max_tokens to model output limit
+    clamped_max = _clamp_max_tokens(model, max_tokens)
+
+    # Remove temperature for unsupported models
+    temp: float | None = temperature
+    if not _model_supports_temperature(model):
+        if model not in _NO_TEMPERATURE_WARNED:
+            _NO_TEMPERATURE_WARNED.add(model)
+            logger.info(
+                "Model {} does not support temperature; removing parameter "
+                "(requested temperature={}).",
+                model,
+                temperature,
+            )
+        temp = None
+
+    return temp, clamped_max
+
+
 def _parse_tool_arguments(tool_name: str, arguments: Any) -> tuple[Any, str | None, str | None]:
     """Parse tool-call arguments and preserve failures for downstream recovery."""
     if not isinstance(arguments, str):
@@ -225,6 +312,8 @@ class LLMProvider:
         "DEEPSEEK_API_KEY",
         "TOGETHERAI_API_KEY",
         "ARK_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "QWEN_API_KEY",
     )
 
     def __init__(
@@ -259,6 +348,70 @@ class LLMProvider:
             return True
         return any(os.environ.get(var) for var in self._CREDENTIAL_ENV_VARS)
 
+    def validate_model_config(self) -> dict[str, Any]:
+        """Validate that the configured default model is usable.
+
+        Checks:
+        1. Model name is non-empty and has a valid provider prefix.
+        2. litellm can resolve the model (known mapping exists).
+        3. Parameter compatibility (temperature support, max_tokens cap).
+
+        Returns a dict with:
+        - ``ok``: bool — whether the model passed all checks.
+        - ``model``: the resolved model string.
+        - ``warnings``: list of non-fatal issues.
+        - ``errors``: list of fatal issues that will likely cause BadRequestError.
+        """
+        model = self._select_model()
+        warnings: list[str] = []
+        errors: list[str] = []
+
+        # Check model name is non-empty
+        if not model or model.strip() == "":
+            errors.append("default_model is empty; set llm.default_model in llm_config.yaml.")
+            return {"ok": False, "model": model, "warnings": warnings, "errors": errors}
+
+        # Check litellm can resolve the model
+        try:
+            info = litellm.get_model_info(model)
+            if not info:
+                warnings.append(
+                    f"Model '{model}' returned empty info from litellm; "
+                    "it may not be available on the target endpoint."
+                )
+        except Exception as e:
+            warnings.append(
+                f"Model '{model}' is not mapped in litellm ({e}). "
+                "If using a proxy/self-hosted endpoint, verify the model name "
+                "matches what the endpoint expects."
+            )
+
+        # Check temperature support
+        if not _model_supports_temperature(model):
+            warnings.append(
+                f"Model '{model}' does not support temperature; "
+                "the parameter will be automatically removed."
+            )
+
+        # Check max_tokens against known cap
+        try:
+            info = litellm.get_model_info(model)
+            cap = info.get("max_output_tokens") or info.get("max_tokens")
+            if cap and self.config.max_tokens > int(cap):
+                warnings.append(
+                    f"Configured max_tokens={self.config.max_tokens} exceeds model output "
+                    f"cap={cap}; will be auto-clamped to {cap}."
+                )
+        except Exception:
+            pass
+
+        return {
+            "ok": len(errors) == 0,
+            "model": model,
+            "warnings": warnings,
+            "errors": errors,
+        }
+
     @property
     def stats(self) -> dict[str, Any]:
         return {
@@ -269,8 +422,10 @@ class LLMProvider:
 
     def _select_model(self, task_type: str | None = None) -> str:
         if task_type and task_type in self.config.routing:
-            return self.config.routing[task_type]
-        return self.config.default_model
+            model = self.config.routing[task_type]
+        else:
+            model = self.config.default_model
+        return _ensure_provider_prefix(model)
 
     def _config_context_window_override(self, model: str) -> int | None:
         """User-configured context window for models litellm cannot map.
@@ -518,8 +673,9 @@ class LLMProvider:
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = self._select_model(task_type)
-        temp = temperature if temperature is not None else self.config.temperature
-        max_tok = _clamp_max_tokens(model, max_tokens if max_tokens is not None else self.config.max_tokens)
+        raw_temp = temperature if temperature is not None else self.config.temperature
+        raw_max_tok = max_tokens if max_tokens is not None else self.config.max_tokens
+        temp, max_tok = _sanitize_call_params(model, raw_temp, raw_max_tok)
 
         # 預算守衛檢查
         if self._budget_guard:
@@ -533,16 +689,19 @@ class LLMProvider:
             if decision.action == BudgetAction.BLOCK:
                 raise BudgetExhaustedError(decision.reason, decision)
             if decision.action == BudgetAction.DEGRADE and decision.degraded_model:
-                model = decision.degraded_model
+                model = _ensure_provider_prefix(decision.degraded_model)
                 logger.info("BudgetGuard: 降級模型至 {}", model)
+                # Re-sanitize for the degraded model
+                temp, max_tok = _sanitize_call_params(model, raw_temp, raw_max_tok)
 
         call_kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "temperature": temp,
             "max_tokens": max_tok,
             **kwargs,
         }
+        if temp is not None:
+            call_kwargs["temperature"] = temp
         if self._api_base:
             call_kwargs["api_base"] = self._api_base
         if self._api_key:
@@ -555,6 +714,31 @@ class LLMProvider:
 
         try:
             response = await litellm.acompletion(**call_kwargs)
+        except litellm.BadRequestError as e:
+            logger.error(
+                "LLM BadRequestError: model={}, temperature={}, max_tokens={}, "
+                "api_base={}. Error: {}. "
+                "Fix: verify model name is available on the target endpoint, "
+                "check parameter limits, or remove unsupported parameters.",
+                model, temp, max_tok, self._api_base or "default", e,
+            )
+            # Auto-retry with sanitized params (strip temperature, re-clamp max_tokens)
+            retry_kwargs = dict(call_kwargs)
+            retry_kwargs.pop("temperature", None)
+            retry_max = _clamp_max_tokens(model, max_tok)
+            retry_kwargs["max_tokens"] = retry_max
+            if retry_max != max_tok or "temperature" in call_kwargs:
+                logger.info(
+                    "Retrying with corrected params: model={}, max_tokens={}, temperature=removed",
+                    model, retry_max,
+                )
+                try:
+                    response = await litellm.acompletion(**retry_kwargs)
+                except Exception as retry_err:
+                    logger.error(f"LLM retry also failed: {retry_err}")
+                    raise retry_err from e
+            else:
+                raise
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             raise
@@ -683,8 +867,9 @@ class LLMProvider:
         **kwargs: Any,
     ) -> AsyncIterator[RuntimeLLMEvent]:
         model = self._select_model(task_type)
-        temp = temperature if temperature is not None else self.config.temperature
-        max_tok = _clamp_max_tokens(model, max_tokens if max_tokens is not None else self.config.max_tokens)
+        raw_temp = temperature if temperature is not None else self.config.temperature
+        raw_max_tok = max_tokens if max_tokens is not None else self.config.max_tokens
+        temp, max_tok = _sanitize_call_params(model, raw_temp, raw_max_tok)
 
         # 預算守衛檢查
         if self._budget_guard:
@@ -697,17 +882,20 @@ class LLMProvider:
             if decision.action == BudgetAction.BLOCK:
                 raise BudgetExhaustedError(decision.reason, decision)
             if decision.action == BudgetAction.DEGRADE and decision.degraded_model:
-                model = decision.degraded_model
+                model = _ensure_provider_prefix(decision.degraded_model)
                 logger.info("BudgetGuard: 降級模型至 {}", model)
+                # Re-sanitize for the degraded model
+                temp, max_tok = _sanitize_call_params(model, raw_temp, raw_max_tok)
 
         call_kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "temperature": temp,
             "max_tokens": max_tok,
             "stream": True,
             **kwargs,
         }
+        if temp is not None:
+            call_kwargs["temperature"] = temp
         if self._api_base:
             call_kwargs["api_base"] = self._api_base
         if self._api_key:
@@ -817,6 +1005,78 @@ class LLMProvider:
                     model=model,
                     payload={"finish_reason": getattr(choice, "finish_reason", "stop")},
                 )
+        except litellm.BadRequestError as e:
+            logger.error(
+                "LLM stream BadRequestError: model={}, temperature={}, max_tokens={}, "
+                "api_base={}. Error: {}. "
+                "Fix: verify model name is available on the target endpoint, "
+                "check parameter limits, or remove unsupported parameters.",
+                model, temp, max_tok, self._api_base or "default", e,
+            )
+            # Auto-retry with sanitized params (strip temperature, re-clamp max_tokens)
+            retry_kwargs = dict(call_kwargs)
+            retry_kwargs.pop("temperature", None)
+            retry_max = _clamp_max_tokens(model, max_tok)
+            retry_kwargs["max_tokens"] = retry_max
+            if retry_max != max_tok or "temperature" in call_kwargs:
+                logger.info(
+                    "Retrying stream with corrected params: model={}, max_tokens={}, temperature=removed",
+                    model, retry_max,
+                )
+                try:
+                    stream = await litellm.acompletion(**retry_kwargs)
+                    if hasattr(stream, "__aiter__"):
+                        async for chunk in stream:
+                            for event in self.normalize_stream_event(chunk, model=model):
+                                if event.event_type == "usage":
+                                    total_prompt = int(event.payload.get("prompt_tokens", 0) or 0)
+                                    total_completion = int(event.payload.get("completion_tokens", 0) or 0)
+                                    delta_prompt = max(0, total_prompt - last_usage["prompt_tokens"])
+                                    delta_completion = max(0, total_completion - last_usage["completion_tokens"])
+                                    last_usage["prompt_tokens"] = total_prompt
+                                    last_usage["completion_tokens"] = total_completion
+                                    self._total_tokens_in += delta_prompt
+                                    self._total_tokens_out += delta_completion
+                                    event.payload = {
+                                        **dict(event.payload),
+                                        "prompt_tokens": delta_prompt,
+                                        "completion_tokens": delta_completion,
+                                        "prompt_tokens_total": total_prompt,
+                                        "completion_tokens_total": total_completion,
+                                        "context_window": event.payload.get("context_window") or self.get_context_window(model=model),
+                                        "model": model,
+                                    }
+                                yield event
+                    else:
+                        choice = stream.choices[0]
+                        message = choice.message
+                        if getattr(message, "content", None):
+                            yield RuntimeLLMEvent(
+                                event_type="assistant_delta",
+                                model=model,
+                                payload={"text": message.content},
+                            )
+                        yield RuntimeLLMEvent(
+                            event_type="message_stop",
+                            model=model,
+                            payload={"finish_reason": getattr(choice, "finish_reason", "stop")},
+                        )
+                    return
+                except Exception as retry_err:
+                    logger.error(f"LLM stream retry also failed: {retry_err}")
+                    yield RuntimeLLMEvent(
+                        event_type="error",
+                        model=model,
+                        payload={"message": str(retry_err)},
+                    )
+                    raise retry_err from e
+            else:
+                yield RuntimeLLMEvent(
+                    event_type="error",
+                    model=model,
+                    payload={"message": str(e)},
+                )
+                raise
         except Exception as e:
             logger.error(f"LLM stream failed: {e}")
             yield RuntimeLLMEvent(

@@ -4,11 +4,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
 external_agents:
   # 偏好順序（當多個代理可用時的選擇優先級）
+  # qwen_code 為首選代碼代理（國內優先）
   preferred_order:
+    - qwen_code
+    - opencode
     - claude_code
     - codex
     - cursor
-    - opencode
 
   # model_flag、new_session_flag、resume_session_flag 取決於您的 CLI 版本。
   # 留空使用 CLI 預設值，或明確設定以獲得確定性行為。
@@ -64,6 +66,23 @@ external_agents:
     command: opencode
     model: ""
     model_flag: "--model"
+    show_thinking: true     # 顯示思考過程
+    session_mode: auto
+    session_id: ""
+    new_session_flag: ""
+    resume_session_flag: ""
+    run_mode: interactive
+    interactive_timeout_seconds: 21600
+    approval_mode: full-auto
+    extra_args: []
+
+  # Qwen Code 代理設定（國內首選代碼代理）
+  qwen_code:
+    enabled: true
+    command: qwen-code
+    model: ""
+    model_flag: ""
+    auth_type: ""           # 認證類型（如 api_key, oauth），留空表示未配置
     show_thinking: true     # 顯示思考過程
     session_mode: auto
     session_id: ""

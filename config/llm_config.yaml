@@ -5,13 +5,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
 llm:
   # 預設模型（格式：provider/model-name）
-  default_model: "openai/gpt-5.4"
-  # API 基礎 URL
-  api_base: "https://openrouter.ai/api/v1"
+  # 國內優先：DeepSeek 為主力模型
+  default_model: "deepseek/deepseek-chat"
+  # API 基礎 URL（DeepSeek 官方端點）
+  api_base: "https://api.deepseek.com"
   # API 金鑰（直接設定或使用環境變數）
   api_key: ""
   # 使用環境變數提供 API 金鑰（推薦）
-  # api_key_env: "OPENROUTER_API_KEY"
+  # api_key_env: "DEEPSEEK_API_KEY"
 
   # 生成溫度（0.0-2.0，越高越隨機）
   temperature: 1
@@ -23,19 +24,19 @@ llm:
   fallback: {}
 
   # 預算感知調度：模型分層路由（P0-B）
-  # 根據任務重要性選擇不同層級的模型
+  # 根據任務重要性選擇不同層級的模型（國內模型優先）
   tier_routing:
-    critical: "openai/gpt-5.4"        # 關鍵決策、複雜代碼生成
-    reasoning: "openai/gpt-5.4"       # 複雜推理、多步驟規劃
-    routine: "openai/gpt-5.4-mini"    # 日常對話、簡單任務
-    summary: "openai/gpt-5.4-nano"    # 摘要、分類、壓縮
+    critical: "deepseek/deepseek-reasoner"  # 關鍵決策、複雜代碼生成（推理模型）
+    reasoning: "deepseek/deepseek-reasoner" # 複雜推理、多步驟規劃
+    routine: "deepseek/deepseek-chat"       # 日常對話、簡單任務
+    summary: "deepseek/deepseek-chat"       # 摘要、分類、壓縮
 
   # 降級鏈：預算緊張時自動切換到較便宜的模型
   degrade_chain:
-    critical: "openai/gpt-5.4-mini"
-    reasoning: "openai/gpt-5.4-mini"
-    routine: "openai/gpt-5.4-nano"
-    summary: "openai/gpt-5.4-nano"
+    critical: "deepseek/deepseek-chat"
+    reasoning: "deepseek/deepseek-chat"
+    routine: "deepseek/deepseek-chat"
+    summary: "deepseek/deepseek-chat"
 
   # 選填：總輸入上下文視窗大小，用作上下文使用量環的分母，
   # 並觸發自動摘要。大多數 OpenAI / Anthropic 模型透過 litellm 自動偵測；

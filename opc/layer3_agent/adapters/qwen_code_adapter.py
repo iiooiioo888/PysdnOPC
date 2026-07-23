@@ -91,11 +91,64 @@ class QwenCodeAdapter(ExternalAgentAdapter):
 
     def build_process_env(self, extra_env: dict[str, str] | None = None) -> dict[str, str] | None:
         env = super().build_process_env(extra_env)
-        if str(self.config.approval_mode or "auto").strip().lower() != "full-auto":
-            return env
         merged = dict(os.environ if env is None else env)
-        merged["QWEN_CODE_AUTO_APPROVE"] = "1"
+        if str(self.config.approval_mode or "auto").strip().lower() == "full-auto":
+            merged["QWEN_CODE_AUTO_APPROVE"] = "1"
+        # Windows: ensure Node.js is discoverable by the qwen-code subprocess
+        if os.name == "nt":
+            merged = self._ensure_nodejs_in_path(merged)
         return merged
+
+    @staticmethod
+    def _ensure_nodejs_in_path(env: dict[str, str]) -> dict[str, str]:
+        """Append common Node.js install dirs to PATH on Windows.
+
+        qwen-code is a Node.js CLI; its npm .cmd wrapper calls ``node``
+        internally.  If the parent process PATH lacks the Node.js dir
+        (common in CI / service contexts), the subprocess fails with
+        "node is not recognized".
+        """
+        path_key = "PATH" if "PATH" in env else ("Path" if "Path" in env else "PATH")
+        current_path = env.get(path_key, "")
+        path_dirs = [d.lower() for d in current_path.split(os.pathsep) if d]
+
+        candidates: list[str] = []
+        # Standard Node.js installer location
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        candidates.append(os.path.join(program_files, "nodejs"))
+        # fnm (Fast Node Manager)
+        local_appdata = os.environ.get("LOCALAPPDATA", "")
+        if local_appdata:
+            fnm_dir = os.path.join(local_appdata, "fnm_multishells")
+            if os.path.isdir(fnm_dir):
+                # Pick the latest subdirectory
+                try:
+                    subdirs = sorted(Path(fnm_dir).iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if subdirs:
+                        candidates.append(str(subdirs[0]))
+                except OSError:
+                    pass
+        # nvm-windows
+        nvm_home = os.environ.get("NVM_HOME", "")
+        if nvm_home:
+            candidates.append(nvm_home)
+            # nvm-windows symlink dir
+            nvm_symlink = os.environ.get("NVM_SYMLINK", "")
+            if nvm_symlink:
+                candidates.append(nvm_symlink)
+        # npm global prefix (where qwen-code.cmd itself lives)
+        appdata = os.environ.get("APPDATA", "")
+        if appdata:
+            candidates.append(os.path.join(appdata, "npm"))
+
+        additions: list[str] = []
+        for d in candidates:
+            if d and os.path.isdir(d) and d.lower() not in path_dirs:
+                additions.append(d)
+
+        if additions:
+            env[path_key] = os.pathsep.join(additions) + (os.pathsep + current_path if current_path else "")
+        return env
 
     def stdin_policy_for_process(
         self,
@@ -118,6 +171,7 @@ class QwenCodeAdapter(ExternalAgentAdapter):
             *self._build_approval_args(),
             *self._build_thinking_args(),
             *self._build_model_args(),
+            *self._build_auth_type_args(),
             *list(self.config.extra_args),
             prompt,
         ]
@@ -140,6 +194,7 @@ class QwenCodeAdapter(ExternalAgentAdapter):
             *self._build_approval_args(),
             *self._build_thinking_args(),
             *self._build_model_args(),
+            *self._build_auth_type_args(),
             *list(self.config.extra_args),
             prompt,
         ]
@@ -155,6 +210,7 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         logger.info(f"Qwen Code executing: {task.title}")
 
         try:
+            env = self.build_process_env()
             stdin_policy = self.stdin_policy_for_process(cmd, metadata)
             self._process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -162,6 +218,7 @@ class QwenCodeAdapter(ExternalAgentAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workspace_path,
+                env=env,
             )
             stdout, stderr = await asyncio.wait_for(self._process.communicate(), timeout=600)
 
@@ -300,6 +357,12 @@ class QwenCodeAdapter(ExternalAgentAdapter):
             return [self.config.model_flag, self.config.model]
         if self.config.model:
             return ["--model", self.config.model]
+        return []
+
+    def _build_auth_type_args(self) -> list[str]:
+        auth_type = str(getattr(self.config, "auth_type", "") or "").strip()
+        if auth_type:
+            return ["--auth-type", auth_type]
         return []
 
     @staticmethod

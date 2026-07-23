@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from opc.core.config import LLMConfig
-from opc.llm.provider import LLMProvider
+from opc.llm.provider import LLMProvider, _model_supports_temperature, _sanitize_call_params
 
 
 class TestLLMProviderHasCredentials(unittest.TestCase):
@@ -29,6 +30,252 @@ class TestLLMProviderHasCredentials(unittest.TestCase):
         provider = LLMProvider(LLMConfig(default_model="openai/gpt-4o", api_key=""))
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env"}, clear=True):
             self.assertTrue(provider.has_credentials())
+
+
+class TestModelSupportsTemperature(unittest.TestCase):
+    def test_o1_does_not_support_temperature(self) -> None:
+        self.assertFalse(_model_supports_temperature("openai/o1"))
+        self.assertFalse(_model_supports_temperature("o1"))
+
+    def test_o3_mini_does_not_support_temperature(self) -> None:
+        self.assertFalse(_model_supports_temperature("openai/o3-mini"))
+
+    def test_o4_mini_does_not_support_temperature(self) -> None:
+        self.assertFalse(_model_supports_temperature("openai/o4-mini"))
+
+    def test_gpt4o_supports_temperature(self) -> None:
+        self.assertTrue(_model_supports_temperature("openai/gpt-4o"))
+
+    def test_claude_supports_temperature(self) -> None:
+        self.assertTrue(_model_supports_temperature("anthropic/claude-sonnet-4-20250514"))
+
+
+class TestSanitizeCallParams(unittest.TestCase):
+    def test_removes_temperature_for_o_series(self) -> None:
+        with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+            temp, max_tok = _sanitize_call_params("openai/o3-mini", 0.7, 4096)
+        self.assertIsNone(temp)
+        self.assertEqual(max_tok, 4096)
+
+    def test_keeps_temperature_for_normal_model(self) -> None:
+        with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+            temp, max_tok = _sanitize_call_params("openai/gpt-4o", 0.7, 4096)
+        self.assertEqual(temp, 0.7)
+        self.assertEqual(max_tok, 4096)
+
+    def test_clamps_max_tokens_when_exceeds_cap(self) -> None:
+        with patch(
+            "opc.llm.provider.litellm.get_model_info",
+            return_value={"max_output_tokens": 8192, "max_tokens": 8192},
+        ):
+            temp, max_tok = _sanitize_call_params("openai/gpt-4o", 0.5, 32768)
+        self.assertEqual(temp, 0.5)
+        self.assertEqual(max_tok, 8192)
+
+    def test_passes_through_when_within_cap(self) -> None:
+        with patch(
+            "opc.llm.provider.litellm.get_model_info",
+            return_value={"max_output_tokens": 16384},
+        ):
+            temp, max_tok = _sanitize_call_params("openai/gpt-4o", 0.5, 8000)
+        self.assertEqual(max_tok, 8000)
+
+
+class TestChatStreamParameterValidation(unittest.TestCase):
+    def test_temperature_removed_for_o_series_in_stream(self) -> None:
+        """chat_stream should not send temperature for o-series models."""
+        provider = LLMProvider(LLMConfig(
+            default_model="openai/o3-mini",
+            api_key="sk-test",
+            temperature=0.7,
+            max_tokens=4096,
+        ))
+
+        captured_kwargs: dict = {}
+
+        async def fake_acompletion(**kwargs):
+            captured_kwargs.update(kwargs)
+            # Return a minimal non-streaming response (spec prevents __aiter__)
+            mock_resp = MagicMock(spec=["choices", "usage"])
+            mock_choice = MagicMock()
+            mock_choice.message.content = "hello"
+            mock_choice.message.tool_calls = None
+            mock_choice.finish_reason = "stop"
+            mock_resp.choices = [mock_choice]
+            mock_resp.usage = None
+            return mock_resp
+
+        with patch("opc.llm.provider.litellm.acompletion", side_effect=fake_acompletion):
+            with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+                events = []
+                async def collect():
+                    async for ev in provider.chat_stream([{"role": "user", "content": "hi"}]):
+                        events.append(ev)
+                asyncio.run(collect())
+
+        self.assertNotIn("temperature", captured_kwargs)
+
+    def test_temperature_included_for_normal_model_in_stream(self) -> None:
+        """chat_stream should include temperature for models that support it."""
+        provider = LLMProvider(LLMConfig(
+            default_model="openai/gpt-4o",
+            api_key="sk-test",
+            temperature=0.7,
+            max_tokens=4096,
+        ))
+
+        captured_kwargs: dict = {}
+
+        async def fake_acompletion(**kwargs):
+            captured_kwargs.update(kwargs)
+            mock_resp = MagicMock(spec=["choices", "usage"])
+            mock_choice = MagicMock()
+            mock_choice.message.content = "hello"
+            mock_choice.message.tool_calls = None
+            mock_choice.finish_reason = "stop"
+            mock_resp.choices = [mock_choice]
+            mock_resp.usage = None
+            return mock_resp
+
+        with patch("opc.llm.provider.litellm.acompletion", side_effect=fake_acompletion):
+            with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+                events = []
+                async def collect():
+                    async for ev in provider.chat_stream([{"role": "user", "content": "hi"}]):
+                        events.append(ev)
+                asyncio.run(collect())
+
+        self.assertIn("temperature", captured_kwargs)
+        self.assertEqual(captured_kwargs["temperature"], 0.7)
+
+
+class TestBadRequestErrorAutoRetry(unittest.TestCase):
+    def test_chat_retries_without_temperature_on_bad_request(self) -> None:
+        """On BadRequestError, chat should retry with temperature removed."""
+        import litellm
+
+        provider = LLMProvider(LLMConfig(
+            default_model="openai/gpt-4o",
+            api_key="sk-test",
+            temperature=0.7,
+            max_tokens=4096,
+        ))
+
+        call_count = {"n": 0}
+
+        async def fake_acompletion(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise litellm.BadRequestError(
+                    message="temperature is not supported",
+                    model="gpt-4o",
+                    llm_provider="openai",
+                )
+            # Second call succeeds
+            mock_resp = MagicMock()
+            mock_resp.choices = [MagicMock()]
+            mock_resp.choices[0].message.content = "success"
+            mock_resp.choices[0].message.tool_calls = None
+            mock_resp.choices[0].finish_reason = "stop"
+            mock_resp.usage = MagicMock()
+            mock_resp.usage.prompt_tokens = 10
+            mock_resp.usage.completion_tokens = 5
+            return mock_resp
+
+        with patch("opc.llm.provider.litellm.acompletion", side_effect=fake_acompletion):
+            with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+                with patch("opc.llm.provider.litellm.completion_cost", return_value=0.0):
+                    result = asyncio.run(provider.chat([{"role": "user", "content": "hi"}]))
+
+        self.assertEqual(result["content"], "success")
+        self.assertEqual(call_count["n"], 2)
+
+    def test_chat_stream_retries_on_bad_request(self) -> None:
+        """On BadRequestError, chat_stream should retry with corrected params."""
+        import litellm
+
+        provider = LLMProvider(LLMConfig(
+            default_model="openai/gpt-4o",
+            api_key="sk-test",
+            temperature=0.7,
+            max_tokens=4096,
+        ))
+
+        call_count = {"n": 0}
+
+        async def fake_acompletion(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise litellm.BadRequestError(
+                    message="max_tokens exceeds limit",
+                    model="gpt-4o",
+                    llm_provider="openai",
+                )
+            # Second call succeeds with non-streaming response
+            # Use spec=[] so hasattr(mock, '__aiter__') is False
+            mock_resp = MagicMock(spec=["choices", "usage"])
+            mock_choice = MagicMock()
+            mock_choice.message.content = "recovered"
+            mock_choice.message.tool_calls = None
+            mock_choice.finish_reason = "stop"
+            mock_resp.choices = [mock_choice]
+            mock_resp.usage = None
+            return mock_resp
+
+        with patch("opc.llm.provider.litellm.acompletion", side_effect=fake_acompletion):
+            with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+                events = []
+                async def collect():
+                    async for ev in provider.chat_stream([{"role": "user", "content": "hi"}]):
+                        events.append(ev)
+                asyncio.run(collect())
+
+        # Should have recovered: message_start + assistant_delta + message_stop
+        event_types = [e.event_type for e in events]
+        self.assertIn("assistant_delta", event_types)
+        self.assertIn("message_stop", event_types)
+        self.assertEqual(call_count["n"], 2)
+
+
+class TestValidateModelConfig(unittest.TestCase):
+    def test_valid_model_returns_ok(self) -> None:
+        provider = LLMProvider(LLMConfig(default_model="openai/gpt-4o", api_key="sk-test"))
+        with patch("opc.llm.provider.litellm.get_model_info", return_value={"max_input_tokens": 128000}):
+            result = provider.validate_model_config()
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["model"], "openai/gpt-4o")
+        self.assertEqual(result["errors"], [])
+
+    def test_unmapped_model_returns_warning(self) -> None:
+        provider = LLMProvider(LLMConfig(default_model="openai/custom-model", api_key="sk-test"))
+        with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+            result = provider.validate_model_config()
+        self.assertTrue(result["ok"])  # Not fatal, just a warning
+        self.assertTrue(len(result["warnings"]) > 0)
+        self.assertIn("not mapped in litellm", result["warnings"][0])
+
+    def test_o_series_model_warns_about_temperature(self) -> None:
+        provider = LLMProvider(LLMConfig(default_model="openai/o3-mini", api_key="sk-test"))
+        with patch("opc.llm.provider.litellm.get_model_info", side_effect=Exception("not mapped")):
+            result = provider.validate_model_config()
+        self.assertTrue(result["ok"])
+        temp_warnings = [w for w in result["warnings"] if "temperature" in w]
+        self.assertTrue(len(temp_warnings) > 0)
+
+    def test_max_tokens_exceeds_cap_warns(self) -> None:
+        provider = LLMProvider(LLMConfig(
+            default_model="openai/gpt-4o",
+            api_key="sk-test",
+            max_tokens=32768,
+        ))
+        with patch(
+            "opc.llm.provider.litellm.get_model_info",
+            return_value={"max_output_tokens": 16384, "max_input_tokens": 128000},
+        ):
+            result = provider.validate_model_config()
+        self.assertTrue(result["ok"])
+        cap_warnings = [w for w in result["warnings"] if "max_tokens" in w]
+        self.assertTrue(len(cap_warnings) > 0)
 
 
 class TestLLMProviderContextWindow(unittest.TestCase):

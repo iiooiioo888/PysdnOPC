@@ -126,8 +126,8 @@ class QuickStartFromQuickstartConfigTests(unittest.TestCase):
         from opc.core.config import OPCConfig
 
         config = OPCConfig.from_quickstart("實現一個演算法", api_key="sk-test")
-        # 編碼任務應使用 critical tier 模型
-        self.assertIn("gpt-5.4", config.llm.default_model)
+        # 編碼任務應使用 critical tier 模型（國內優先）
+        self.assertIn("deepseek", config.llm.default_model)
 
     def test_from_quickstart_with_overrides(self):
         from opc.core.config import OPCConfig

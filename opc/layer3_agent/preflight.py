@@ -266,6 +266,16 @@ def run_external_agent_preflight(
             results.append(result)
             continue
 
+        # qwen_code 需要配置認證才能正常運行
+        if agent_name == "qwen_code":
+            auth_type = str(getattr(agent_config, "auth_type", "") or "").strip()
+            if not auth_type:
+                result.issues.append(
+                    "qwen-code authentication not configured; set auth_type in agent config"
+                )
+                results.append(result)
+                continue
+
         _add_windows_wrapper_warnings(command, str(binary), result.warnings)
         if rpc_issue:
             result.issues.append(rpc_issue)

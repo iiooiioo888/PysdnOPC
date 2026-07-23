@@ -2192,6 +2192,27 @@ class WsTaskMixin:
             "worktree_path": str(payload.get("worktree_path", "") or "").strip(),
         }
 
+    async def _handle_runtime_logs(self, ws: Any, data: dict) -> None:
+        """Return LLM conversation transcript and runtime events for a task."""
+        task_id = str(data.get("task_id", "") or "").strip()
+        if not task_id:
+            await self._send_ack(ws, ok=False, error="task_id required", action="runtime_logs")
+            return
+        run_engine, request_project_id = await self._engine_for_request(data)
+        limit = max(1, min(int(data.get("limit", 200) or 200), 500))
+        try:
+            result = await self.services.runtime.logs(
+                project_id=request_project_id,
+                task_id=task_id,
+                limit=limit,
+            )
+            await self._send_ack(ws, ok=True, action="runtime_logs", **result.payload)
+        except ServiceError as exc:
+            await self._send_ack(ws, ok=False, error=exc.code, action="runtime_logs", **exc.context)
+        except Exception as exc:
+            logger.opt(exception=True).error(f"runtime_logs error: {exc}")
+            await self._send_ack(ws, ok=False, error="internal_error", action="runtime_logs")
+
     async def _handle_secretary_send(self, ws: Any, data: dict) -> None:
         """Handle user message in the secretary channel (no kanban task linkage)."""
         content = data.get("content", "")

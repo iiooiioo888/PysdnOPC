@@ -128,6 +128,16 @@ _PROVIDER_DEFS: list[dict[str, Any]] = [
         "key_prefix": "",
         "min_length": 10,
     },
+    {
+        "name": "dashscope",
+        "env_keys": ["DASHSCOPE_API_KEY", "QWEN_API_KEY"],
+        "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "models": ["qwen-plus", "qwen-max", "qwen-turbo", "qwen-coder-plus"],
+        "cost_tier": "cheap",
+        "strength": "chinese",
+        "key_prefix": "sk-",
+        "min_length": 20,
+    },
 ]
 
 # 成本等級排序（便宜優先）
@@ -356,11 +366,16 @@ class KeyDiscovery:
         except Exception:
             pass
 
-        # 優先推薦邏輯
-        for p in providers:
-            if is_chinese and p.provider == "deepseek":
-                p.recommended = True
-                return
+        # 優先推薦邏輯（國內模型優先）
+        if is_chinese:
+            for p in providers:
+                if p.provider == "deepseek":
+                    p.recommended = True
+                    return
+            for p in providers:
+                if p.provider == "dashscope":
+                    p.recommended = True
+                    return
 
         # 性價比優先：便宜 > 中等 > 貴
         for p in providers:

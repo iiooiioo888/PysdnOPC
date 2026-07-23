@@ -185,6 +185,7 @@ const PROJECT_SCOPED_MESSAGE_TYPES = new Set([
   'session_complete',
   'session_update_title',
   'secretary_send',
+  'runtime_logs',
   'project_index',
   'comms_state',
   'comms_read_message',
@@ -513,6 +514,13 @@ export class VisualSocketClient {
   secretarySend(projectId: string, content: string): void {
     const pid = this.requireProjectId(projectId, 'secretary_send')
     this.send({ type: 'secretary_send', project_id: pid, content })
+  }
+
+  // ── Runtime logs (LLM conversation) ─────────────────────────────────
+
+  requestRuntimeLogs(projectId: string, taskId: string, limit = 200): void {
+    const pid = this.requireProjectId(projectId, 'runtime_logs')
+    this.send({ type: 'runtime_logs', project_id: pid, task_id: taskId, limit })
   }
 
   // ── Project management ──────────────────────────────────────────────
