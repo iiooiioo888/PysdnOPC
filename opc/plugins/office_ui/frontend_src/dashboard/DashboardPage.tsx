@@ -332,4 +332,3 @@ export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeL
     </div>
   )
 }
-}
