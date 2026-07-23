@@ -1,7 +1,7 @@
 <h1 align="center" style="font-size: 1.75em;">OpenOPC: Build Your Personal AI-Native Company — Self-Built, Self-Run, Self-Grown</h1>
 
 <p align="center">
-  <b>English</b> | <a href="README.zh-CN.md">简体中文</a>
+  <b>English</b> | <a href="README.zh-CN.md">繁體中文</a>
 </p>
 
 🏗️ **Self-Built** — Fully automated to recruit role-specific AI employees and build the org.
@@ -15,8 +15,6 @@
   <img alt="Office UI" src="https://img.shields.io/badge/Office%20UI-React%20%2B%20Phaser-14b8a6?style=flat-square">
   <img alt="CLI and UI" src="https://img.shields.io/badge/interface-CLI%20%2B%20Office%20UI-64748b?style=flat-square">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-111827?style=flat-square">
-  <a href="https://github.com/HKUDS/.github/blob/main/profile/README.md"><img src="https://img.shields.io/badge/Feishu-Group-E9DBFC?style=flat-square&logo=feishu&logoColor=white" alt="Feishu" /></a>
-  <a href="https://github.com/HKUDS/.github/blob/main/profile/README.md"><img src="https://img.shields.io/badge/WeChat-Group-C5EAB4?style=flat-square&logo=wechat&logoColor=white" alt="WeChat" /></a>
 </p>
 
 ![OpenOPC hero banner](docs/assets/chat.png)
@@ -820,7 +818,5 @@ OpenOPC is built with gratitude for several open-source projects that helped sha
 ---
 
 <p align="center">
-  <em> ❤️ Thanks for visiting ✨ OpenOPC!</em><br><br>
-  <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.OpenOPC&style=for-the-badge&color=00d4ff"
-  alt="Views">
+  <em> ❤️ Thanks for visiting ✨ OpenOPC!</em>
 </p>
