@@ -1,4 +1,4 @@
-/* ── Dashboard Page ───────────────────────────────────────────────────── */
+/* ── Dashboard Page (Role Activity) ───────────────────────────────────── */
 
 .dashboard-page {
   height: 100%;
@@ -10,8 +10,8 @@
 
 .dashboard-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -21,123 +21,170 @@
   font-weight: 600;
 }
 
-.dashboard-actions {
+.dash-subtitle {
+  font-size: 0.85em;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Empty State ──────────────────────────────────────────────────────── */
+
+.dash-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
 }
 
-.ws-status {
-  font-size: 0.85em;
-  padding: 4px 10px;
-  border-radius: 12px;
-  background: var(--bg-secondary, #1a1d27);
+.dash-empty-icon {
+  font-size: 3em;
+  margin-bottom: 16px;
+  opacity: 0.6;
 }
 
-.ws-status.connected { color: #22c55e; }
-.ws-status.disconnected { color: #ef4444; }
-
-.refresh-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--border-color, #2d3148);
-  border-radius: 6px;
-  background: var(--bg-secondary, #1a1d27);
-  color: var(--text-primary, #e2e8f0);
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background 0.15s;
-}
-
-.refresh-btn:hover {
-  background: var(--bg-tertiary, #252836);
-}
-
-/* ── Grid Layout ──────────────────────────────────────────────────────── */
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 16px;
-}
-
-/* ── Card Base ────────────────────────────────────────────────────────── */
-
-.dashboard-card {
-  background: var(--bg-secondary, #1a1d27);
-  border: 1px solid var(--border-color, #2d3148);
-  border-radius: 10px;
-  padding: 18px 20px;
-  transition: border-color 0.15s;
-}
-
-.dashboard-card:hover {
-  border-color: var(--accent-color, #6366f1);
-}
-
-.dashboard-card h3 {
-  margin: 0 0 14px 0;
-  font-size: 1.05em;
+.dash-empty-title {
+  font-size: 1.2em;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ── Budget Card ──────────────────────────────────────────────────────── */
-
-.budget-amounts {
-  font-size: 1.5em;
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-
-.budget-spent { color: var(--text-primary, #e2e8f0); }
-.budget-sep { color: var(--text-muted, #64748b); }
-.budget-total { color: var(--text-secondary, #94a3b8); }
-.budget-pct { font-size: 0.65em; color: var(--text-muted, #64748b); margin-left: 6px; }
-
-.budget-bar-track {
-  height: 10px;
-  background: var(--bg-tertiary, #252836);
-  border-radius: 5px;
-  overflow: hidden;
   margin-bottom: 8px;
 }
 
-.budget-bar-fill {
-  height: 100%;
-  border-radius: 5px;
-  transition: width 0.4s ease;
-}
-
-.budget-remaining {
-  font-size: 0.85em;
+.dash-empty-desc {
+  font-size: 0.9em;
   color: var(--text-muted, #64748b);
-  margin-bottom: 12px;
+  max-width: 400px;
+  line-height: 1.6;
 }
 
-.budget-roles {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+/* ── Stats Bar ────────────────────────────────────────────────────────── */
 
-.budget-role-row {
+.dash-stats-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.85em;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: var(--bg-secondary, #1a1d27);
+  border: 1px solid var(--border-color, #2d3148);
+  border-radius: 10px;
 }
 
-.budget-role-row .role-name {
-  width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dash-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+  padding: 4px 8px;
+}
+
+.dash-stat-value {
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dash-stat-label {
+  font-size: 0.72em;
+  color: var(--text-muted, #64748b);
   white-space: nowrap;
-  color: var(--text-secondary, #94a3b8);
 }
 
-.budget-role-row .role-bar-track {
+.dash-stat-active .dash-stat-value { color: #f59e0b; }
+.dash-stat-waiting .dash-stat-value { color: #3b82f6; }
+.dash-stat-done .dash-stat-value { color: #22c55e; }
+.dash-stat-failed .dash-stat-value { color: #ef4444; }
+.dash-stat-review .dash-stat-value { color: #8b5cf6; }
+
+.dash-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color, #2d3148);
+  margin: 0 4px;
+}
+
+/* ── Roles Grid ───────────────────────────────────────────────────────── */
+
+.dash-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+/* ── Role Card ────────────────────────────────────────────────────────── */
+
+.dash-role-card {
+  background: var(--bg-secondary, #1a1d27);
+  border: 1px solid var(--border-color, #2d3148);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-role-card:hover {
+  border-color: var(--accent-color, #6366f1);
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08);
+}
+
+.dash-role-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-role-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dash-role-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+}
+
+.dash-role-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-role-name {
+  font-weight: 600;
+  font-size: 0.95em;
+  line-height: 1.3;
+}
+
+.dash-role-id {
+  font-size: 0.75em;
+  color: var(--text-muted, #64748b);
+  font-family: monospace;
+}
+
+.dash-role-status {
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* ── Role Progress ────────────────────────────────────────────────────── */
+
+.dash-role-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dash-role-progress-track {
   flex: 1;
   height: 6px;
   background: var(--bg-tertiary, #252836);
@@ -145,364 +192,104 @@
   overflow: hidden;
 }
 
-.budget-role-row .role-bar-fill {
+.dash-role-progress-fill {
   height: 100%;
-  background: var(--accent-color, #6366f1);
   border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
-.budget-role-row .role-cost {
-  width: 60px;
-  text-align: right;
+.dash-role-progress-label {
+  font-size: 0.75em;
   color: var(--text-muted, #64748b);
+  white-space: nowrap;
 }
 
-/* ── Insights Card ────────────────────────────────────────────────────── */
+/* ── Role Work Items ──────────────────────────────────────────────────── */
 
-.insight-score {
-  margin-left: auto;
-  font-size: 1.1em;
-  font-weight: 700;
-}
-
-.insight-empty {
-  color: var(--text-muted, #64748b);
-  font-size: 0.9em;
-  padding: 12px 0;
-}
-
-.insight-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.insight-item {
-  padding: 10px 12px;
-  border-left: 3px solid;
-  background: var(--bg-tertiary, #252836);
-  border-radius: 0 6px 6px 0;
-}
-
-.insight-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.insight-type {
-  font-size: 0.8em;
-  color: var(--text-muted, #64748b);
-  text-transform: uppercase;
-}
-
-.insight-message {
-  font-size: 0.9em;
-  line-height: 1.5;
-}
-
-.insight-suggestion {
-  font-size: 0.82em;
-  color: var(--accent-color, #6366f1);
-  margin-top: 4px;
-}
-
-/* ── Events Card ──────────────────────────────────────────────────────── */
-
-.events-total {
-  font-size: 0.9em;
-  margin-bottom: 10px;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.events-categories {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.event-cat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85em;
-}
-
-.cat-icon { font-size: 1em; }
-.cat-name { flex: 1; color: var(--text-secondary, #94a3b8); }
-.cat-count {
-  font-weight: 600;
-  color: var(--text-primary, #e2e8f0);
-  min-width: 30px;
-  text-align: right;
-}
-
-/* ── Recent Events Card ───────────────────────────────────────────────── */
-
-.recent-events-list {
+.dash-role-items {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 300px;
-  overflow-y: auto;
 }
 
-.recent-event-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-color, #2d3148);
-  font-size: 0.85em;
-}
-
-.evt-icon { font-size: 0.9em; }
-.evt-type { flex: 1; color: var(--text-secondary, #94a3b8); }
-.evt-time { color: var(--text-muted, #64748b); font-size: 0.8em; }
-
-.events-empty {
+.dash-role-empty {
+  font-size: 0.82em;
   color: var(--text-muted, #64748b);
-  font-size: 0.9em;
-  padding: 12px 0;
+  padding: 8px 0;
   text-align: center;
 }
 
-/* ── Model Router Card ────────────────────────────────────────────────── */
-
-.router-info {
+.dash-wi-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
-}
-
-.router-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9em;
-}
-
-.router-label { color: var(--text-muted, #64748b); }
-.router-value { color: var(--text-primary, #e2e8f0); font-family: monospace; }
-
-/* ── Estimate Panel ───────────────────────────────────────────────────── */
-
-.estimate-panel {
-  grid-column: 1 / -1;
-}
-
-.estimate-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.estimate-input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--border-color, #2d3148);
-  border-radius: 8px;
-  background: var(--bg-primary, #0f1117);
-  color: var(--text-primary, #e2e8f0);
-  font-size: 0.95em;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.estimate-input:focus {
-  border-color: var(--accent-color, #6366f1);
-}
-
-.estimate-controls {
-  display: flex;
-  gap: 10px;
-}
-
-.estimate-budget {
-  width: 100px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color, #2d3148);
+  padding: 6px 8px;
   border-radius: 6px;
-  background: var(--bg-primary, #0f1117);
-  color: var(--text-primary, #e2e8f0);
-  font-size: 0.9em;
-  outline: none;
-}
-
-.estimate-btn {
-  padding: 8px 18px;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent-color, #6366f1);
-  color: white;
-  font-size: 0.9em;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.estimate-btn:hover { opacity: 0.9; }
-.estimate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Estimate Result ──────────────────────────────────────────────────── */
-
-.estimate-result {
   background: var(--bg-tertiary, #252836);
-  border-radius: 8px;
-  padding: 14px 16px;
+  font-size: 0.82em;
 }
 
-.estimate-roles {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.estimate-role-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9em;
-}
-
-.role-dot {
-  width: 8px;
-  height: 8px;
+.dash-wi-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.estimate-role-row .role-name {
-  width: 100px;
-  font-weight: 500;
-}
-
-.estimate-role-row .role-model {
-  flex: 1;
-  color: var(--text-muted, #64748b);
-  font-family: monospace;
-  font-size: 0.85em;
-}
-
-.estimate-role-row .role-cost {
-  font-weight: 600;
-  min-width: 60px;
-  text-align: right;
-}
-
-.estimate-total {
-  font-size: 1em;
-  font-weight: 600;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color, #2d3148);
-}
-
-.estimate-budget-info {
-  font-weight: 400;
-  color: var(--text-muted, #64748b);
-  font-size: 0.9em;
-}
-
-.estimate-recs {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.estimate-rec {
-  font-size: 0.85em;
-  color: var(--accent-color, #6366f1);
-}
-
-/* ── Auto Loop Card ───────────────────────────────────────────────────── */
-
-.loop-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.loop-stat-main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.loop-rate {
-  font-size: 1.8em;
-  font-weight: 700;
-}
-
-.loop-rate-label {
-  font-size: 0.75em;
-  color: var(--text-muted, #64748b);
-}
-
-.loop-stat-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.85em;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.loop-types {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.loop-type-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85em;
-}
-
-.loop-type-count {
-  font-weight: 600;
-}
-
-.active-loops {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color, #2d3148);
-}
-
-.active-loops h4 {
-  margin: 0 0 8px 0;
-  font-size: 0.85em;
-  color: var(--text-muted, #64748b);
-}
-
-.active-loop-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85em;
-  padding: 4px 0;
-}
-
-.loop-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.loop-task {
+.dash-wi-title {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-secondary, #94a3b8);
 }
 
-.loop-attempt {
+.dash-wi-badge {
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.dash-wi-kind {
+  font-size: 0.8em;
+  color: var(--text-muted, #64748b);
+  padding: 1px 5px;
+  border: 1px solid var(--border-color, #2d3148);
+  border-radius: 4px;
+}
+
+.dash-wi-activity {
+  font-size: 0.8em;
   color: var(--text-muted, #64748b);
 }
 
-.loop-elapsed {
+.dash-wi-time {
+  font-size: 0.75em;
   color: var(--text-muted, #64748b);
-  font-family: monospace;
+  white-space: nowrap;
+}
+
+.dash-role-more {
+  font-size: 0.78em;
+  color: var(--accent-color, #6366f1);
+  padding: 4px 8px;
+  cursor: default;
+}
+
+/* ── Role Footer ──────────────────────────────────────────────────────── */
+
+.dash-role-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, #2d3148);
+}
+
+.dash-role-session {
+  font-size: 0.75em;
+  color: var(--text-muted, #64748b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }

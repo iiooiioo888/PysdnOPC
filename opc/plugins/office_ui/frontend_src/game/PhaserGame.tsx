@@ -95,12 +95,23 @@ export function PhaserGame({ bridge, active = true }: Props) {
     }
   }, [bridge]) // bridge is a stable ref, effect runs once
 
+  // The container div is fully owned by Phaser (it inserts/removes a canvas
+  // element). We tell React to never reconcile its children by rendering it
+  // as an empty self-closing element and suppressing React's child management
+  // via dangerouslySetInnerHTML with an empty string. This prevents React from
+  // calling removeChild on the Phaser canvas during re-renders.
   return (
     // Wrapper fills the CSS grid cell
     <div ref={wrapperRef} style={{ width: '100%', height: '100%' }}>
-      {/* Phaser mounts its canvas inside this div; it must track the wrapper
-          so Phaser's own parent-bounds polling reads the true size. */}
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      {/* Phaser mounts its canvas inside this div. React must NOT manage
+          children here — Phaser's destroy() removes the canvas outside of
+          React's knowledge, which would trigger "removeChild" NotFoundError
+          if React later tries to reconcile this container. */}
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%' }}
+        dangerouslySetInnerHTML={{ __html: '' }}
+      />
     </div>
   )
 }

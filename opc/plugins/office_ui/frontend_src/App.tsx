@@ -2497,7 +2497,7 @@ export default function App() {
 
       {/* Dashboard Page */}
       {activePage === 'dashboard' && (
-        <DashboardPage wsClient={clientRef.current} />
+        <DashboardPage sessions={sessionStore.sessions} />
       )}
 
       {/* Templates Page */}

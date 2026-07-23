@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -82,6 +82,42 @@ function truncatePreview(content: string): string {
 
 type MarkdownCollapseMode = 'auto' | 'never'
 
+/* ── Granular error boundary for ReactMarkdown DOM reconciliation ────── *
+ * React 19 can throw "removeChild" NotFoundError when ReactMarkdown's     *
+ * output tree changes structure between rapid successive renders (e.g.    *
+ * streaming content). This boundary catches the error and forces a clean  *
+ * remount instead of crashing the entire app.                             */
+class MarkdownRenderBoundary extends React.Component<
+  { children: React.ReactNode; resetKey: string },
+  { failed: boolean }
+> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: Error) {
+    // Log for diagnostics; the boundary auto-recovers on next content change.
+    console.warn('[MarkdownRenderBoundary] Caught render error:', error.message)
+  }
+
+  componentDidUpdate(prevProps: { resetKey: string }) {
+    // Auto-recover when the content identity changes (next render cycle).
+    if (this.state.failed && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false })
+    }
+  }
+
+  render() {
+    if (this.state.failed) {
+      // Render nothing for one frame; the resetKey change will recover us.
+      return null
+    }
+    return this.props.children
+  }
+}
+
 export const MarkdownBody = React.memo(function MarkdownBody({
   content,
   className = 'msg-content-agent',
@@ -92,28 +128,46 @@ export const MarkdownBody = React.memo(function MarkdownBody({
   collapseMode?: MarkdownCollapseMode
 }) {
   const collapsible = collapseMode !== 'never' && shouldCollapseContent(content)
-  const [collapsed, setCollapsed] = useState(collapsible)
 
-  useEffect(() => {
-    setCollapsed(collapseMode !== 'never' && shouldCollapseContent(content))
-  }, [collapseMode, content])
+  // Track user-initiated expand/collapse. The *initial* collapsed state is
+  // derived synchronously from content (no useEffect) to avoid a
+  // double-render that can desync React's fiber tree from the real DOM.
+  const [userOverride, setUserOverride] = useState<null | boolean>(null)
+  const prevCollapsibleRef = useRef(collapsible)
 
+  // When the collapsible threshold flips (e.g. streaming crossed 3000 chars),
+  // reset the user override so the new state takes effect immediately within
+  // the SAME render — no useEffect → no second commit → no removeChild crash.
+  if (prevCollapsibleRef.current !== collapsible) {
+    prevCollapsibleRef.current = collapsible
+    if (userOverride !== null) setUserOverride(null)
+  }
+
+  const collapsed = userOverride ?? collapsible
   const displayContent = collapsed ? truncatePreview(content) : content
   const lineCount = content.split('\n').length
   const charCount = content.length
 
+  // A stable identity key that changes only when the *displayed* content
+  // switches between truncated/full. This lets React cleanly remount the
+  // markdown subtree instead of trying to reconcile structurally different
+  // DOM trees (which triggers the removeChild NotFoundError).
+  const renderKey = collapsed ? 'collapsed' : 'full'
+
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-        {displayContent}
-      </ReactMarkdown>
+      <MarkdownRenderBoundary resetKey={renderKey + ':' + displayContent.length}>
+        <ReactMarkdown key={renderKey} remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {displayContent}
+        </ReactMarkdown>
+      </MarkdownRenderBoundary>
       {collapsible && collapsed && (
-        <button className="msg-collapse-toggle" onClick={() => setCollapsed(false)}>
+        <button className="msg-collapse-toggle" onClick={() => setUserOverride(false)}>
           Show more ({lineCount} lines, {(charCount / 1000).toFixed(1)}k chars)
         </button>
       )}
       {collapsible && !collapsed && (
-        <button className="msg-collapse-toggle" onClick={() => setCollapsed(true)}>
+        <button className="msg-collapse-toggle" onClick={() => setUserOverride(true)}>
           Show less
         </button>
       )}

@@ -1,0 +1,169 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "專案已具備完整的本地開發鏈（uv + Makefile + pre-commit）、多階段 CI（lint → 高風險測試 → 全量測試 → Docker 建置推送）以及 160 個測試檔案。然而，觀察到的 14 個工作階段中未偵測到任何 pytest 執行或程式碼編輯事件，驗證迴路在實務上未被行使；最近一次大型變更跨越 32 個檔案卻未伴隨對應測試，且 .opc/skills/ 中的 9 個技能候選均未完成路由。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows",
+        "Skills"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml",
+            ".github/workflows/full-test.yml"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Project"
+          ],
+          "count": 6,
+          "paths": [
+            "skills/core/coding.md",
+            "skills/core/deployment.md",
+            "skills/core/env_provisioning.md",
+            "skills/core/external_agents.md",
+            "skills/core/web_search.md",
+            "skills/core/writing.md"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "try-existing-pytest-after-edit",
+        "kind": "try-existing",
+        "title": "在每次程式碼變更後行使已配置的 pytest 驗證路由",
+        "reason": "AGENTS.md 與 Makefile 均已定義 python -m pytest tests/ -q 作為驗證命令，CI 亦執行兩階段測試，但觀察到的 14 個工作階段中無任何 pytest 執行記錄。",
+        "confidence": "High",
+        "owner": "開發團隊 / Agent 操作者",
+        "nextStep": "在下次有程式碼編輯的工作階段中，於最終變更後執行 make test 或 python -m pytest tests/ -q 並保留結果。",
+        "validation": "觀察到至少一次編輯後執行 pytest 且結果為通過或帶有可歸因的失敗診斷。"
+      },
+      {
+        "id": "try-existing-scoped-test-for-change",
+        "kind": "try-existing",
+        "title": "為跨模組大型變更建立對應的範圍測試",
+        "reason": "最近一次提交跨越 Docker、UI、引擎、Agent 適配器等 32 個檔案，但未新增任何測試檔案；CI 高風險階段僅覆蓋既有測試，無法驗證新行為。",
+        "confidence": "Medium",
+        "owner": "功能開發者",
+        "nextStep": "對新增的 qwen_code_adapter、LlmSettingsPage、_ws_config 等模組各撰寫至少一個行為測試，納入 CI 高風險或全量階段。",
+        "validation": "新測試在 CI 中通過且覆蓋新增模組的核心行為路徑。"
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 72,
+        "summary": "AGENTS.md 提供清晰的目錄職責、高風險區域、常見任務路徑與驗證命令，搭配 README 雙語文檔形成完整的上下文指引；但觀察到的工作階段中無明確任務目標與驗收邊界記錄。",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 70,
+        "summary": "uv sync --frozen + Makefile 提供可重現啟動路由，Docker 多階段建置與 docker-compose 已完備，CLI 入口 (opc) 已註冊；但觀察到的工作階段未行使這些路由，權限邊界僅依賴 AGENTS.md 文件宣告。",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 58,
+        "summary": "160 個測試檔案與兩階段 CI 覆蓋高風險模組，但使用者提及 pytest 卻無對應執行記錄；最近一次 32 檔案變更未新增任何測試，驗證迴路在實務上未被行使。",
+        "findingRefs": [
+          "validation-not-exercised-in-sessions",
+          "large-change-without-companion-tests"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 66,
+        "summary": "CI 管線涵蓋 lint、高風險測試、全量測試、Docker 建置與 GHCR 推送，分支保護規則已設定；但當前修訂的 CI 狀態無法從本地證據確認，且大型變更缺少對應測試作為交付驗收依據。",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": ".opc/skills/ 存在 9 個技能候選但均未完成觸發、程序、輸出與驗證的完整路由；無重複模式偵測或持續改進機制，學習迴路尚未建立。",
+        "findingRefs": [
+          "skill-candidates-not-routed"
+        ]
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "validation-not-exercised-in-sessions",
+      "title": "驗證命令已配置但在觀察到的工作階段中未被行使",
+      "severity": "High",
+      "reason": "AGENTS.md 明確定義 pytest 為必要驗證命令，Makefile 提供 make test 路由，CI 執行兩階段測試。然而分析器觀察 14 個工作階段後報告：使用者提及 pytest 但無對應命令執行記錄，且無任何編輯事件被觀察到。驗證迴路在配置層完備但在實務層未被行使，無法確認變更後的行為正確性。",
+      "expectedOutput": [
+        "AGENTS.md 強化編輯後驗證的強制規則",
+        "至少一個工作階段保留 pytest 執行結果",
+        "驗證失敗時有可歸因的診斷路徑"
+      ],
+      "expectedArtifact": "AGENTS.md 更新 + 驗證執行記錄",
+      "aiFixPrompt": "/better-loop fix this issue\n\n確保 Agent 工作階段在最終程式碼變更後自動行使驗證：\n1. 在 AGENTS.md 的 Mandatory Execution Rules 中強化：任何程式碼編輯後必須執行 python -m pytest tests/ -q\n2. 可選：在 pre-commit 中增加 pytest 快速煙霧測試 hook\n3. 保留每次驗證的輸出結果作為交付證據\n\n## Validation\n\n- 下一個有編輯的工作階段中觀察到 pytest 執行\n- 驗證結果被保留且可歸因",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "large-change-without-companion-tests",
+      "title": "跨模組大型變更缺少對應的行為測試",
+      "severity": "Medium",
+      "reason": "最近一次提交（32 個檔案、4070 行新增）涵蓋 Docker 容器化、Office UI 設定頁面、qwen_code 適配器、WebSocket 配置等多個獨立功能，但未新增任何測試檔案。CI 高風險階段僅驗證既有 25 個測試檔案，無法覆蓋新增行為。核心引擎檔案（_core.py、_external_agent.py）被修改但無對應測試更新。",
+      "expectedOutput": [
+        "qwen_code_adapter 至少一個行為測試",
+        "ws_config 至少一個行為測試",
+        "CI 全量階段涵蓋新測試且通過"
+      ],
+      "expectedArtifact": "新增測試檔案",
+      "aiFixPrompt": "/better-loop fix this issue\n\n為最近新增的核心模組補充行為測試：\n1. tests/test_qwen_code_adapter.py — 驗證適配器註冊與基本呼叫路徑\n2. tests/test_ws_config.py — 驗證 WebSocket 配置載入與預設值\n3. 將新測試納入 CI 全量階段\n\n## Validation\n\n- 新測試檔案存在且 python -m pytest tests/test_qwen_code_adapter.py tests/test_ws_config.py -q 通過\n- CI 全量階段包含新測試",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "skill-candidates-not-routed",
+      "title": "技能候選未完成路由，學習迴路未建立",
+      "severity": "Low",
+      "reason": ".opc/skills/ 目錄包含 9 個技能候選（clawhub、collaboration-playbook、cron、github、memory 等），但分析器報告全部未完成完整路由：大多數缺少觸發條件、程序步驟、輸出定義與驗證機制。僅 clawhub 有觸發與程序、memory 有輸出，但無一完成驗證與路由。專案級 Qoder 技能為零，重複性工作無法被偵測或沉澱為可复用改進。",
+      "expectedOutput": [
+        "至少一個 .opc/skills/ 候選完成四要素路由",
+        "技能行使記錄與結果保留",
+        "學習迴路從偵測到行使的路徑可追蹤"
+      ],
+      "expectedArtifact": "完整路由的技能定義",
+      "aiFixPrompt": "/better-loop fix this issue\n\n完成至少一個高頻技能候選的完整路由：\n1. 選擇 .opc/skills/ 中使用頻率最高的候選（如 collaboration-playbook 或 github）\n2. 補充觸發條件、程序步驟、輸出格式與驗證標準\n3. 在下一個符合觸發條件的工作階段中行使該技能\n\n## Validation\n\n- 至少一個技能候選具備完整的觸發+程序+輸出+驗證\n- 該技能在一個工作階段中被行使並保留結果",
+      "dimensionRefs": [
+        "learning-capture"
+      ]
+    }
+  ]
+}

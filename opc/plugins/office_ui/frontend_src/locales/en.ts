@@ -39,6 +39,8 @@ export const en: Record<string, string> = {
   'nav.kanban': 'Kanban',
   'nav.org': 'Organization',
   'nav.workspace': 'Workspace',
+  'nav.dashboard': 'Dashboard',
+  'nav.templates': 'Templates',
   'nav.settings': 'Settings',
   'nav.game': 'Office',
 

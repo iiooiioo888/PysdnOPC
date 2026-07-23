@@ -39,6 +39,8 @@ export const zhTW: Record<string, string> = {
   'nav.kanban': '看板',
   'nav.org': '組織',
   'nav.workspace': '工作區',
+  'nav.dashboard': '儀表盤',
+  'nav.templates': '模板',
   'nav.settings': '設定',
   'nav.game': '辦公室',
 

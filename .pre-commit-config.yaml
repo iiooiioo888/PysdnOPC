@@ -13,3 +13,13 @@ repos:
         args: [--ignore-missing-imports]
         additional_dependencies: []
         files: ^opc/
+
+  - repo: local
+    hooks:
+      - id: pytest-smoke
+        name: pytest smoke test
+        entry: python -m pytest tests/ -q --tb=short -x
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

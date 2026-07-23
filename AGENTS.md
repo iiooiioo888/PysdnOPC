@@ -90,6 +90,23 @@ tests", "跑一下测试", "执行测试"), the agent **MUST**:
 Do NOT substitute a description of what the command would do for actual
 execution. The user expects to see real pytest output.
 
+### Post-Edit Validation (Mandatory)
+
+After **any code edit** to files under `opc/`, `tests/`, `scripts/`, or
+`config/`, the agent **MUST** automatically run validation before declaring
+the task complete:
+
+1. Execute `python -m pytest tests/ -q` via the terminal immediately after
+   the final code change in the session.
+2. **Preserve the full pytest output** as delivery evidence — include it
+   verbatim in the session response so it is attributable to the change set.
+3. If any test fails, fix the failure and re-run until the suite passes (or
+   report the failure with full context to the user).
+4. Never skip, mock away, or selectively exclude tests to force a green run.
+
+This rule applies regardless of whether the user explicitly asks for testing.
+The validation output constitutes the delivery proof for the edit session.
+
 ## CI Workflow
 
 Two workflows run on **PR + manual dispatch** (matrix: `ubuntu-latest`, `macos-latest`, `windows-latest` / Python 3.11):

@@ -603,6 +603,26 @@ async def _resolve_manager_tool_target(
             if str(getattr(child, "work_item_id", "") or "").strip()
         }
     if target_id not in board_ids:
+        # Fallback: the agent may have seen this item via manager_board_read with
+        # an explicit parent_work_item_id that differs from the auto-resolved parent.
+        # Allow the operation if the item is owned by the same manager seat.
+        item_seat = str(getattr(item, "manager_seat_id", "") or "").strip()
+        item_parent = str(getattr(item, "parent_work_item_id", "") or "").strip()
+        if item_seat and item_seat == manager_seat_id and item_parent:
+            # Verify via the item's own parent board
+            if hasattr(store, "list_manager_board"):
+                fallback_board = await store.list_manager_board(
+                    run_id,
+                    manager_seat_id=manager_seat_id,
+                    parent_work_item_id=item_parent,
+                )
+                fallback_ids = {
+                    str(getattr(child, "work_item_id", "") or "").strip()
+                    for child in list(fallback_board or [])
+                    if str(getattr(child, "work_item_id", "") or "").strip()
+                }
+                if target_id in fallback_ids:
+                    return item, run_id, manager_seat_id, item_parent
         raise ValueError(
             f"{tool_name}: target WorkItem is not on this manager board. "
             "Call manager_board_read and pass a child work_item_id from that result."
@@ -917,7 +937,7 @@ _EXTERNAL_BRIDGE_ARGUMENT_NOTES: dict[str, tuple[str, ...]] = {
 
 _EXTERNAL_CLI_KEY_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "delegate_work": ("items", "planning_context"),
-    "modify_work_item": ("work_item_id", "task_brief", "brief", "deliverables", "acceptance_criteria", "depends_on", "reason"),
+    "modify_work_item": ("work_item_id", "task_brief", "brief", "deliverables", "deliverable_summary", "acceptance_criteria", "depends_on", "reason"),
     "delete_work_item": ("work_item_id", "reason", "replacement_dependency_work_item_ids"),
     "inbox": ("action", "message_ids", "limit"),
     "manager_board_read": ("parent_work_item_id", "include_children"),
@@ -2283,6 +2303,7 @@ def create_collaboration_tools(
         task_brief: str = "",
         brief: str = "",
         summary: str = "",
+        deliverable_summary: str = "",
         work_kind: str = "",
         deliverables: Any = None,
         outputs: Any = None,
@@ -2298,6 +2319,10 @@ def create_collaboration_tools(
         clear_outputs: bool = True,
         task: Task | None = None,
     ) -> dict[str, Any]:
+        # deliverable_summary is a convenience alias surfaced by manager_board_read;
+        # merge it into summary so agents can pass it back without error.
+        if not summary and deliverable_summary:
+            summary = deliverable_summary
         store = getattr(communication, "store", None)
         item, run_id, manager_seat_id, parent_work_item_id = await _resolve_manager_tool_target(
             store=store,
@@ -3163,6 +3188,7 @@ def create_collaboration_tools(
                     "task_brief": {"type": "string", "default": ""},
                     "brief": {"type": "string", "default": ""},
                     "summary": {"type": "string", "default": ""},
+                    "deliverable_summary": {"type": "string", "default": ""},
                     "work_kind": {"type": "string", "default": ""},
                     "deliverables": {"type": "array", "items": {"type": "string"}},
                     "outputs": {"type": "array", "items": {"type": "string"}},

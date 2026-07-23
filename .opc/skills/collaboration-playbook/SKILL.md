@@ -4,6 +4,13 @@ description: Standing rules for how any role in an OpenOPC company coordinates w
 always: true
 modes:
   - company_mode
+trigger:
+  conditions:
+    - execution_mode == "company_mode"
+    - role has at least one active work item
+    - inbox has unread messages OR upstream handoff exists OR peer dependency detected
+  priority: high
+  frequency: every company-mode turn
 ---
 
 # Collaboration Playbook
@@ -15,6 +22,63 @@ auto-attached to your runtime. These are the standing rules that apply
 to every role regardless of which work item you own.
 
 You are never the whole project. Stay inside your work-item boundary.
+
+## Routing
+
+### Trigger Conditions
+
+This skill activates when ALL of the following hold:
+
+1. **Mode**: Current execution mode is `company_mode`.
+2. **Role assignment**: The agent holds at least one active work item.
+3. **Coordination signal** (at least one):
+   - Inbox contains unread messages (`has_unread == true` in per-turn Comms section)
+   - An upstream work item has completed and left a handoff artifact
+   - A downstream dependency is detected (another work item awaits this role's output)
+   - A peer conflict or blocking question is identified during execution
+
+### Procedure Steps
+
+When triggered, execute in order:
+
+1. **Read inbox** — If unread messages exist, call `read_inbox(limit=10)` first.
+2. **Load upstream handoffs** — Read completed upstream work-item artifacts referenced in the task brief.
+3. **Assess coordination need** — For each message/handoff, decide:
+   - Does this require a reply or action from me? → Continue to step 4.
+   - Is this informational only? → Acknowledge silently (no message sent), proceed to execution.
+4. **Execute work-item slice** — Perform the assigned deliverable within scope.
+5. **Coordinate if blocked** — If a peer's input is genuinely required:
+   - Non-urgent: `send_dm(to_agent, subject, body)` and continue with other work.
+   - Urgent/unresolvable: `send_dm(..., blocking=True)` and park.
+6. **Leave handoff artifact** — Write completion summary with: summary, artifact pointers, decisions, risks, open questions, verification status.
+7. **Update shared memory** — Write durable conclusions/decisions to the team memory file.
+
+### Output Format
+
+Every work-item completion MUST produce a handoff artifact containing:
+
+```markdown
+## Handoff: <work-item-title>
+
+**Status**: completed | blocked | partial
+**Summary**: <1-3 sentence outcome>
+**Artifacts**: <list of file paths or references>
+**Decisions made**: <key decisions and rationale>
+**Risks / Open questions**: <unresolved items for reviewer>
+**Verification**: <what was tested/checked and result>
+**Downstream notes**: <anything the next role needs to know>
+```
+
+### Validation Criteria
+
+The skill execution is valid when:
+
+1. **Inbox processed**: All unread messages were read and either acted upon or consciously dismissed.
+2. **Scope respected**: No work outside the assigned work-item boundary was performed.
+3. **Handoff complete**: The handoff artifact contains all required fields (status, summary, artifacts, decisions, risks, verification).
+4. **Messages justified**: Every message sent satisfies the "When to send" rules below — no acks, no status broadcasts, no duplicates of handoff content.
+5. **Memory updated**: Durable decisions/conclusions are written to shared team memory (not chat-style logging).
+6. **No orphan blocks**: If `blocking=True` was used, the reason is documented and no alternative async path existed.
 
 ## Work Item Discipline
 

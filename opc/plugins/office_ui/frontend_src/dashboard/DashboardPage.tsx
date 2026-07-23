@@ -1,505 +1,277 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
+import type { RoleAggregatedStatus, RoleWorkItemRow, RoleWorkItemSummary, Session } from '../types/kanban'
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
-interface BudgetData {
-  total: number
-  spent: number
-  remaining: number
-  pct: number
-  role_breakdown: Record<string, number>
-}
-
-interface InsightItem {
-  type: string
-  severity: string
-  message: string
-  suggestion?: string
-}
-
-interface DashboardData {
-  timestamp: number
-  budget?: BudgetData
-  events?: {
-    total: number
-    by_category: Record<string, number>
-    ws_broadcasts: number
-  }
-  recent_events?: Array<{
-    type: string
-    event_type: string
-    category: string
-    payload: Record<string, unknown>
-    timestamp: string
-    event_id: string
-  }>
-  insights?: {
-    score: number
-    insight_count: number
-    insights: InsightItem[]
-  }
-  model_router?: {
-    default_model: string
-    quality_hint: string
-    budget_spent: number
-  }
-  auto_loop?: {
-    total_runs: number
-    success: number
-    failed: number
-    success_rate: number
-    active_loops: number
-    by_type: Record<string, number>
-  }
-  active_loops?: Array<{
-    loop_id: string
-    type: string
-    task_id: string
-    role: string
-    status: string
-    attempt: number
-    max_attempts: number
-    elapsed: number
-  }>
-}
-
-interface RunEstimate {
-  role_estimates: Array<{
-    role: string
-    model: string
-    tier: string
-    estimated_cost: number
-  }>
-  total_estimated_cost: number
-  budget_limit: number
-  budget_sufficient: boolean
-  recommendations: string[]
-}
-
 interface DashboardPageProps {
-  wsClient: any | null
+  sessions: Session[]
+}
+
+interface AggregatedRole {
+  roleKey: string
+  roleId: string
+  roleName: string
+  aggregatedStatus: RoleAggregatedStatus
+  runtimeStatus: string
+  workItems: RoleWorkItemRow[]
+  sessionTitle: string
+  sessionTaskId: string
+}
+
+interface DashboardStats {
+  totalRoles: number
+  active: number
+  waiting: number
+  pending: number
+  done: number
+  failed: number
+  totalWorkItems: number
+  activeWorkItems: number
+  reviewWorkItems: number
+  doneWorkItems: number
 }
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
-function formatUsd(value: number): string {
-  return `$${value.toFixed(2)}`
+const STATUS_CONFIG: Record<RoleAggregatedStatus, { label: string; color: string; icon: string }> = {
+  active: { label: '執行中', color: '#f59e0b', icon: '⚡' },
+  waiting: { label: '等待中', color: '#3b82f6', icon: '⏳' },
+  pending: { label: '待處理', color: '#6b7280', icon: '📋' },
+  done: { label: '已完成', color: '#22c55e', icon: '✅' },
+  failed: { label: '失敗', color: '#ef4444', icon: '❌' },
 }
 
-function severityColor(severity: string): string {
-  if (severity === 'critical') return '#ef4444'
-  if (severity === 'warning') return '#f59e0b'
-  return '#3b82f6'
+const COLUMN_CONFIG: Record<string, { label: string; color: string }> = {
+  'todo': { label: '待辦', color: '#6b7280' },
+  'in-progress': { label: '進行中', color: '#f59e0b' },
+  'in-review': { label: '審查中', color: '#8b5cf6' },
+  'done': { label: '完成', color: '#22c55e' },
+  'failed': { label: '失敗', color: '#ef4444' },
+  'cancelled': { label: '已取消', color: '#9ca3af' },
 }
 
-function severityIcon(severity: string): string {
-  if (severity === 'critical') return '🔴'
-  if (severity === 'warning') return '🟠'
-  return '🔵'
+function formatRelativeTime(ts: number): string {
+  const sec = Math.floor((Date.now() - ts) / 1000)
+  if (sec < 5) return '剛剛'
+  if (sec < 60) return `${sec} 秒前`
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min} 分鐘前`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr} 小時前`
+  return `${Math.floor(hr / 24)} 天前`
 }
 
-function categoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    company: '🏢', task: '📋', work_item: '📝', role: '👤',
-    llm: '🤖', cost: '💰', budget: '🛡️', review: '✅', system: '⚙️',
-  }
-  return icons[category] ?? '📌'
-}
-
-function tierColor(tier: string): string {
-  if (tier === 'heavy') return '#ef4444'
-  if (tier === 'medium') return '#f59e0b'
-  return '#22c55e'
+function columnBadge(column: string): { label: string; color: string } {
+  return COLUMN_CONFIG[column] ?? { label: column, color: '#6b7280' }
 }
 
 /* ── Sub-components ────────────────────────────────────────────────────── */
 
-function BudgetCard({ budget }: { budget: BudgetData }) {
-  const barColor = budget.pct < 70 ? '#22c55e' : budget.pct < 90 ? '#f59e0b' : '#ef4444'
-  const roleEntries = Object.entries(budget.role_breakdown).sort((a, b) => b[1] - a[1])
-
+function StatsBar({ stats }: { stats: DashboardStats }) {
   return (
-    <div className="dashboard-card">
-      <h3>💰 預算狀態</h3>
-      <div className="budget-amounts">
-        <span className="budget-spent">{formatUsd(budget.spent)}</span>
-        <span className="budget-sep"> / </span>
-        <span className="budget-total">{formatUsd(budget.total)}</span>
-        <span className="budget-pct">({budget.pct.toFixed(0)}%)</span>
+    <div className="dash-stats-bar">
+      <div className="dash-stat-card">
+        <span className="dash-stat-value">{stats.totalRoles}</span>
+        <span className="dash-stat-label">角色總數</span>
       </div>
-      <div className="budget-bar-track">
-        <div className="budget-bar-fill" style={{ width: `${Math.min(100, budget.pct)}%`, backgroundColor: barColor }} />
+      <div className="dash-stat-card dash-stat-active">
+        <span className="dash-stat-value">{stats.active}</span>
+        <span className="dash-stat-label">執行中</span>
       </div>
-      <div className="budget-remaining">剩餘: {formatUsd(budget.remaining)}</div>
-      {roleEntries.length > 0 && (
-        <div className="budget-roles">
-          {roleEntries.map(([role, spent]) => {
-            const pct = budget.total > 0 ? (spent / budget.total) * 100 : 0
-            return (
-              <div key={role} className="budget-role-row">
-                <span className="role-name">{role}</span>
-                <div className="role-bar-track">
-                  <div className="role-bar-fill" style={{ width: `${Math.min(100, pct)}%` }} />
-                </div>
-                <span className="role-cost">{formatUsd(spent)}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <div className="dash-stat-card dash-stat-waiting">
+        <span className="dash-stat-value">{stats.waiting}</span>
+        <span className="dash-stat-label">等待中</span>
+      </div>
+      <div className="dash-stat-card dash-stat-done">
+        <span className="dash-stat-value">{stats.done}</span>
+        <span className="dash-stat-label">已完成</span>
+      </div>
+      <div className="dash-stat-card dash-stat-failed">
+        <span className="dash-stat-value">{stats.failed}</span>
+        <span className="dash-stat-label">失敗</span>
+      </div>
+      <div className="dash-stat-divider" />
+      <div className="dash-stat-card">
+        <span className="dash-stat-value">{stats.totalWorkItems}</span>
+        <span className="dash-stat-label">工作項目</span>
+      </div>
+      <div className="dash-stat-card dash-stat-active">
+        <span className="dash-stat-value">{stats.activeWorkItems}</span>
+        <span className="dash-stat-label">進行中</span>
+      </div>
+      <div className="dash-stat-card dash-stat-review">
+        <span className="dash-stat-value">{stats.reviewWorkItems}</span>
+        <span className="dash-stat-label">審查中</span>
+      </div>
     </div>
   )
 }
 
-function InsightsCard({ insights }: { insights: NonNullable<DashboardData['insights']> }) {
-  const scoreColor = insights.score >= 80 ? '#22c55e' : insights.score >= 60 ? '#f59e0b' : '#ef4444'
+function WorkItemRow({ item }: { item: RoleWorkItemRow }) {
+  const badge = columnBadge(item.kanbanColumn)
+  const activityCount = item.activitySections
+    ? item.activitySections.reduce((n, s) => n + (s.entries?.length ?? 0), 0)
+    : item.progressLog.length
 
   return (
-    <div className="dashboard-card">
-      <h3>
-        📊 洞察分析
-        <span className="insight-score" style={{ color: scoreColor }}>
-          {insights.score.toFixed(0)}/100
+    <div className="dash-wi-row">
+      <span className="dash-wi-dot" style={{ backgroundColor: badge.color }} />
+      <span className="dash-wi-title" title={item.title}>{item.title}</span>
+      <span className="dash-wi-badge" style={{ backgroundColor: `${badge.color}22`, color: badge.color }}>
+        {badge.label}
+      </span>
+      {item.kind && <span className="dash-wi-kind">{item.kind}</span>}
+      {activityCount > 0 && <span className="dash-wi-activity">📝 {activityCount}</span>}
+      <span className="dash-wi-time">{formatRelativeTime(item.updatedAt)}</span>
+    </div>
+  )
+}
+
+function RoleCard({ role }: { role: AggregatedRole }) {
+  const config = STATUS_CONFIG[role.aggregatedStatus]
+  const sortedItems = useMemo(
+    () => [...role.workItems].sort((a, b) => b.updatedAt - a.updatedAt),
+    [role.workItems],
+  )
+  const doneCount = role.workItems.filter(w => w.kanbanColumn === 'done').length
+  const totalCount = role.workItems.length
+  const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
+
+  return (
+    <div className="dash-role-card">
+      <div className="dash-role-header">
+        <div className="dash-role-identity">
+          <span className="dash-role-icon" style={{ backgroundColor: `${config.color}22` }}>
+            {config.icon}
+          </span>
+          <div className="dash-role-names">
+            <span className="dash-role-name">{role.roleName}</span>
+            <span className="dash-role-id">{role.roleId}</span>
+          </div>
+        </div>
+        <span className="dash-role-status" style={{ backgroundColor: `${config.color}18`, color: config.color }}>
+          {config.label}
         </span>
-      </h3>
-      {insights.insights.length === 0 ? (
-        <div className="insight-empty">暫無洞察數據</div>
-      ) : (
-        <div className="insight-list">
-          {insights.insights.map((item, i) => (
-            <div key={i} className="insight-item" style={{ borderLeftColor: severityColor(item.severity) }}>
-              <div className="insight-header">
-                <span>{severityIcon(item.severity)}</span>
-                <span className="insight-type">{item.type}</span>
-              </div>
-              <div className="insight-message">{item.message}</div>
-              {item.suggestion && <div className="insight-suggestion">→ {item.suggestion}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function EventsCard({ events }: { events: NonNullable<DashboardData['events']> }) {
-  const categories = Object.entries(events.by_category).sort((a, b) => b[1] - a[1])
-
-  return (
-    <div className="dashboard-card">
-      <h3>📡 事件統計</h3>
-      <div className="events-total">總事件數: <b>{events.total}</b></div>
-      <div className="events-categories">
-        {categories.map(([cat, count]) => (
-          <div key={cat} className="event-cat-row">
-            <span className="cat-icon">{categoryIcon(cat)}</span>
-            <span className="cat-name">{cat}</span>
-            <span className="cat-count">{count}</span>
-          </div>
-        ))}
       </div>
-    </div>
-  )
-}
 
-function RecentEventsCard({ events }: { events: NonNullable<DashboardData['recent_events']> }) {
-  return (
-    <div className="dashboard-card">
-      <h3>📋 最近事件</h3>
-      <div className="recent-events-list">
-        {events.slice(-15).reverse().map((evt) => (
-          <div key={evt.event_id} className="recent-event-row">
-            <span className="evt-icon">{categoryIcon(evt.category)}</span>
-            <span className="evt-type">{evt.event_type}</span>
-            <span className="evt-time">{evt.timestamp?.slice(11, 19) ?? ''}</span>
-          </div>
-        ))}
-        {events.length === 0 && <div className="events-empty">暫無事件</div>}
+      {/* Progress bar */}
+      <div className="dash-role-progress">
+        <div className="dash-role-progress-track">
+          <div className="dash-role-progress-fill" style={{ width: `${progressPct}%`, backgroundColor: config.color }} />
+        </div>
+        <span className="dash-role-progress-label">{doneCount}/{totalCount} 完成</span>
       </div>
-    </div>
-  )
-}
 
-function ModelRouterCard({ router }: { router: NonNullable<DashboardData['model_router']> }) {
-  return (
-    <div className="dashboard-card">
-      <h3>🧠 模型路由</h3>
-      <div className="router-info">
-        <div className="router-row">
-          <span className="router-label">預設模型</span>
-          <span className="router-value">{router.default_model}</span>
-        </div>
-        <div className="router-row">
-          <span className="router-label">品質偏好</span>
-          <span className="router-value">{router.quality_hint}</span>
-        </div>
-        <div className="router-row">
-          <span className="router-label">已花費</span>
-          <span className="router-value">{formatUsd(router.budget_spent)}</span>
-        </div>
+      {/* Work items */}
+      <div className="dash-role-items">
+        {sortedItems.length === 0 ? (
+          <div className="dash-role-empty">尚無工作項目</div>
+        ) : (
+          sortedItems.slice(0, 6).map(item => <WorkItemRow key={item.workItemId} item={item} />)
+        )}
+        {sortedItems.length > 6 && (
+          <div className="dash-role-more">+{sortedItems.length - 6} 更多...</div>
+        )}
       </div>
-    </div>
-  )
-}
 
-function AutoLoopCard({ stats, activeLoops }: {
-  stats: NonNullable<DashboardData['auto_loop']>
-  activeLoops: NonNullable<DashboardData['active_loops']>
-}) {
-  const rateColor = stats.success_rate >= 80 ? '#22c55e' : stats.success_rate >= 50 ? '#f59e0b' : '#ef4444'
-  const typeNames: Record<string, string> = {
-    retry: '🔁 重試', self_heal: '🩹 自癒', quality_gate: '✅ 質量門禁',
-    watchdog: '🐕 看門狗', improvement: '📈 改進',
-  }
-
-  return (
-    <div className="dashboard-card">
-      <h3>🔄 自動循環</h3>
-      <div className="loop-stats">
-        <div className="loop-stat-main">
-          <span className="loop-rate" style={{ color: rateColor }}>{stats.success_rate.toFixed(0)}%</span>
-          <span className="loop-rate-label">成功率</span>
-        </div>
-        <div className="loop-stat-detail">
-          <span>✅ {stats.success} 成功</span>
-          <span>❌ {stats.failed} 失敗</span>
-          <span>🔄 {stats.active_loops} 活動中</span>
-        </div>
+      {/* Session source */}
+      <div className="dash-role-footer">
+        <span className="dash-role-session">📂 {role.sessionTitle || role.sessionTaskId}</span>
       </div>
-      {Object.keys(stats.by_type).length > 0 && (
-        <div className="loop-types">
-          {Object.entries(stats.by_type).map(([type, count]) => (
-            <div key={type} className="loop-type-row">
-              <span>{typeNames[type] ?? type}</span>
-              <span className="loop-type-count">{count}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {activeLoops.length > 0 && (
-        <div className="active-loops">
-          <h4>活動循環</h4>
-          {activeLoops.map(loop => (
-            <div key={loop.loop_id} className="active-loop-row">
-              <span className="loop-status-dot" style={{ backgroundColor: loop.status === 'running' ? '#f59e0b' : '#22c55e' }} />
-              <span className="loop-task">{loop.task_id}</span>
-              <span className="loop-attempt">{loop.attempt}/{loop.max_attempts}</span>
-              <span className="loop-elapsed">{loop.elapsed.toFixed(0)}s</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function EstimatePanel({ wsClient }: { wsClient: any | null }) {
-  const [task, setTask] = useState('')
-  const [budget, setBudget] = useState('3.0')
-  const [estimate, setEstimate] = useState<RunEstimate | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const handleEstimate = useCallback(() => {
-    if (!task.trim()) return
-    setLoading(true)
-    // Use WebSocket to request estimate from backend
-    if (wsClient) {
-      wsClient.send(JSON.stringify({
-        action: 'estimate_cost',
-        task: task,
-        budget: parseFloat(budget) || 0,
-      }))
-    }
-    // Simulate for now
-    setTimeout(() => {
-      setEstimate({
-        role_estimates: [
-          { role: 'manager', model: 'gpt-4o', tier: 'heavy', estimated_cost: 0.45 },
-          { role: 'researcher', model: 'gpt-4o-mini', tier: 'medium', estimated_cost: 0.25 },
-          { role: 'writer', model: 'gpt-4o-mini', tier: 'medium', estimated_cost: 0.20 },
-        ],
-        total_estimated_cost: 0.90,
-        budget_limit: parseFloat(budget) || 0,
-        budget_sufficient: true,
-        recommendations: [],
-      })
-      setLoading(false)
-    }, 500)
-  }, [task, budget, wsClient])
-
-  return (
-    <div className="dashboard-card estimate-panel">
-      <h3>💰 成本估算</h3>
-      <div className="estimate-form">
-        <input
-          className="estimate-input"
-          placeholder="描述你的任務..."
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleEstimate()}
-        />
-        <div className="estimate-controls">
-          <input
-            className="estimate-budget"
-            type="number"
-            placeholder="預算"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            step="0.5"
-            min="0"
-          />
-          <button className="estimate-btn" onClick={handleEstimate} disabled={loading || !task.trim()}>
-            {loading ? '⏳' : '📊'} 估算
-          </button>
-        </div>
-      </div>
-      {estimate && (
-        <div className="estimate-result">
-          <div className="estimate-roles">
-            {estimate.role_estimates.map((e) => (
-              <div key={e.role} className="estimate-role-row">
-                <span className="role-dot" style={{ backgroundColor: tierColor(e.tier) }} />
-                <span className="role-name">{e.role}</span>
-                <span className="role-model">{e.model}</span>
-                <span className="role-cost">{formatUsd(e.estimated_cost)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="estimate-total">
-            預估總費用: <b>{formatUsd(estimate.total_estimated_cost)}</b>
-            {estimate.budget_limit > 0 && (
-              <span className="estimate-budget-info">
-                {' '}/ {formatUsd(estimate.budget_limit)}
-                {estimate.budget_sufficient ? ' ✅' : ' ⚠️ 超出預算'}
-              </span>
-            )}
-          </div>
-          {estimate.recommendations.length > 0 && (
-            <div className="estimate-recs">
-              {estimate.recommendations.map((r, i) => <div key={i} className="estimate-rec">{r}</div>)}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
 
 /* ── Main Component ────────────────────────────────────────────────────── */
 
-export function DashboardPage({ wsClient }: DashboardPageProps) {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [connected, setConnected] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+export function DashboardPage({ sessions }: DashboardPageProps) {
+  // Aggregate role data from all company-mode primary sessions
+  const { roles, stats } = useMemo(() => {
+    const aggregatedRoles: AggregatedRole[] = []
+    const roleByKey = new Map<string, AggregatedRole>()
 
-  // Connect to dashboard WebSocket
-  useEffect(() => {
-    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = `${wsProto}://${window.location.hostname}:8766`
+    for (const session of sessions) {
+      // Only consider company-mode primary sessions with roleWorkItems
+      const roleWorkItems = session.roleWorkItems ?? session.executorRoleWorkItems
+      if (!roleWorkItems || Object.keys(roleWorkItems).length === 0) continue
 
-    let ws: WebSocket | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-
-    const connect = () => {
-      try {
-        ws = new WebSocket(wsUrl)
-        wsRef.current = ws
-
-        ws.onopen = () => {
-          setConnected(true)
-          // Request initial data
-          ws?.send(JSON.stringify({ type: 'get_status' }))
-        }
-
-        ws.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data)
-            if (msg.type === 'init' || msg.type === 'status') {
-              setData(msg.data)
-            } else if (msg.type === 'event') {
-              // Real-time event — refresh data
-              setData(prev => prev ? {
-                ...prev,
-                recent_events: [...(prev.recent_events ?? []).slice(-49), msg],
-              } : prev)
+      for (const [key, summary] of Object.entries(roleWorkItems)) {
+        const existing = roleByKey.get(key)
+        if (existing) {
+          // Merge work items from multiple sessions
+          const existingIds = new Set(existing.workItems.map(w => w.workItemId))
+          for (const wi of summary.workItems) {
+            if (!existingIds.has(wi.workItemId)) {
+              existing.workItems.push(wi)
             }
-          } catch { /* ignore parse errors */ }
+          }
+          // Upgrade status if the new one is more "active"
+          const priority: RoleAggregatedStatus[] = ['active', 'waiting', 'pending', 'done', 'failed']
+          if (priority.indexOf(summary.aggregatedStatus) < priority.indexOf(existing.aggregatedStatus)) {
+            existing.aggregatedStatus = summary.aggregatedStatus
+          }
+        } else {
+          const role: AggregatedRole = {
+            roleKey: key,
+            roleId: summary.roleId,
+            roleName: summary.roleName,
+            aggregatedStatus: summary.aggregatedStatus,
+            runtimeStatus: summary.runtimeStatus,
+            workItems: [...summary.workItems],
+            sessionTitle: session.title,
+            sessionTaskId: session.taskId,
+          }
+          roleByKey.set(key, role)
+          aggregatedRoles.push(role)
         }
-
-        ws.onclose = () => {
-          setConnected(false)
-          reconnectTimer = setTimeout(connect, 3000)
-        }
-
-        ws.onerror = () => {
-          ws?.close()
-        }
-      } catch { /* ignore connection errors */ }
-    }
-
-    connect()
-
-    // Fallback: poll via main WebSocket if dashboard WS unavailable
-    pollRef.current = setInterval(() => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'get_status' }))
       }
-    }, 5000)
-
-    return () => {
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-      if (pollRef.current) clearInterval(pollRef.current)
-      ws?.close()
     }
-  }, [])
 
-  const handleRefresh = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: 'get_status' }))
-  }, [])
+    // Sort: active first, then waiting, pending, done, failed
+    const statusOrder: Record<RoleAggregatedStatus, number> = { active: 0, waiting: 1, pending: 2, done: 3, failed: 4 }
+    aggregatedRoles.sort((a, b) => statusOrder[a.aggregatedStatus] - statusOrder[b.aggregatedStatus])
+
+    // Compute stats
+    const allWorkItems = aggregatedRoles.flatMap(r => r.workItems)
+    const computedStats: DashboardStats = {
+      totalRoles: aggregatedRoles.length,
+      active: aggregatedRoles.filter(r => r.aggregatedStatus === 'active').length,
+      waiting: aggregatedRoles.filter(r => r.aggregatedStatus === 'waiting').length,
+      pending: aggregatedRoles.filter(r => r.aggregatedStatus === 'pending').length,
+      done: aggregatedRoles.filter(r => r.aggregatedStatus === 'done').length,
+      failed: aggregatedRoles.filter(r => r.aggregatedStatus === 'failed').length,
+      totalWorkItems: allWorkItems.length,
+      activeWorkItems: allWorkItems.filter(w => w.kanbanColumn === 'in-progress').length,
+      reviewWorkItems: allWorkItems.filter(w => w.kanbanColumn === 'in-review').length,
+      doneWorkItems: allWorkItems.filter(w => w.kanbanColumn === 'done').length,
+    }
+
+    return { roles: aggregatedRoles, stats: computedStats }
+  }, [sessions])
 
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
-        <h2>📊 儀表盤</h2>
-        <div className="dashboard-actions">
-          <span className={`ws-status ${connected ? 'connected' : 'disconnected'}`}>
-            {connected ? '🟢 已連接' : '🔴 未連接'}
-          </span>
-          <button className="refresh-btn" onClick={handleRefresh}>🔄 刷新</button>
+        <h2>👥 角色活動與分工</h2>
+        <span className="dash-subtitle">公司模式下的角色工作狀態總覽</span>
+      </div>
+
+      {roles.length === 0 ? (
+        <div className="dash-empty">
+          <div className="dash-empty-icon">🏢</div>
+          <div className="dash-empty-title">尚無公司模式活動</div>
+          <div className="dash-empty-desc">
+            在工作區以公司模式或組織模式啟動任務後，這裡會顯示各角色的工作分配與進度。
+          </div>
         </div>
-      </div>
-
-      <div className="dashboard-grid">
-        {/* Row 1: Budget + Model Router */}
-        {data?.budget && data.budget.total > 0 && (
-          <BudgetCard budget={data.budget} />
-        )}
-        {data?.model_router && (
-          <ModelRouterCard router={data.model_router} />
-        )}
-
-        {/* Row 2: Insights + Auto Loop */}
-        {data?.insights && (
-          <InsightsCard insights={data.insights} />
-        )}
-        {data?.auto_loop && (
-          <AutoLoopCard stats={data.auto_loop} activeLoops={data.active_loops ?? []} />
-        )}
-
-        {/* Row 3: Events */}
-        {data?.events && (
-          <EventsCard events={data.events} />
-        )}
-
-        {/* Row 4: Recent Events */}
-        {data?.recent_events && data.recent_events.length > 0 && (
-          <RecentEventsCard events={data.recent_events} />
-        )}
-
-        {/* Row 5: Cost Estimator */}
-        <EstimatePanel wsClient={wsClient} />
-      </div>
+      ) : (
+        <>
+          <StatsBar stats={stats} />
+          <div className="dash-roles-grid">
+            {roles.map(role => <RoleCard key={role.roleKey} role={role} />)}
+          </div>
+        </>
+      )}
     </div>
   )
 }
