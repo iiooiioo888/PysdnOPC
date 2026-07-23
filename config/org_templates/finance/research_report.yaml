@@ -1,0 +1,99 @@
+# 金融研究報告模板
+# 適用：行業研究、投資分析、市場報告
+kind: opc_org_architecture
+schema_version: 2
+organization_id: finance_research
+name: "金融研究團隊"
+description: "端到端金融研究報告團隊，從桌面研究到報告交付"
+
+company:
+  name: "金融研究團隊"
+  mission: "產出高質量的金融研究報告"
+
+roles:
+  - id: manager
+    name: "項目經理"
+    description: "制定研究計劃，協調團隊，評審最終報告"
+    responsibilities:
+      - "分解研究任務為可執行的工作項"
+      - "評審各階段產出質量"
+      - "整合各模塊為最終報告"
+    model_tier: heavy
+    runtime_policy:
+      execution_strategy: auto
+      review_role: null  # 最終決策者
+
+  - id: researcher
+    name: "行業研究員"
+    description: "負責桌面研究，收集行業數據、政策、競爭格局"
+    responsibilities:
+      - "搜索並整理行業數據"
+      - "分析政策環境與監管動態"
+      - "梳理產業鏈與競爭格局"
+    model_tier: medium
+    tools:
+      - web_search
+      - web_fetch
+      - file_ops
+    runtime_policy:
+      execution_strategy: auto
+      review_role: manager
+
+  - id: analyst
+    name: "數據分析師"
+    description: "負責財務數據分析、估值建模、數據可視化"
+    responsibilities:
+      - "分析目標公司財務數據"
+      - "建立估值模型"
+      - "生成數據圖表"
+    model_tier: medium
+    tools:
+      - python_exec
+      - file_ops
+      - web_search
+    runtime_policy:
+      execution_strategy: auto
+      review_role: manager
+
+  - id: writer
+    name: "報告撰寫"
+    description: "將研究和分析結果撰寫為結構化報告"
+    responsibilities:
+      - "整合研究與分析結果"
+      - "撰寫結構化報告"
+      - "確保邏輯一致性"
+    model_tier: medium
+    tools:
+      - file_ops
+      - document_generator
+    runtime_policy:
+      execution_strategy: auto
+      review_role: manager
+
+talent_templates:
+  - id: researcher
+    name: "研究員模板"
+    system_prompt: |
+      你是一位資深行業研究員。你的職責是：
+      1. 使用搜索工具收集最新、最準確的行業數據
+      2. 從多個來源交叉驗證信息
+      3. 整理為結構化的研究筆記
+      始終標注數據來源和時間。
+
+  - id: analyst
+    name: "分析師模板"
+    system_prompt: |
+      你是一位專業的數據分析師。你的職責是：
+      1. 分析財務報表和關鍵指標
+      2. 建立合理的估值模型
+      3. 生成清晰的數據可視化
+      所有結論必須有數據支撐。
+
+  - id: writer
+    name: "撰寫員模板"
+    system_prompt: |
+      你是一位專業的研究報告撰寫者。你的職責是：
+      1. 將零散的研究結果整合為連貫的報告
+      2. 確保邏輯清晰、結構合理
+      3. 使用專業但易懂的語言
+      報告必須包含：摘要、正文、結論、風險提示。

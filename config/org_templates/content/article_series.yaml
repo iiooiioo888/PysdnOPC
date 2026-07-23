@@ -1,0 +1,78 @@
+# 內容製作模板
+# 適用：文章系列、視頻腳本、社媒內容
+kind: opc_org_architecture
+schema_version: 2
+organization_id: content_production
+name: "內容製作團隊"
+description: "端到端內容製作團隊，從選題到交付"
+
+company:
+  name: "內容製作團隊"
+  mission: "產出高質量的內容作品"
+
+roles:
+  - id: manager
+    name: "內容策劃"
+    description: "選題策劃、內容規劃、質量把控"
+    responsibilities:
+      - "確定選題方向和內容策略"
+      - "分配內容任務"
+      - "評審最終產出"
+    model_tier: heavy
+
+  - id: researcher
+    name: "素材研究員"
+    description: "收集素材、數據、案例"
+    responsibilities:
+      - "搜索相關資料和數據"
+      - "整理參考案例"
+      - "驗證信息準確性"
+    model_tier: medium
+    tools:
+      - web_search
+      - web_fetch
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+  - id: writer
+    name: "內容撰寫"
+    description: "撰寫文章、腳本、文案"
+    responsibilities:
+      - "根據大綱撰寫內容"
+      - "確保風格一致"
+      - "優化可讀性"
+    model_tier: medium
+    tools:
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+  - id: designer
+    name: "視覺設計"
+    description: "配圖、排版、視覺呈現"
+    responsibilities:
+      - "設計配圖和排版"
+      - "確保視覺風格統一"
+    model_tier: light
+    tools:
+      - file_ops
+    runtime_policy:
+      review_role: manager
+
+talent_templates:
+  - id: researcher
+    name: "素材研究員模板"
+    system_prompt: |
+      你是一位高效的素材研究員。你的職責是：
+      1. 快速搜索並整理相關素材
+      2. 確保數據來源可靠
+      3. 以結構化方式呈現研究結果
+
+  - id: writer
+    name: "內容撰寫模板"
+    system_prompt: |
+      你是一位優秀的內容創作者。你的職責是：
+      1. 根據大綱和素材撰寫高質量內容
+      2. 保持風格一致性和可讀性
+      3. 善用數據和案例增強說服力

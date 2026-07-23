@@ -1741,6 +1741,59 @@ async def _exec_message(
 project_app = typer.Typer(help=t("cli.sub.project"))
 app.add_typer(project_app, name="project")
 
+# --- Smart Start & Keys 子命令 ---
+try:
+    from opc.cli.smart_commands import smart_app, keys_app
+    app.add_typer(smart_app, name="smart")
+    app.add_typer(keys_app, name="keys")
+except ImportError:
+    pass  # 智能啟動模組可選
+
+# --- Enhance & Template 子命令 ---
+try:
+    from opc.cli.enhance_commands import enhance_app, template_app
+    app.add_typer(enhance_app, name="enhance")
+    app.add_typer(template_app, name="template")
+
+    # Auto-loop 命令
+    @app.command()
+    def loop_status():
+        """🔄 查看自動循環狀態。"""
+        from opc.engine.auto_loop import format_loop_stats
+        console.print()
+        console.print("[info]自動循環系統[/info]")
+        console.print("  🔄 AutoLoopManager: 待初始化")
+        console.print()
+        console.print("[dim]提示：使用 `opc smart start` 啟動時自動啟用循環系統[/dim]")
+
+    @app.command()
+    def loop_history(
+        limit: int = typer.Option(10, "--limit", "-n", help="顯示條數"),
+    ):
+        """📜 查看自動循環歷史。"""
+        from rich.table import Table
+        table = Table(title="自動循環歷史")
+        table.add_column("ID", style="dim")
+        table.add_column("類型")
+        table.add_column("任務")
+        table.add_column("狀態")
+        table.add_column("嘗試")
+        table.add_column("耗時")
+        console.print()
+        console.print(table)
+except ImportError:
+    pass  # 增強模組可選
+
+
+@app.command()
+def estimate(
+    task: str = typer.Argument(..., help="任務描述"),
+    budget: float = typer.Option(0.0, "--budget", "-b", help="預算上限（美元）"),
+):
+    """💰 估算任務成本（基於意圖解析和模型路由）。"""
+    from opc.cli.smart_commands import estimate_cost
+    estimate_cost(task, budget)
+
 
 @project_app.command("list")
 def project_list(
