@@ -1,4 +1,4 @@
-"""Runtime-managed tool hook bus for Native Runtime V2."""
+"""原生運行時 V2 的運行時管理工具掛鉤匯流排。"""
 
 from __future__ import annotations
 

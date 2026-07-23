@@ -1,4 +1,4 @@
-"""Execution context helpers for isolated runtime tool execution."""
+"""隔離運行時工具執行的執行上下文輔助工具。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""User input request tool for structured pause/resume."""
+"""結構化暫停/恢復的使用者輸入請求工具。"""
 
 from __future__ import annotations
 

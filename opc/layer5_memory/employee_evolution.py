@@ -1,4 +1,4 @@
-"""Employee experience tracking, project reflections, and learned-skill distillation."""
+"""員工經驗追蹤、專案反思和學習技能蒸餾。"""
 
 from __future__ import annotations
 

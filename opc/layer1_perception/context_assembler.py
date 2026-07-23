@@ -1,39 +1,48 @@
-"""Lightweight task context assembly for all execution modes."""
+"""輕量級任務上下文組裝器 — 適用於所有執行模式。
 
-from __future__ import annotations
+職責說明：
+    為原生代理和外部代理組裝完整的 prompt 上下文，包括：
+    任務摘要、公司運行時上下文、協作上下文、附件狀態、記憶等。
 
-from dataclasses import dataclass
-from typing import Any
+關聯關係：
+    - 被 opc/engine.py 的 OPCEngine 建立和使用
+    - 被 _build_external_agent_task() 呼叫組裝外部 prompt
+"""
 
-from opc.core.company_tools import (
+from __future__ import annotations  # 啟用延遲型別註解評估
+
+from dataclasses import dataclass  # 標準庫：資料類別
+from typing import Any  # 標準庫：型別註解
+
+from opc.core.company_tools import (  # 公司模式工具
     MULTI_TEAM_COORDINATION_TURN_MODES,
     company_collaboration_enabled,
     company_collaboration_enabled_for_task,
     resolve_company_turn_mode,
 )
-from opc.core.models import Phase, Task, TaskStatus
-from opc.layer2_organization import comms as _comms
-from opc.layer2_organization.collaboration_policy import render_ownership_contract
-from opc.layer2_organization.prompt_contract import (
+from opc.core.models import Phase, Task, TaskStatus  # 領域模型
+from opc.layer2_organization import comms as _comms  # 通訊模組
+from opc.layer2_organization.collaboration_policy import render_ownership_contract  # 協作策略
+from opc.layer2_organization.prompt_contract import (  # Prompt 契約
     is_report_prompt_turn,
     normalize_prompt_contract,
     normalize_prompt_text_list,
     render_assignment_context_from_contract,
 )
-from opc.layer2_organization.turn_mode import TurnMode, infer_turn_mode
-from opc.layer2_organization.work_item_context_view import WorkItemContextView
-from opc.layer2_organization.work_item_identity import turn_type_for_task
-from opc.layer2_organization.work_item_links import linked_work_item_id_for_task
-from opc.layer2_organization.output_contract import (
+from opc.layer2_organization.turn_mode import TurnMode, infer_turn_mode  # 回合模式
+from opc.layer2_organization.work_item_context_view import WorkItemContextView  # 工作項目上下文視圖
+from opc.layer2_organization.work_item_identity import turn_type_for_task  # 工作項目身份
+from opc.layer2_organization.work_item_links import linked_work_item_id_for_task  # 工作項目連結
+from opc.layer2_organization.output_contract import (  # 輸出契約
     output_contract_metadata,
     render_output_contract_context,
 )
-from opc.layer4_tools.output_budget import clip_text
+from opc.layer4_tools.output_budget import clip_text  # 輸出預算裁剪
 
 
 @dataclass
 class ExternalContextLayers:
-    """Structured context buckets for external agent prompt envelopes."""
+    """外部代理 prompt 信封的結構化上下文桶。"""
 
     primary_task_brief: str = ""
     openopc_context: str = ""

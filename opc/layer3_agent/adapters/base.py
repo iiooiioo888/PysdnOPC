@@ -1,4 +1,4 @@
-"""Base class for external agent adapters."""
+"""外部代理適配器的基底類別。"""
 
 from __future__ import annotations
 

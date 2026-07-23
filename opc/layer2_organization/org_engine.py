@@ -1,4 +1,4 @@
-"""Organization engine — manages role-based agent orchestration."""
+"""組織引擎 — 管理基於角色的代理編排。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Runtime dispatcher for the ``opc-collab`` CLI."""
+"""opc-collab CLI 的運行時調度器。"""
 
 from __future__ import annotations
 

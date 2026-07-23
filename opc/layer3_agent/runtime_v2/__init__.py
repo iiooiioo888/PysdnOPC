@@ -1,4 +1,4 @@
-"""Native Runtime V2 exports."""
+"""原生運行時 V2 匯出。"""
 
 from .runtime import NativeRuntimeV2
 

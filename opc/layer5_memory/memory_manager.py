@@ -1,4 +1,4 @@
-"""Memory hierarchy manager for global/project/session/employee-project scopes."""
+"""全域/專案/工作階段/員工專案範圍的記憶層級管理器。"""
 
 from __future__ import annotations
 

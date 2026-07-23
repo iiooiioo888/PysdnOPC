@@ -1,4 +1,4 @@
-"""Streaming-friendly tool executor for Native Runtime V2."""
+"""原生運行時 V2 的串流友好工具執行器。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""OpenCode CLI adapter."""
+"""OpenCode CLI 適配器。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""LLM-assisted recruiter for pre-execution staffing decisions."""
+"""LLM 輔助招聘器 — 用於執行前的人員配置決策。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Runtime link helpers for company WorkItem <-> Task relations."""
+"""公司 WorkItem <-> Task 關聯的運行時連結輔助工具。"""
 
 from __future__ import annotations
 

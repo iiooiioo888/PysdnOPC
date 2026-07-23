@@ -1,4 +1,4 @@
-"""External agent broker with approval-aware execution and session persistence."""
+"""外部代理經紀人 — 含審批感知執行和工作階段持久化。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Session mapping helpers for external channels."""
+"""外部頻道的工作階段映射輔助工具。"""
 
 from __future__ import annotations
 

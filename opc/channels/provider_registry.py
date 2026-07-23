@@ -1,4 +1,4 @@
-"""Static metadata for built-in OpenOPC channel providers."""
+"""內建 OpenOPC 頻道提供者的靜態 metadata。"""
 
 from __future__ import annotations
 

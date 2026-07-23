@@ -1,4 +1,4 @@
-"""Phase-transition hooks.
+"""Phase 轉換掛鉤。
 
 Each hook subscribes to `on_phase_transition` from `phase.py` and is
 responsible for ONE downstream layer:

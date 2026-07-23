@@ -1,4 +1,4 @@
-"""Artifact delta helpers."""
+"""產物增量輔助工具。"""
 
 from __future__ import annotations
 

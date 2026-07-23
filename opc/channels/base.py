@@ -1,4 +1,4 @@
-"""Base channel interface for external messaging platforms."""
+"""外部訊息平台的基底頻道介面。"""
 
 from __future__ import annotations
 

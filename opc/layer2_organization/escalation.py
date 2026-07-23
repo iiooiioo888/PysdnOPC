@@ -1,4 +1,4 @@
-"""Escalation engine — handles human-in-the-loop decision points."""
+"""升級引擎 — 處理人機協作迴圈中的決策點。"""
 
 from __future__ import annotations
 

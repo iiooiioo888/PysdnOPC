@@ -1,4 +1,4 @@
-"""Markdown-backed storage for durable global/project memory."""
+"""基於 Markdown 的持久全域/專案記憶儲存。"""
 
 from __future__ import annotations
 

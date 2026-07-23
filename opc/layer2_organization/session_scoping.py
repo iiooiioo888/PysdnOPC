@@ -1,4 +1,4 @@
-"""Shared helpers for company-mode session scoping and continuity guards.
+"""公司模式工作階段範圍和連續性守衛的共享輔助工具。
 
 Phase A (role-instance model): the session / queue key is keyed by
 ``(session_scope, role_id)`` — *not* by seat. A role that appears as a

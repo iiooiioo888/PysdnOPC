@@ -1,4 +1,4 @@
-"""Compatibility secretary policy manager.
+"""相容性秘書策略管理器。
 
 Secretary-authored durable rules are disabled. The class remains for older
 call sites, skill import plumbing, and tests that construct it directly.

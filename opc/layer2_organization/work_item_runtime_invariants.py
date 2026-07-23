@@ -1,4 +1,4 @@
-"""Diagnostics for company WorkItem runtime Task projections."""
+"""公司 WorkItem 運行時 Task 投影的診斷工具。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Web search and fetch tools."""
+"""網路搜尋和擷取工具。"""
 
 from __future__ import annotations
 

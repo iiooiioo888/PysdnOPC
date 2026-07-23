@@ -1,4 +1,4 @@
-"""Company work-item planning and execution runtime."""
+"""公司工作項目規劃與執行運行時。"""
 
 from __future__ import annotations
 

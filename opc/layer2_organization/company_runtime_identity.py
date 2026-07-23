@@ -1,4 +1,4 @@
-"""Canonical company-runtime identity derived from durable records.
+"""從持久記錄派生的規範公司運行時身份。
 
 Company-mode Tasks are execution envelopes, not the identity of a run.  A
 runtime is owned by its root session and an active suspend checkpoint.  This

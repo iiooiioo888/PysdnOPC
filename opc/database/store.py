@@ -1,20 +1,35 @@
-"""SQLite-based persistent storage for tasks, collaboration state, and observability."""
+"""SQLite 持久化儲存層 — 任務、協作狀態和可觀測性資料的資料庫。
 
-from __future__ import annotations
+職責說明：
+    提供所有領域物件（Task、DelegationWorkItem、ExecutionCheckpoint 等）的
+    CRUD 操作，基於 SQLite 實現輕量級持久化。
 
-import json
-import inspect
-import uuid
-from dataclasses import asdict, is_dataclass
-from datetime import datetime, timedelta
-from enum import Enum
-from pathlib import Path
-import sqlite3
-from typing import Any
+關聯關係：
+    - 被 opc/engine.py 的 OPCEngine 建立和使用
+    - 被 opc/cli/app.py 的 CLI 命令查詢
+    - 被 opc/plugins/office_ui/ 的 API 層驅動
 
-from loguru import logger
+使用範例：
+    store = OPCStore(db_path)
+    await store.save_task(task)
+    task = await store.get_task(task_id)
+"""
 
-from opc.core.models import (
+from __future__ import annotations  # 啟用延遲型別註解評估
+
+import json  # 標準庫：JSON 序列化（metadata 欄位）
+import inspect  # 標準庫：introspection（函數簽名檢查）
+import uuid  # 標準庫：UUID 產生
+from dataclasses import asdict, is_dataclass  # 標準庫：資料類別序列化
+from datetime import datetime, timedelta  # 標準庫：日期時間
+from enum import Enum  # 標準庫：列舉
+from pathlib import Path  # 標準庫：路徑操作
+import sqlite3  # 標準庫：SQLite 資料庫
+from typing import Any  # 標準庫：型別註解
+
+from loguru import logger  # 第三方庫：結構化日誌
+
+from opc.core.models import (  # 領域資料模型
     AgentCompactionRecord,
     AgentMemorySnapshotRecord,
     AgentMessage,
@@ -64,12 +79,12 @@ from opc.core.models import (
     WorkItemDecisionRecord,
     normalize_role_runtime_status,
 )
-from opc.core.models import Phase
-from opc.core.transcript_visibility import (
+from opc.core.models import Phase  # Phase 狀態機
+from opc.core.transcript_visibility import (  # 對話可見性
     normalize_transcript_detail_level,
     transcript_visibility_sql,
 )
-from opc.layer2_organization.phase import (
+from opc.layer2_organization.phase import (  # Phase 狀態機（Layer 2）
     DONE_PHASES,
     IN_PROGRESS_PHASES,
     IN_REVIEW_PHASES,
@@ -82,21 +97,21 @@ from opc.layer2_organization.phase import (
     on_phase_transition,
     validate_transition,
 )
-from opc.layer2_organization.work_item_identity import (
+from opc.layer2_organization.work_item_identity import (  # 工作項目身份
     WORK_ITEM_PROJECTION_ID_KEY,
     WORK_ITEM_TURN_TYPE_KEY,
     migrate_work_item_projection_metadata,
     projection_id_for_work_item,
 )
-from opc.layer2_organization.work_item_links import (
+from opc.layer2_organization.work_item_links import (  # 工作項目連結
     linked_work_item_id_for_task,
     set_linked_work_item_id,
 )
-from opc.layer2_organization.work_item_runtime import (
+from opc.layer2_organization.work_item_runtime import (  # 工作項目運行時
     is_work_item_runtime_metadata,
     migrate_work_item_runtime_metadata,
 )
-from opc.layer2_organization.work_item_runtime_invariants import (
+from opc.layer2_organization.work_item_runtime_invariants import (  # 工作項目運行時不變量
     validate_work_item_runtime_projection,
 )
 
@@ -105,6 +120,7 @@ from opc.database._utils import _json_dumps, _json_loads
 
 
 class _SQLiteCursorAdapter:
+    """SQLite 游標的非同步適配器 — 包裝同步 sqlite3.Cursor 為 async 介面。"""
     def __init__(self, cursor: sqlite3.Cursor) -> None:
         self._cursor = cursor
 
@@ -131,6 +147,7 @@ class _SQLiteCursorAdapter:
 
 
 class _SQLiteExecuteResult:
+    """SQLite 執行結果的非同步適配器 — 支援 await 和 async with 兩種用法。"""
     def __init__(self, connection: sqlite3.Connection, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> None:
         self._connection = connection
         self._sql = sql
@@ -158,13 +175,11 @@ class _SQLiteExecuteResult:
 
 
 class _SQLiteConnectionAdapter:
-    """Thin async facade over synchronous sqlite3.
+    """同步 sqlite3 的輕量非同步外觀。
 
-    NOTE: All operations execute synchronously on the calling thread and will
-    briefly block the event loop.  For a local SQLite database in WAL mode the
-    per-operation latency is typically < 1 ms, which is acceptable for the
-    current workload.  A future migration to ``aiosqlite`` (already declared
-    in pyproject.toml) would eliminate this blocking entirely.
+    注意：所有操作在呼叫執行緒上同步執行，會短暫阻塞事件循環。
+    對於 WAL 模式的本地 SQLite 資料庫，每次操作延遲通常 < 1ms，
+    對當前工作負載可接受。未來遷移到 aiosqlite 可完全消除阻塞。
     """
 
     def __init__(self, db_path: str) -> None:
@@ -198,12 +213,12 @@ class _SQLiteConnectionAdapter:
 
 
 
-# --- Mixin imports ---
-from opc.database._store_tasks import TaskStoreMixin
-from opc.database._store_work_items import WorkItemStoreMixin
-from opc.database._store_delegation import DelegationStoreMixin
-from opc.database._store_sessions import SessionStoreMixin
-from opc.database._store_collaboration import CollaborationStoreMixin
+# --- Mixin 匯入（按功能分組的儲存層）---
+from opc.database._store_tasks import TaskStoreMixin  # 任務 CRUD
+from opc.database._store_work_items import WorkItemStoreMixin  # 工作項目 CRUD
+from opc.database._store_delegation import DelegationStoreMixin  # 委派執行 CRUD
+from opc.database._store_sessions import SessionStoreMixin  # 工作階段 CRUD
+from opc.database._store_collaboration import CollaborationStoreMixin  # 協作狀態 CRUD
 
 class OPCStore(
     TaskStoreMixin,
@@ -212,7 +227,16 @@ class OPCStore(
     SessionStoreMixin,
     CollaborationStoreMixin,
 ):
-    """Async SQLite store for OPC data (WAL mode for concurrency)."""
+    """OPC 資料的非同步 SQLite 儲存層（WAL 模式支援並發）。
+
+    職責說明：
+        透過 Mixin 組合提供所有領域物件的 CRUD 操作。
+        使用 WAL 模式允許讀寫並發，適合本地單使用者場景。
+
+    關聯關係：
+        - 被 OPCEngine 在 initialize() 時建立
+        - 被所有 layer 模組透過 engine.store 存取
+    """
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)

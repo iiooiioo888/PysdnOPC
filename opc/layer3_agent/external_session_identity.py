@@ -1,4 +1,4 @@
-"""Pure external provider-session identity helpers.
+"""純外部提供者工作階段身份輔助工具。
 
 Monitoring rows exist before an external CLI reports its real resumable
 thread/session id.  A synthetic ``agent:project:task`` id is useful for local

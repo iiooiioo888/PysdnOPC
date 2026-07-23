@@ -1,4 +1,4 @@
-"""Channel manager for OpenOPC."""
+"""OpenOPC 的頻道管理器。"""
 
 from __future__ import annotations
 

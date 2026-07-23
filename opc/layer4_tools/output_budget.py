@@ -1,4 +1,4 @@
-"""Shared helpers for recoverable tool-output previews."""
+"""可恢復工具輸出預覽的共享輔助工具。"""
 
 from __future__ import annotations
 

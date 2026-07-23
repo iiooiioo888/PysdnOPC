@@ -1,4 +1,4 @@
-"""Structured logging for OPC system."""
+"""OPC 系統的結構化日誌。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Org-first architecture blueprint registry for OPC Market.
+"""OPC Market 的組織優先架構藍圖註冊表。
 
 Blueprints define organization structure and optional work-item templates.
 Operational parameters (prompt_refs, runtime_policy,

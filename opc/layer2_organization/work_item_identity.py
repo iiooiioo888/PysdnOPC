@@ -1,4 +1,4 @@
-"""Helpers for company work-item projection identity metadata."""
+"""公司工作項目投影身份 metadata 的輔助工具。"""
 
 from __future__ import annotations
 

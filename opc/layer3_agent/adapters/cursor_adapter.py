@@ -1,4 +1,4 @@
-"""Cursor adapter."""
+"""Cursor 適配器。"""
 
 from __future__ import annotations
 

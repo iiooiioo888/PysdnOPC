@@ -1,4 +1,4 @@
-"""Autonomy approval engine for native tools and external agents."""
+"""自主審批引擎 — 用於原生工具和外部代理的權限審批。"""
 
 from __future__ import annotations
 

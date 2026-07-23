@@ -1,4 +1,4 @@
-"""Runtime company reorganization orchestration."""
+"""運行時公司組織重組編排。"""
 
 from __future__ import annotations
 

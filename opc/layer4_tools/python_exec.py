@@ -1,4 +1,4 @@
-"""Python code execution tool."""
+"""Python 程式碼執行工具。"""
 
 from __future__ import annotations
 

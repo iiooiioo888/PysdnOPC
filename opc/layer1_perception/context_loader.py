@@ -1,21 +1,30 @@
-"""Context loader — assembles all relevant context before routing."""
+"""上下文載入器 — 在路由前組裝所有相關上下文。
 
-from __future__ import annotations
+職責說明：
+    從記憶、偏好、技能、適配器、組織引擎等子系統收集上下文，
+    組裝為 LoadedContext 供路由和 prompt 組裝使用。
 
-from typing import Any
+關聯關係：
+    - 被 opc/engine.py 在 initialize() 時建立
+    - 被 ContextAssembler 和 TaskRouter 使用
+"""
 
-from opc.database.store import OPCStore
-from opc.layer5_memory.memory_manager import MemoryManager
-from opc.layer5_memory.preference import PreferenceManager
-from opc.layer5_memory.secretary_policy import SecretaryPolicyManager
-from opc.layer5_memory.capability_manager import CapabilityManager
-from opc.layer5_memory.skill_library import SkillLibrary
-from opc.layer3_agent.adapters.registry import AdapterRegistry
-from opc.layer2_organization.org_engine import OrgEngine
+from __future__ import annotations  # 啟用延遲型別註解評估
+
+from typing import Any  # 標準庫：型別註解
+
+from opc.database.store import OPCStore  # SQLite 持久化儲存
+from opc.layer5_memory.memory_manager import MemoryManager  # 記憶管理器
+from opc.layer5_memory.preference import PreferenceManager  # 偏好管理器
+from opc.layer5_memory.secretary_policy import SecretaryPolicyManager  # 秘書策略
+from opc.layer5_memory.capability_manager import CapabilityManager  # 能力管理器
+from opc.layer5_memory.skill_library import SkillLibrary  # 技能庫
+from opc.layer3_agent.adapters.registry import AdapterRegistry  # 適配器註冊表
+from opc.layer2_organization.org_engine import OrgEngine  # 組織引擎
 
 
 class LoadedContext:
-    """Container for all context assembled for a task."""
+    """已組裝的上下文容器 — 包含任務路由所需的所有資訊。"""
 
     def __init__(self) -> None:
         self.preferences: dict[str, Any] = {}
@@ -45,7 +54,7 @@ class LoadedContext:
 
 
 class ContextLoader:
-    """Loads all relevant context for a task before routing."""
+    """上下文載入器 — 在路由前從各子系統載入所有相關上下文。"""
 
     def __init__(
         self,

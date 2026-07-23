@@ -1,4 +1,4 @@
-"""Runtime artifact rendering helpers."""
+"""運行時產物渲染輔助工具。"""
 
 from __future__ import annotations
 

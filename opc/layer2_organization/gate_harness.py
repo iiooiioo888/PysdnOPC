@@ -1,4 +1,4 @@
-"""LLM-judged gate harness for company-mode work items.
+"""公司模式工作項目的 LLM 評判門禁框架。
 
 This module used to encode ~700 lines of hard-coded "if blocker_type ==
 X then action = Y" rules. That approach kept misclassifying real

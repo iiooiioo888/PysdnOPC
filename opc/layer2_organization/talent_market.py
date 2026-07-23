@@ -1,4 +1,4 @@
-"""Local talent-market helpers for importing and hiring agency agents."""
+"""本地人才市場輔助工具 — 匯入和僱用 agency 代理。"""
 
 from __future__ import annotations
 

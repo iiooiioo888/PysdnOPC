@@ -1,4 +1,4 @@
-"""Capability manager for local skill discovery (ClawHub replaces remote search)."""
+"""本地技能發現的能力管理器（ClawHub 取代遠端搜尋）。"""
 
 from __future__ import annotations
 

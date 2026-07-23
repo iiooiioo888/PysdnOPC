@@ -1,4 +1,4 @@
-"""YAML-backed allowlist for persisted tool and command approvals."""
+"""基於 YAML 的持久化工具和命令審批允許清單。"""
 
 from __future__ import annotations
 

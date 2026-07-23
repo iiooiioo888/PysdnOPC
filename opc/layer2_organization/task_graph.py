@@ -1,4 +1,4 @@
-"""Task graph scheduler — DAG-based task dependency management and parallel execution."""
+"""任務圖排程器 — 基於 DAG 的任務依賴管理和並行執行。"""
 
 from __future__ import annotations
 

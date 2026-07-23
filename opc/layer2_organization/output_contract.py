@@ -1,4 +1,4 @@
-"""Helpers for company runtime output-root contracts.
+"""公司運行時輸出根契約的輔助工具。
 
 The runtime may receive a user-requested absolute output path that is not
 writable inside an external-agent sandbox. These helpers keep the writable

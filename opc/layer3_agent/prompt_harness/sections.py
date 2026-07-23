@@ -1,4 +1,4 @@
-"""Static prompt harness sections."""
+"""靜態 Prompt 組裝區段。"""
 
 DEDICATED_TOOL_DISCIPLINE = """
 ## Dedicated Tool Discipline

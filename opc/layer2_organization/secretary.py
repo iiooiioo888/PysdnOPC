@@ -1,4 +1,4 @@
-"""Secretary service for long-term policy capture and lightweight governance."""
+"""秘書服務 — 長期策略捕獲和輕量治理。"""
 
 from __future__ import annotations
 

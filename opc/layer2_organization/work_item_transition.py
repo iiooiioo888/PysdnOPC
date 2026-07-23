@@ -1,4 +1,4 @@
-"""Single authoritative entry point for WorkItem phase changes.
+"""WorkItem phase 變更的唯一權威入口。
 
 This module exposes ``transition_work_item`` — the only function in the
 codebase that should mutate a ``DelegationWorkItem.phase``. Its purpose is

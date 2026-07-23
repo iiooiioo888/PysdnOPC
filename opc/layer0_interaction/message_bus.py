@@ -1,22 +1,32 @@
-"""Unified message bus — routes messages between channels and the system."""
+"""統一訊息匯流排 — 在頻道和系統之間路由訊息。
 
-from __future__ import annotations
+職責說明：
+    提供非同步訊息佇列，將來自各互動頻道（CLI、Telegram 等）的
+    使用者訊息路由到 OPC 引擎處理，並將回應發佈回頻道。
 
-import asyncio
-from typing import Any, Callable, Coroutine, Optional
+關聯關係：
+    - 被 opc/engine.py 的 OPCEngine 建立和驅動
+    - 被 opc/channels/ 的各頻道實例發佈訊息
+"""
 
-from loguru import logger
+from __future__ import annotations  # 啟用延遲型別註解評估
 
-from opc.core.models import SystemMessage, UserMessage
+import asyncio  # 標準庫：非同步事件循環
+from typing import Any, Callable, Coroutine, Optional  # 標準庫：型別註解
+
+from loguru import logger  # 第三方庫：結構化日誌
+
+from opc.core.models import SystemMessage, UserMessage  # 領域模型
 
 
-InboundHandler = Callable[[UserMessage], Coroutine[Any, Any, Optional[SystemMessage]]]
+InboundHandler = Callable[[UserMessage], Coroutine[Any, Any, Optional[SystemMessage]]]  # 入站訊息處理器型別
 
 
 class MessageBus:
-    """Async message bus for routing between interaction channels and the OPC engine.
+    """非同步訊息匯流排 — 在互動頻道和 OPC 引擎之間路由訊息。
 
-    Channels publish inbound messages; the engine processes them and publishes outbound responses.
+    職責說明：
+        頻道發佈入站訊息；引擎處理後發佈出站回應。
     """
 
     def __init__(self) -> None:
@@ -51,7 +61,7 @@ class MessageBus:
             return None
 
     async def start(self) -> None:
-        """Start processing inbound messages."""
+        """啟動入站訊息處理迴圈。"""
         self._running = True
         while self._running:
             try:
@@ -78,7 +88,7 @@ class MessageBus:
         self._running = False
 
     async def process_single(self, message: UserMessage) -> SystemMessage | None:
-        """Process a single message synchronously (for CLI use)."""
+        """同步處理單條訊息（供 CLI 使用）。"""
         if self._inbound_handler:
             return await self._inbound_handler(message)
         return None

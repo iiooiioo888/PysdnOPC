@@ -1,4 +1,4 @@
-"""Preflight checks for OpenOPC external-agent integration."""
+"""OpenOPC 外部代理整合的預檢檢查。"""
 
 from __future__ import annotations
 

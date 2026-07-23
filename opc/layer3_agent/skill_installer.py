@@ -1,4 +1,4 @@
-"""Install the ``opc-collab`` skill + CLI shim for external agents.
+"""為外部代理安裝 opc-collab 技能 + CLI shim。
 
 Most OpenOPC-spawned external agents run with a dedicated HOME-style directory
 (``$CODEX_HOME``, ``$OPENCODE_CONFIG_DIR``) under

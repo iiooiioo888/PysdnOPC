@@ -1,4 +1,4 @@
-"""Inter-agent communication protocol — DM, broadcast, meeting room, async annotation."""
+"""代理間通訊協議 — DM、廣播、會議室、非同步註解。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Shared provider helpers for native OpenOPC channels."""
+"""原生 OpenOPC 頻道的共享提供者輔助工具。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""LLM provider layer built on LiteLLM for unified model access."""
+"""基於 LiteLLM 的 LLM 提供者層（統一模型存取）。"""
 
 from __future__ import annotations
 

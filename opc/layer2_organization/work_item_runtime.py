@@ -1,4 +1,4 @@
-"""Helpers for identifying company work-item runtime metadata."""
+"""識別公司工作項目運行時 metadata 的輔助工具。"""
 
 from __future__ import annotations
 

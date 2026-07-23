@@ -1,4 +1,4 @@
-"""Local worktree helpers for runtime-managed subagents."""
+"""運行時管理子代理的本地工作樹輔助工具。"""
 
 from __future__ import annotations
 

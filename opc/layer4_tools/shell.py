@@ -1,4 +1,4 @@
-"""Structured shell execution tools."""
+"""結構化 Shell 執行工具。"""
 
 from __future__ import annotations
 

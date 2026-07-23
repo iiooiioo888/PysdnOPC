@@ -1,4 +1,4 @@
-"""Prompt harness builder for NativeAgent."""
+"""NativeAgent 的 Prompt 組裝建構器。"""
 
 from __future__ import annotations
 

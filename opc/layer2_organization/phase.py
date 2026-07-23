@@ -1,21 +1,16 @@
-"""Unified phase model for delegation work items.
+"""委派工作項目的統一 Phase 模型。
 
-A `Phase` is the single authoritative state of a delegation work item. It
-replaces the previous mixture of `status` + 5 metadata sub-state fields
-(activation_state / lifecycle_state / review_state / manager_release_state /
-review_execution_state) which were tangled and could disagree with each other.
+Phase 是委派工作項目的唯一權威狀態。它取代了之前 status + 5 個
+metadata 子狀態欄位（activation_state / lifecycle_state / review_state /
+manager_release_state / review_execution_state）的混合體，那些欄位
+彼此糾纏且可能互相矛盾。
 
-Design:
-- One enum value per concrete situation a card can be in.
-- Pure-function projections derive everything else (kanban column, owner,
-  TaskStatus, runnability, verdict).
-- A static transition table is enforced at every write.
-- A **phase-transition hook** mechanism lets other layers (task.status,
-  role_session.status, dispatcher wake signal, ...) subscribe to phase
-  changes and synchronise themselves in one place. This eliminates the
-  bug class where code forgot to update a dependent layer after
-  transitioning a phase, leaving task/session state desynchronised from
-  work-item phase.
+設計：
+- 每個卡片所處的具體情況對應一個列舉值。
+- 純函數投影派生其他一切（看板欄、擁有者、TaskStatus、可執行性、裁決）。
+- 靜態轉換表在每次寫入時強制執行。
+- Phase 轉換掛鉤機制讓其他層（task.status、role_session.status、
+  dispatcher 喚醒訊號等）訂閱 phase 變更並在一處同步自身。
 """
 
 from __future__ import annotations

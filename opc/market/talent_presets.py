@@ -1,4 +1,4 @@
-"""Built-in talent templates for OPC Market.
+"""OPC Market 的內建人才模板。
 
 These ensure the marketplace is never empty, even before a user imports
 any external talent repository.  Each template maps to roles in the

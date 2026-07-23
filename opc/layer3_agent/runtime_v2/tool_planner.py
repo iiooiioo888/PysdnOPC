@@ -1,4 +1,4 @@
-"""Tool planning helpers for Native Runtime V2."""
+"""原生運行時 V2 的工具規劃輔助工具。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Compatibility preference manager.
+"""相容性偏好管理器。
 
 Durable user/project preferences now live in the canonical Markdown memory
 files and are edited by agents through the memory skill. This manager remains

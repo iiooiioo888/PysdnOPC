@@ -1,4 +1,4 @@
-"""Export the current org configuration as an .opcpkg package."""
+"""將當前組織配置匯出為 .opcpkg 套件。"""
 
 from __future__ import annotations
 

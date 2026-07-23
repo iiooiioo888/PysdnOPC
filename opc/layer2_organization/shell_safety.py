@@ -1,4 +1,4 @@
-"""Flag-audited shell-command safety classification.
+"""旗標審計的 Shell 命令安全性分類。
 
 Single source of truth for shell-command handling in the approval pipeline:
 splitting compound commands, stripping harmless redirections, analysing

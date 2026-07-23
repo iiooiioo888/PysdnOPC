@@ -1,4 +1,4 @@
-"""Shared collaboration service for native and external agent flows."""
+"""共享協作服務 — 用於原生和外部代理流程。"""
 
 from __future__ import annotations
 

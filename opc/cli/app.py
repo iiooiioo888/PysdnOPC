@@ -1,49 +1,64 @@
-"""OPC CLI — the primary user interface for the One-Person Company system."""
+"""OPC CLI — 一人公司系統的主要使用者介面。
 
-from __future__ import annotations
+職責說明：
+    提供所有 CLI 命令（chat、init、status、exec 等）和互動式聊天模式。
+    基於 Typer 框架，使用 Rich 進行終端美化輸出。
 
-import asyncio
-from collections import deque
-from importlib import resources as importlib_resources
-import json
-import os
-import shlex
-import signal
-import sys
-import tempfile
-import time
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from pathlib import Path, PureWindowsPath
-from typing import Any, Optional
-import re
+關聯關係：
+    - 被 pyproject.toml 的 [project.scripts] 入口點呼叫
+    - 驅動 opc/engine.py 的 OPCEngine
+    - 使用 opc/database/store.py 進行持久化查詢
 
-import typer
-from rich.console import Console
-from rich.markup import escape
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.table import Table
-from rich.theme import Theme
+使用範例：
+    opc init          # 初始化系統
+    opc chat          # 進入互動式聊天
+    opc exec "任務"   # 單次執行任務
+"""
 
-from opc import __version__
-from opc.core.config import OPCConfig, get_opc_home
-from opc.core.i18n import t
-from opc.core.windows_ssl import (
+from __future__ import annotations  # 啟用延遲型別註解評估
+
+import asyncio  # 標準庫：非同步事件循環
+from collections import deque  # 標準庫：雙端佇列（訊息歷史）
+from importlib import resources as importlib_resources  # 標準庫：套件資源存取
+import json  # 標準庫：JSON 序列化
+import os  # 標準庫：作業系統介面
+import shlex  # 標準庫：Shell 詞法分析
+import signal  # 標準庫：訊號處理
+import sys  # 標準庫：系統參數
+import tempfile  # 標準庫：臨時檔案
+import time  # 標準庫：時間戳記
+import uuid  # 標準庫：UUID 產生
+from dataclasses import dataclass, field  # 標準庫：資料類別
+from datetime import datetime, timezone  # 標準庫：日期時間
+from enum import Enum  # 標準庫：列舉
+from pathlib import Path, PureWindowsPath  # 標準庫：路徑操作
+from typing import Any, Optional  # 標準庫：型別註解
+import re  # 標準庫：正規表達式
+
+import typer  # 第三方庫：CLI 框架（基於 Click）
+from rich.console import Console  # 第三方庫：終端美化輸出
+from rich.markup import escape  # 第三方庫：Rich 標記跳脫
+from rich.markdown import Markdown  # 第三方庫：Markdown 渲染
+from rich.panel import Panel  # 第三方庫：面板元件
+from rich.table import Table  # 第三方庫：表格元件
+from rich.theme import Theme  # 第三方庫：主題定義
+
+from opc import __version__  # 套件版本號
+from opc.core.config import OPCConfig, get_opc_home  # 系統配置
+from opc.core.i18n import t  # 國際化翻譯函數
+from opc.core.windows_ssl import (  # Windows SSL 修復
     format_windows_sslkeylog_warning,
     pop_windows_sslkeylogfile,
 )
-from opc.database.store import OPCStore
-from opc.layer2_organization.talent_market import TalentMarket
-from opc.core.models import OPCEvent
+from opc.database.store import OPCStore  # SQLite 持久化儲存
+from opc.layer2_organization.talent_market import TalentMarket  # 人才市場
+from opc.core.models import OPCEvent  # 事件模型
 
-# Proxy is configured via llm_config.yaml or shell environment — not hardcoded.
+# 代理透過 llm_config.yaml 或 Shell 環境變數配置 — 不硬編碼。
 # os.environ['https_proxy'] = 'http://127.0.0.1:7890'
 # os.environ['http_proxy'] = 'http://127.0.0.1:7890'
 
-custom_theme = Theme({
+custom_theme = Theme({  # Rich 終端輸出主題配色
     "info": "cyan",
     "warning": "yellow",
     "error": "red bold",
@@ -51,18 +66,18 @@ custom_theme = Theme({
     "agent": "blue",
     "tool": "magenta",
 })
-console = Console(theme=custom_theme)
-app = typer.Typer(
+console = Console(theme=custom_theme)  # 全域 Rich Console 實例
+app = typer.Typer(  # Typer CLI 應用實例
     name="opc",
     help=t("cli.app_help"),
     no_args_is_help=True,
 )
 
-_WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
+_WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")  # Windows 磁碟機路徑正規表達式
 
 
 class _CliRepoPath:
-    """Native filesystem path with stable Windows-drive display semantics."""
+    """CLI 倉庫路徑包裝器 — 在 Windows 上保持磁碟機路徑的穩定顯示語義。"""
 
     def __init__(self, value: str) -> None:
         self._native = Path(value)
@@ -79,12 +94,14 @@ class _CliRepoPath:
 
 
 def _talent_repo_path(value: str) -> Path | _CliRepoPath:
+    """將路徑字串轉為 Path 或 _CliRepoPath（Windows 磁碟機路徑用後者）。"""
     if _WINDOWS_DRIVE_PATH_RE.match(str(value or "")):
         return _CliRepoPath(value)
     return Path(value)
 
 
 def _current_command_label(argv: list[str] | None = None) -> str:
+    """取得當前 CLI 命令標籤（如 "opc chat"）。"""
     args = list(argv or sys.argv)
     if len(args) > 1 and not args[1].startswith("-"):
         return f"opc {args[1]}"
@@ -92,6 +109,7 @@ def _current_command_label(argv: list[str] | None = None) -> str:
 
 
 def _get_config() -> OPCConfig:
+    """載入系統配置（從 OPC 主目錄的 config 資料夾）。"""
     config_dir = get_opc_home() / "config"
     if config_dir.exists():
         return OPCConfig.load(config_dir)
@@ -99,12 +117,14 @@ def _get_config() -> OPCConfig:
 
 
 def _channel_runtime_pid_path() -> Path:
+    """取得頻道運行時 PID 檔案路徑。"""
     from opc.core.config import get_opc_home, get_project_workplace
 
     return get_opc_home() / "run" / "channels.pid"
 
 
 def _read_channel_runtime_state() -> dict | None:
+    """讀取頻道運行時狀態（PID 和啟用的頻道列表）。"""
     path = _channel_runtime_pid_path()
     if not path.exists():
         return None
@@ -115,18 +135,21 @@ def _read_channel_runtime_state() -> dict | None:
 
 
 def _write_channel_runtime_state(enabled_channels: list[str]) -> None:
+    """寫入頻道運行時狀態（當前 PID 和啟用的頻道）。"""
     path = _channel_runtime_pid_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"pid": os.getpid(), "channels": enabled_channels}, ensure_ascii=False), encoding="utf-8")
 
 
 def _clear_channel_runtime_state() -> None:
+    """清除頻道運行時狀態檔案。"""
     path = _channel_runtime_pid_path()
     if path.exists():
         path.unlink()
 
 
 def _pid_is_running(pid: int) -> bool:
+    """檢查指定 PID 的進程是否仍在運行。"""
     try:
         os.kill(pid, 0)
     except OSError:
@@ -135,7 +158,7 @@ def _pid_is_running(pid: int) -> bool:
 
 
 def _create_default_skills(opc_home: Path) -> None:
-    """Copy bundled skills to the OPC home skills directory."""
+    """將內建技能複製到 OPC 主目錄的 skills 資料夾。"""
     import shutil
 
     repo_skills = Path(__file__).parent.parent.parent / "skills" / "core"
@@ -166,7 +189,7 @@ def _create_default_skills(opc_home: Path) -> None:
 
 
 def _translate_progress_prefix(text: str) -> str:
-    """Translate known progress message prefixes to the current locale."""
+    """將已知的進度訊息前綴翻譯為當前語言環境。"""
     if text.startswith("[Tool:"):
         return f"[{t('cli.progress.tool')}:{text[6:]}"
     if text.startswith("[Delegating to "):
@@ -193,7 +216,7 @@ def _translate_progress_prefix(text: str) -> str:
 
 
 def _progress_callback():
-    """Create an async progress callback for streaming agent output."""
+    """建立非同步進度回呼 — 串流輸出代理執行過程中的狀態訊息。"""
     async def callback(text: str, **_: Any) -> None:
         if text.startswith("[Tool:"):
             console.print(f"  [tool]{escape(_translate_progress_prefix(text))}[/tool]")
@@ -219,11 +242,13 @@ def _progress_callback():
 
 
 def _cli_verbose_external_progress() -> bool:
+    """判斷是否啟用外部代理詳細進度輸出（OPC_CLI_VERBOSE_EXTERNAL 環境變數）。"""
     value = os.environ.get("OPC_CLI_VERBOSE_EXTERNAL", "")
     return value.strip().lower() in {"1", "true", "yes", "on", "debug"}
 
 
 def _should_show_external_status(text: str) -> bool:
+    """判斷外部狀態訊息是否應顯示（過濾噪音）。"""
     if _cli_verbose_external_progress():
         return True
     detail = text.split("]", 1)[1].strip().lower() if "]" in text else text.lower()
@@ -234,11 +259,19 @@ def _should_show_external_status(text: str) -> bool:
 
 @dataclass
 class _QueuedAssistantLine:
+    """排隊的助手輸出行了 — 含文字和入列時間戳（用於平滑串流顯示）。"""
     text: str
     enqueued_at: float
 
 
 class _CliRuntimeDisplay:
+    """CLI 運行時顯示控制器 — 管理助手回應的串流輸出和狀態欄渲染。
+
+    職責說明：
+        - 平滑串流輸出 LLM 回應（逐行排隊、延遲渲染）
+        - 管理底部狀態欄（檢查點提示、運行時狀態）
+        - 處理 sidecar 靜音模式（減少噪音輸出）
+    """
     def __init__(self, rich_console: Console) -> None:
         self.console = rich_console
         self._assistant_buffer = ""
@@ -542,7 +575,7 @@ def _normalize_escalation_reply(reply: str, options: list[dict]) -> str | None:
 
 
 def _escalation_callback():
-    """Create an async escalation callback for human-in-the-loop."""
+    """建立非同步升級回呼 — 用於人機協作迴圈中的決策請求。"""
     async def callback(message: str, options: list[dict]) -> str | None:
         console.print(Panel(message, title="Action Required", border_style="yellow"))
         if options:
@@ -568,7 +601,7 @@ def _escalation_callback():
 
 
 # ---------------------------------------------------------------------------
-# Commands
+# CLI 命令定義區
 # ---------------------------------------------------------------------------
 
 @app.command()
@@ -582,7 +615,7 @@ def chat(
     verbose: bool = typer.Option(False, "--verbose", "-v", help=t("cli.opt.verbose")),
     no_markdown: bool = typer.Option(False, "--no-markdown", help=t("cli.opt.no_markdown")),
 ):
-    """Chat with the OPC system — interactive or single message mode."""
+    """與 OPC 系統對話 — 互動式或單次訊息模式。"""
     config = _get_config()
     if model:
         config.llm.default_model = model
@@ -627,7 +660,7 @@ def exec_command(
     stream_json: bool = typer.Option(False, "--stream-json", help=t("cli.opt.stream_json")),
     no_markdown: bool = typer.Option(False, "--no-markdown", help=t("cli.opt.no_markdown")),
 ):
-    """Run one non-interactive OPC task for scripts and CI."""
+    """執行單次非互動式 OPC 任務（供腳本和 CI 使用）。"""
     if json_output and stream_json:
         console.print(f"[error]{t('cli.error.json_or_stream')}[/error]")
         raise typer.Exit(code=2)
@@ -674,7 +707,7 @@ def secretary(
     verbose: bool = typer.Option(False, "--verbose", "-v", help=t("cli.opt.verbose")),
     no_markdown: bool = typer.Option(False, "--no-markdown", help=t("cli.opt.no_markdown")),
 ):
-    """Talk directly with the long-term secretary interface."""
+    """與長期秘書介面直接對話。"""
     config = _get_config()
     if model:
         config.llm.default_model = model
@@ -692,7 +725,7 @@ def propose_reorg(
     payload: str = typer.Argument(..., help=t("cli.opt.reorg_payload")),
     project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
 ):
-    """Create a runtime company reorg proposal."""
+    """建立運行時公司組織重組提案。"""
     config = _get_config()
     asyncio.run(_propose_reorg(config, payload, project))
 
@@ -702,7 +735,7 @@ def approve_reorg(
     proposal_id: str = typer.Argument(..., help=t("cli.opt.reorg_proposal_id")),
     project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
 ):
-    """Approve a pending company reorg proposal."""
+    """批准待處理的公司組織重組提案。"""
     config = _get_config()
     asyncio.run(_approve_reorg(config, proposal_id, project, approved=True))
 
@@ -712,7 +745,7 @@ def deny_reorg(
     proposal_id: str = typer.Argument(..., help=t("cli.opt.reorg_proposal_id")),
     project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
 ):
-    """Deny a pending company reorg proposal."""
+    """拒絕待處理的公司組織重組提案。"""
     config = _get_config()
     asyncio.run(_approve_reorg(config, proposal_id, project, approved=False))
 
@@ -722,7 +755,7 @@ def apply_reorg(
     proposal_id: str = typer.Argument(..., help=t("cli.opt.reorg_proposal_id")),
     project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
 ):
-    """Apply an approved company reorg proposal."""
+    """套用已批准的公司組織重組提案。"""
     config = _get_config()
     asyncio.run(_apply_reorg(config, proposal_id, project))
 
@@ -732,12 +765,13 @@ def show_reorg(
     proposal_id: str = typer.Argument(..., help=t("cli.opt.reorg_proposal_id")),
     project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
 ):
-    """Show a company reorg proposal."""
+    """顯示公司組織重組提案詳情。"""
     config = _get_config()
     asyncio.run(_show_reorg(config, proposal_id, project))
 
 
 def _template_has_required_config_files(source: Any) -> bool:
+    """檢查模板目錄是否包含必要的配置檔案。"""
     try:
         return (
             source.is_dir()
@@ -749,10 +783,10 @@ def _template_has_required_config_files(source: Any) -> bool:
 
 
 def _project_config_template_dir() -> Any | None:
-    """Return the best config template source.
+    """取得最佳配置模板來源。
 
-    Source checkouts use ``project_root/config``. Installed packages fall back
-    to ``opc/config_templates`` shipped as package data via ``importlib.resources``.
+    原始碼簽出使用 project_root/config；安裝套件則 fallback 到
+    透過 importlib.resources 打包的 opc/config_templates。
     """
     from opc.core.config import get_opc_home
 
@@ -940,7 +974,7 @@ def init(
         help=t("cli.opt.trust_external_agents"),
     ),
 ):
-    """Initialize OPC configuration and workspace."""
+    """初始化 OPC 配置和工作區。"""
     from opc.core.config import get_opc_home, get_project_workplace
 
     opc_home = get_opc_home()
@@ -1205,7 +1239,7 @@ def status(
         help=t("cli.opt.probe_agent_commands"),
     ),
 ):
-    """Show OPC system status."""
+    """顯示 OPC 系統狀態。"""
     from opc.core.config import get_opc_home
 
     config = _get_config()
@@ -1263,7 +1297,7 @@ def status(
 def autonomy_status(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project ID"),
 ):
-    """Show autonomy policy, learned preferences, and approval stats."""
+    """顯示自主策略、已學習的偏好和審批統計。"""
     config = _get_config()
     console.print(Panel("[bold]Autonomy Status[/bold]", border_style="blue"))
     console.print(f"  Mode: {config.autonomy.mode}")
@@ -1277,7 +1311,7 @@ def autonomy_status(
 def autonomy_reset(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project ID"),
 ):
-    """Reset learned autonomy preferences globally or for a project."""
+    """重置已學習的自主偏好（全域或指定專案）。"""
     from opc.core.config import get_opc_home
     from opc.layer5_memory.approval_allowlist import ApprovalAllowlistManager
     from opc.layer5_memory.preference import PreferenceManager
@@ -1296,7 +1330,7 @@ def autonomy_configure(
     max_auto_approve_risk: Optional[str] = typer.Option(None, "--max-risk", help="Max auto-approve risk"),
     approval_confidence_threshold: Optional[float] = typer.Option(None, "--confidence-threshold", help="Approval confidence threshold"),
 ):
-    """Update autonomy configuration settings."""
+    """更新自主配置設定。"""
     from opc.core.config import get_opc_home
 
     config = _get_config()
@@ -1312,7 +1346,7 @@ def autonomy_configure(
 
 @app.command()
 def projects():
-    """List all projects."""
+    """列出所有專案。"""
     from opc.core.config import get_opc_home, get_project_workplace
     from opc.layer5_memory.markdown_memory import MarkdownMemoryStore
     opc_home = get_opc_home()
@@ -1342,7 +1376,7 @@ def projects():
 
 @app.command()
 def skills():
-    """List available skills."""
+    """列出可用技能。"""
     from opc.core.config import get_opc_home
     from opc.layer5_memory.skill_library import SkillLibrary
 
@@ -1367,7 +1401,7 @@ def skills():
 
 @app.command()
 def config_show():
-    """Show current configuration."""
+    """顯示當前配置。"""
     import yaml
     config = _get_config()
     console.print(yaml.dump(config.model_dump(), default_flow_style=False))
@@ -1713,7 +1747,7 @@ def project_list(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Active project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """List projects."""
+    """列出專案。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.project.list(active_project_id=project), json_output=json_output))
 
 
@@ -1722,7 +1756,7 @@ def project_show(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project ID"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Show project index payload."""
+    """顯示專案索引 payload。"""
     target = project or "default"
     asyncio.run(_run_service_command(project, lambda svc: svc.project.project_index(target, include_snapshot=False), json_output=json_output))
 
@@ -1733,7 +1767,7 @@ def project_create(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Active project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Create a project."""
+    """建立專案。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.project.create(project_id, active_project_id=project), json_output=json_output))
 
 
@@ -1743,7 +1777,7 @@ def project_switch(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Current project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Prepare and validate switching to a project."""
+    """準備並驗證切換到指定專案。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.project.switch(project_id, include_snapshot=False), json_output=json_output))
 
 
@@ -1754,7 +1788,7 @@ def project_rename(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Active project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Rename a project id and move its persisted project data."""
+    """重新命名專案 ID 並移動其持久化資料。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.project.rename(old_project_id, new_project_id), json_output=json_output))
 
 
@@ -1765,7 +1799,7 @@ def project_delete(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Active project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Delete a project and its persisted UI/runtime data."""
+    """刪除專案及其持久化的 UI/運行時資料。"""
     if not yes:
         console.print(f"[warning]{t('cli.destructive_requires_yes')}[/warning]")
         raise typer.Exit(code=1)
@@ -2196,7 +2230,7 @@ def talent_list(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """List imported talent templates."""
+    """列出已匯入的人才模板。"""
     config = _get_config()
     market = TalentMarket(get_opc_home(), config)
     templates = market.list_templates()
@@ -2220,7 +2254,7 @@ def talent_employees(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """List hired employees."""
+    """列出已僱用的員工。"""
     config = _get_config()
     market = TalentMarket(get_opc_home(), config)
     employees = market.list_employees()
@@ -2245,7 +2279,7 @@ def talent_import(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Import local agency-agent markdown files into recruitable talent templates."""
+    """將本地 agency-agent markdown 檔案匯入為可招聘的人才模板。"""
     config = _get_config()
     market = TalentMarket(get_opc_home(), config)
     imported = market.import_from_repo(_talent_repo_path(repo_path))
@@ -2265,7 +2299,7 @@ def talent_hire(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Hire an imported template into a company role."""
+    """將已匯入的模板僱用到公司角色。"""
     config = _get_config()
     market = TalentMarket(get_opc_home(), config)
     employee = market.hire_template(
@@ -2286,25 +2320,25 @@ def talent_hire(
 
 @talent_app.command("scan")
 def talent_scan(project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Scan local talent templates."""
+    """掃描本地人才模板。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.talent.scan(), json_output=json_output))
 
 
 @talent_app.command("import-selected")
 def talent_import_selected(template_ids: list[str] = typer.Argument(...), project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Import selected local talent templates."""
+    """匯入選定的本地人才模板。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.talent.import_selected(template_ids), json_output=json_output))
 
 
 @talent_app.command("employee-detail")
 def talent_employee(employee_id: str = typer.Argument(...), project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Show employee detail."""
+    """顯示員工詳情。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.talent.employee_detail(employee_id), json_output=json_output))
 
 
 @talent_app.command("import-agent")
 def talent_import_agent(employee_id: str = typer.Argument(...), project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Import an employee as a visual office agent."""
+    """將員工匯入為視覺化辦公室代理。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.talent.import_employee_as_agent(employee_id=employee_id), json_output=json_output))
 
 
@@ -2362,19 +2396,19 @@ def market_export(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Export the current org as an .opcpkg package."""
+    """將當前組織匯出為 .opcpkg 套件。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.market.export(package_id=package_id, name=name, description=description, version=version, output_dir=output_dir), json_output=json_output))
 
 
 @market_app.command("browse")
 def market_browse(project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Browse market architecture presets."""
+    """瀏覽市場架構預設。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.market.browse(), json_output=json_output))
 
 
 @market_app.command("preview")
 def market_preview(preset_id: str = typer.Argument(...), project: Optional[str] = typer.Option(None, "--project", "-p"), json_output: bool = typer.Option(False, "--json")):
-    """Preview a built-in architecture preset."""
+    """預覽內建架構預設。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.market.preview(preset_id), json_output=json_output))
 
 
@@ -2383,7 +2417,7 @@ def market_presets(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """List built-in architecture presets."""
+    """列出內建架構預設。"""
     from opc.market.architecture_registry import get_all_presets
 
     if json_output:
@@ -2399,7 +2433,7 @@ def market_apply_preset(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Apply a built-in architecture preset as the active custom organization."""
+    """套用內建架構預設為當前自訂組織。"""
     if strategy not in {"namespace", "overwrite"}:
         console.print("[error]Strategy must be namespace or overwrite.[/error]")
         raise typer.Exit(code=1)
@@ -2413,7 +2447,7 @@ def market_install(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Install an .opcpkg package from a local path."""
+    """從本地路徑安裝 .opcpkg 套件。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.market.install(path=path, strategy=strategy), json_output=json_output))
 
 
@@ -2422,7 +2456,7 @@ def market_list(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """List installed OPC Market packages."""
+    """列出已安裝的 OPC Market 套件。"""
     asyncio.run(_run_service_command(project, lambda svc: svc.market.list_installed(), json_output=json_output))
 
 
@@ -2433,7 +2467,7 @@ def market_uninstall(
     project: Optional[str] = typer.Option(None, "--project", "-p", help="Project context"),
     json_output: bool = typer.Option(False, "--json", help="Print JSON"),
 ):
-    """Uninstall an installed OPC Market package."""
+    """解除安裝已安裝的 OPC Market 套件。"""
     if not yes:
         console.print(f"[warning]{t('cli.destructive_requires_yes')}[/warning]")
         raise typer.Exit(code=1)
@@ -2442,7 +2476,7 @@ def market_uninstall(
 
 @channels_app.command("status")
 def channels_status():
-    """Show configured channel status."""
+    """顯示已配置頻道的狀態。"""
     config = _get_config()
     from opc.channels.manager import ChannelManager
     from opc.channels.provider_registry import ordered_provider_specs
@@ -2496,14 +2530,14 @@ def channels_status():
 
 @channels_app.command("start")
 def channels_start(project: Optional[str] = typer.Option(None, "--project", "-p", help="Project ID")):
-    """Start enabled channels in foreground."""
+    """在前台啟動已啟用的頻道。"""
     config = _get_config()
     asyncio.run(_run_channel_runtime(config, project))
 
 
 @channels_app.command("stop")
 def channels_stop():
-    """Stop foreground channel runtime."""
+    """停止前台頻道運行時。"""
     runtime_state = _read_channel_runtime_state()
     if not runtime_state:
         console.print("[warning]No running channel runtime found.[/warning]")
@@ -2521,7 +2555,7 @@ def channels_stop():
 
 @channels_app.command("login")
 def channels_login(channel: Optional[str] = typer.Argument(None, help="Optional channel name")):
-    """Show login/setup guidance for channels."""
+    """顯示頻道登入/設定指南。"""
     from opc.channels.provider_registry import PROVIDER_SPECS, ordered_provider_specs
 
     if channel:
@@ -2548,13 +2582,13 @@ def channels_login(channel: Optional[str] = typer.Argument(None, help="Optional 
 
 @app.command()
 def run(project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project"))):
-    """Run the long-lived engine + channel runtime in foreground."""
+    """在前台運行長駐引擎 + 頻道運行時。"""
     config = _get_config()
     asyncio.run(_run_channel_runtime(config, project))
 
 
 # ---------------------------------------------------------------------------
-# Async helpers
+# 非同步輔助函數
 # ---------------------------------------------------------------------------
 
 async def _single_message(
@@ -2754,7 +2788,7 @@ class QueuedChatInput:
 
 
 class ChatTurnController:
-    """Keep interactive chat responsive while a turn is running."""
+    """聊天回合控制器 — 在回合執行期間保持互動式聊天的響應性。"""
 
     def __init__(self, state: _InteractiveChatState) -> None:
         self.state = state
@@ -3997,7 +4031,7 @@ async def _company_runtime_execution_identity(
     state: _InteractiveChatState,
     runtime_identity: Any,
 ) -> Any:
-    """Read execution configuration from the durable runtime config source."""
+    """從持久運行時配置來源讀取執行配置。"""
     from opc.plugins.office_ui.execution_identity import execution_identity_from_task
 
     config_source_task_id = str(

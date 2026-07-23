@@ -1,4 +1,4 @@
-"""Collaboration tools exposed to agents in company mode."""
+"""公司模式中暴露給代理的協作工具。"""
 
 from __future__ import annotations
 

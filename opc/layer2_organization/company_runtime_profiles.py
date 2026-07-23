@@ -1,4 +1,4 @@
-"""Built-in company runtime profiles and helpers."""
+"""內建公司運行時設定檔和輔助工具。"""
 
 from __future__ import annotations
 

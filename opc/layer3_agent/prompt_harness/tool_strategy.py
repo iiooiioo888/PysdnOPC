@@ -1,4 +1,4 @@
-"""Native runtime tool strategy rendering."""
+"""原生運行時工具策略渲染。"""
 
 from __future__ import annotations
 

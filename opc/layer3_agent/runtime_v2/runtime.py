@@ -1,4 +1,4 @@
-"""Native Runtime V2: streaming LLM loop + structured tool execution."""
+"""原生運行時 V2：串流 LLM 迴圈 + 結構化工具執行。"""
 
 from __future__ import annotations
 

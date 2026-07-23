@@ -1,4 +1,4 @@
-"""Codex CLI adapter."""
+"""Codex CLI 適配器。"""
 
 from __future__ import annotations
 

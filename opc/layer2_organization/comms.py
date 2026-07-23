@@ -1,45 +1,20 @@
-"""File-based collaboration substrate (`comms`).
+"""基於檔案的協作基底（comms）。
 
-Provides the runtime mailbox for inter-role messaging. Each project/session gets a
-`comms/` subtree under its workspace; inside it, `inbox/`, `handoffs/`
-and `meetings/` are siblings, each holding per-role subdirectories.
+提供角色間訊息傳遞的運行時信箱。每個專案/工作階段在其工作區下
+有一個 comms/ 子樹；其中 inbox/、handoffs/ 和 meetings/ 是同級目錄，
+各自包含按角色分的子目錄。
 
-Layout::
+設計原則：
+* 每則訊息是獨立檔案。生產者和消費者無需鎖定共享檔案 —
+  原子性來自從按角色的 .tmp/ 目錄 os.rename() 到 new/。
+* 標記已讀是 mv new/x.md seen/x.md，同樣是原子操作。
+* 阻塞訊息（frontmatter 中 blocking: true）攜帶標記，
+  broker 監視該標記；重新激活排程器將其視為「停止發送者、執行接收者」。
+* 收斂是 prompt 驅動的，不由硬計數器強制：prompt 規則告訴代理
+  只在需要確認/變更時回覆，自然不動點是「無新訊息 → 無新回合」。
 
-    <workspace>/.opc-comms/<project_id>/<session_id>/
-    ├── inbox/
-    │   ├── ceo/
-    │   │   ├── new/      # unread messages addressed to ceo
-    │   │   ├── seen/     # archived after broker / agent marks them read
-    │   │   └── outbox/   # mirror of messages ceo has sent (audit + dedupe)
-    │   ├── cto/
-    │   └── ...
-    ├── meetings/
-    │   └── <meeting_id>/
-    │       ├── manifest.yaml
-    │       └── transcript.md
-    └── ../_shared/
-        └── team_memory/
-            └── TEAM_MEMORY.md
-
-Design principles:
-
-* Each message is its own file. There is no shared file the producer
-  and consumer have to lock — atomicity comes from `os.rename()` from
-  a per-role `.tmp/` directory into `new/`.
-* Marking-as-read is `mv new/x.md seen/x.md`, also atomic.
-* Blocking messages (`blocking: true` in frontmatter) carry a marker
-  the broker watches for; the reactivation scheduler treats them as
-  "stop sender, run receiver" instead of "let sender keep going".
-* Convergence is *prompt-driven*, not enforced by hard counters: the
-  prompt rules tell agents to only reply when they need confirmation
-  / changes, so the natural fixed point is "no new messages → no new
-  turns". A `followup_round` counter is recorded as anomaly telemetry
-  but never used as a hard cutoff.
-
-This module is intentionally pure: it does no DB I/O, no async I/O,
-no network. Callers (`company_mode`, `external_broker`, the engine
-scheduler) wire it into the lifecycle.
+此模組刻意保持純粹：不做 DB I/O、非同步 I/O、網路操作。
+呼叫者（company_mode、external_broker、引擎排程器）將其接入生命週期。
 """
 
 from __future__ import annotations

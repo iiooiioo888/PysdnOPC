@@ -1,4 +1,4 @@
-"""Seat-scoped execution adapter for actor-runtime company mode."""
+"""席位範圍執行適配器 — 用於 actor-runtime 公司模式。"""
 
 from __future__ import annotations
 

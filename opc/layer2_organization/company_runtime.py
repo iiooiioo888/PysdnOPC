@@ -1,4 +1,4 @@
-"""Persistent company-member runtime for company runtime execution."""
+"""持久公司成員運行時 — 用於公司運行時執行。"""
 
 from __future__ import annotations
 

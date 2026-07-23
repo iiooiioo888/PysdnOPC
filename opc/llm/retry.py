@@ -1,4 +1,4 @@
-"""Unified retry helper for LLM calls that expect structured (JSON) output.
+"""預期結構化（JSON）輸出的 LLM 呼叫統一重試輔助工具。
 
 The orchestration layers of OPC frequently ask an LLM to produce a JSON object
 that is then parsed, type-validated, and fed into downstream business logic

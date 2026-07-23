@@ -1,4 +1,4 @@
-"""Company-mode metadata ownership rules.
+"""公司模式 metadata 所有權規則。
 
 This module is the executable owner matrix for WorkItem/runtime Task
 metadata. In company mode, DelegationWorkItem owns business/collaboration

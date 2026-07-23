@@ -1,4 +1,4 @@
-"""MCP (Model Context Protocol) client supporting local (stdio) and remote
+"""MCP（Model Context Protocol）客戶端，支援本地（stdio）和遠端
 (StreamableHTTP / SSE) servers.
 
 Connects to MCP servers, discovers their tools, and registers them into the

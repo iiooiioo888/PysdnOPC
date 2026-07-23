@@ -1,4 +1,4 @@
-"""Prompt harness helpers for Native Runtime V2."""
+"""原生運行時 V2 的 Prompt 組裝輔助工具。"""
 
 from .artifacts import (
     RUNTIME_ARTIFACT_DELTA_HEADER,

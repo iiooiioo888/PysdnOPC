@@ -1,4 +1,4 @@
-"""Git operation tools."""
+"""Git 操作工具。"""
 
 from __future__ import annotations
 

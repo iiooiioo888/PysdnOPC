@@ -1,4 +1,4 @@
-"""Goal hierarchy manager for persistent company-mode organizations."""
+"""持久公司模式組織的目標層級管理器。"""
 
 from __future__ import annotations
 

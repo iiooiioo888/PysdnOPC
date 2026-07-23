@@ -1,4 +1,4 @@
-"""Claude Code CLI adapter."""
+"""Claude Code CLI 適配器。"""
 
 from __future__ import annotations
 

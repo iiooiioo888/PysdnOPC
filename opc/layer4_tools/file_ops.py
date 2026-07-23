@@ -1,4 +1,4 @@
-"""File system operation tools with compatibility aliases."""
+"""檔案系統操作工具（含相容性別名）。"""
 
 from __future__ import annotations
 

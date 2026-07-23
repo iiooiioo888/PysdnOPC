@@ -1,4 +1,4 @@
-"""Security validation for OPC Market packages."""
+"""OPC Market 套件的安全性驗證。"""
 
 from __future__ import annotations
 

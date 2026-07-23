@@ -1,4 +1,4 @@
-"""Custom/org runtime entrypoint.
+"""自訂/組織運行時入口。
 
 Custom mode runs with company-mode semantics, but with a user-selected
 organization config.  The runner owns the custom isolation boundary:

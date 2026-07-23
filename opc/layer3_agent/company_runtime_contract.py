@@ -1,4 +1,4 @@
-"""Shared company/runtime contract builders for native and external agents."""
+"""原生和外部代理共享的公司/運行時契約建構器。"""
 
 from __future__ import annotations
 

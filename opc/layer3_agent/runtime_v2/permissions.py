@@ -1,4 +1,4 @@
-"""Runtime-side permission adapter for Native Runtime V2.
+"""原生運行時 V2 的運行時端權限適配器。
 
 This module intentionally contains NO permission policy. All decisions come
 from the single ApprovalEngine (``opc/layer2_organization/approval.py``):

@@ -1,4 +1,4 @@
-"""Import and normalize skills from multiple sources for immediate project use."""
+"""從多個來源匯入和標準化技能供專案立即使用。"""
 
 from __future__ import annotations
 

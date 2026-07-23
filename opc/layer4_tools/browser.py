@@ -1,4 +1,4 @@
-"""Native Playwright-backed browser tools."""
+"""基於 Playwright 的原生瀏覽器工具。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Cost tracking for LLM API usage."""
+"""LLM API 使用成本追蹤。"""
 
 from __future__ import annotations
 

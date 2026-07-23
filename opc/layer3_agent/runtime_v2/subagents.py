@@ -1,4 +1,4 @@
-"""Runtime-managed native subagents."""
+"""運行時管理的原生子代理。"""
 
 from __future__ import annotations
 

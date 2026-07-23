@@ -1,4 +1,4 @@
-"""Owner-aware read adapter over work_item / task metadata.
+"""擁有者感知的 work_item / task metadata 讀取適配器。
 
 Company-mode historically embedded ~150+ context keys on ``Task.metadata``
 and now stores WorkItem-owned fields on ``DelegationWorkItem.metadata``.

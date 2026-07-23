@@ -1,8 +1,7 @@
-"""Heartbeat scheduler for company-mode agent autonomy.
+"""公司模式代理自主性的心跳排程器。
 
-Periodically checks heartbeat-enabled agents and wakes them to process
-pending tasks.  Runs as a background ``asyncio.Task`` within the same
-process — no separate service needed.
+定期檢查啟用心跳的代理並喚醒它們處理待處理任務。
+作為背景 asyncio.Task 在同一進程內運行 — 無需獨立服務。
 """
 
 from __future__ import annotations

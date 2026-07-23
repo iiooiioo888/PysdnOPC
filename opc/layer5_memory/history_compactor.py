@@ -1,4 +1,4 @@
-"""Persistent history compaction for session and employee memory."""
+"""工作階段和員工記憶的持久歷史壓縮。"""
 
 from __future__ import annotations
 

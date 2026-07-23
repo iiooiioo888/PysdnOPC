@@ -1,4 +1,4 @@
-"""Background sweeper that re-opens DONE tasks when new actionable mail arrives.
+"""背景掃除器 — 當新的可操作郵件到達時重新開啟 DONE 任務。
 
 The company-mode end-of-turn hook (``_reactivate_for_unread_mail``) already
 catches the common case where mail arrived *before* a task finished, but it

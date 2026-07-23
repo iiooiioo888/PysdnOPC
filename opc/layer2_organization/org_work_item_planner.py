@@ -1,4 +1,4 @@
-"""Org-driven company work-item runtime planning."""
+"""組織驅動的公司工作項目運行時規劃。"""
 
 from __future__ import annotations
 

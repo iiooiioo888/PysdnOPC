@@ -1,4 +1,4 @@
-"""Runtime-managed native subagent tools.
+"""運行時管理的原生子代理工具。
 
 These tools are intercepted by Native Runtime V2 rather than executed by the
 global registry. Their schemas must still be exposed to the model.

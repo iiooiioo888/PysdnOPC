@@ -1,4 +1,4 @@
-"""Local RPC transport for ``opc-collab`` calls.
+"""opc-collab 呼叫的本地 RPC 傳輸層。
 
 The external agent still invokes the normal ``opc-collab`` CLI. When OpenOPC
 spawns that agent, the broker exposes a short-lived local endpoint and injects

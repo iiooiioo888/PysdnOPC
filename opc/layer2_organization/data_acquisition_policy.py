@@ -1,4 +1,4 @@
-"""Shared policy helpers for data acquisition work-item projections."""
+"""資料獲取工作項目投影的共享策略輔助工具。"""
 
 from __future__ import annotations
 

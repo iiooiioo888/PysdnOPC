@@ -1,4 +1,4 @@
-"""Helpers for soft-topology collaboration and ownership-contract enforcement."""
+"""軟拓撲協作和所有權契約執行的輔助工具。"""
 
 from __future__ import annotations
 

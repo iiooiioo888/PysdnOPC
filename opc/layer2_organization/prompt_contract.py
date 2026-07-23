@@ -1,4 +1,4 @@
-"""Canonical prompt contract for company-mode WorkItems.
+"""公司模式 WorkItem 的規範 Prompt 契約。
 
 The renderer consumes this contract directly. Legacy fields such as
 ``summary``/``brief`` remain useful for UI and audit, but prompt assembly

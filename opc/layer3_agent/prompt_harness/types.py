@@ -1,4 +1,4 @@
-"""Typed prompt harness objects."""
+"""型別化 Prompt 組裝物件。"""
 
 from __future__ import annotations
 

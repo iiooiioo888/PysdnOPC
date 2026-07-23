@@ -1,4 +1,4 @@
-"""Load, install, and uninstall OPC Market packages."""
+"""載入、安裝和解除安裝 OPC Market 套件。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Stateless turn-mode classifier for role-instance dispatch.
+"""無狀態回合模式分類器 — 用於角色實例調度。
 
 A role's session can be called into action for several different kinds
 of turn on the SAME work item. ``infer_turn_mode`` looks at the work
