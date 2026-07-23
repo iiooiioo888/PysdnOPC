@@ -273,6 +273,7 @@ def test_company_ui_naming_aliases_are_present() -> None:
     runtime_ids = (frontend_root / "lib/workItemRuntimeIds.ts").read_text(encoding="utf-8")
     task_detail = (frontend_root / "workspace/TaskDetailView.tsx").read_text(encoding="utf-8")
     execution_panel = (frontend_root / "kanban/ExecutionPanel.tsx").read_text(encoding="utf-8")
+    kanban_card = (frontend_root / "kanban/KanbanCard.tsx").read_text(encoding="utf-8")
     progress_card = (frontend_root / "chat/WorkItemProgressCard.tsx").read_text(encoding="utf-8")
 
     assert "export type WorkItemCard = KanbanTask" in kanban_types
@@ -285,7 +286,7 @@ def test_company_ui_naming_aliases_are_present() -> None:
         assert helper in runtime_ids
     assert "Open Runtime Session" in task_detail
     assert "Runtime Session Activity" in task_detail
-    assert "Execution Turn" in execution_panel
+    assert "Execution Turn" in kanban_card
     assert "Open Runtime Session" in progress_card
 
 

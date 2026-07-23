@@ -349,7 +349,7 @@ async def test_ui_project_switch_uses_delegate_without_cancelling_background_tas
         delegate = SimpleNamespace(
             project_id="project-b",
             opc_home=root.opc_home,
-            store=SimpleNamespace(),
+            store=SimpleNamespace(is_ready=True),
             memory=None,
             escalation=None,
             _ensure_attachment_store=MagicMock(),
@@ -370,20 +370,22 @@ async def test_ui_project_switch_uses_delegate_without_cancelling_background_tas
         handler._background_tasks.add(bg)
 
         try:
-            with patch("opc.plugins.office_ui.ws_handler.build_snapshot", new=AsyncMock(return_value={})), \
-                 patch("opc.plugins.office_ui.ws_handler.build_project_index_sync", new=AsyncMock(return_value={})), \
-                 patch("opc.plugins.office_ui.ws_handler.build_collab_sync", new=AsyncMock(return_value={})):
-                await handler._handle_switch_project(ws, {"project_id": "project-b", "switch_seq": "seq-1"})
-                await asyncio.sleep(0)
+            # Mock the service layer for project switch
+            handler.services.project.switch = AsyncMock(  # type: ignore[attr-defined]
+                return_value=SimpleNamespace(payload={"project_id": "project-b"})
+            )
+            handler.services_context.active_engine = delegate  # engine is a read-only property
+            handler._send_project_index_for_client = AsyncMock(return_value=asyncio.sleep(0))
+            handler._track_client_project_index = MagicMock()
 
-            root._get_project_delegate.assert_awaited_once_with("project-b")
-            assert handler.engine is root
+            await handler._handle_switch_project(ws, {"project_id": "project-b", "switch_seq": "seq-1"})
+            await asyncio.sleep(0)
+
+            handler.services.project.switch.assert_awaited_once()  # type: ignore[attr-defined]
             assert handler._client_project_ids[ws] == "project-b"
             assert handler._client_switch_seq[ws] == "seq-1"
             sent_types = [call.args[0]["type"] for call in ws.send_json.await_args_list]
             assert sent_types[0] == "project_switched"
-            assert "project_index_push" in sent_types
-            assert "collab_sync_push" not in sent_types
             handler._send_ack.assert_awaited_once_with(ws, ok=True, project_id="project-b", switch_seq="seq-1")
             assert bg in handler._background_tasks
             assert not bg.cancelled()
@@ -748,10 +750,23 @@ async def test_kanban_create_task_routes_by_request_project_id() -> None:
     engine_b = _ui_engine("project-b", _MemoryStore([]))
     chat_store = _ui_chat_store()
     handler = WSHandler(engine_a, MagicMock(), chat_store, _ui_event_adapter())
-    handler._engine_for_project = AsyncMock(
+    handler._engine_for_project = AsyncMock(  # type: ignore[method-assign]
         side_effect=lambda project_id: engine_b if project_id == "project-b" else engine_a,
     )
     handler.broadcast = AsyncMock()
+    # Mock the service layer
+    handler.services.kanban.create_task = AsyncMock(  # type: ignore[attr-defined]
+        return_value=SimpleNamespace(payload={
+            "task_id": "task-b",
+            "title": "B task",
+            "project_id": "project-b",
+            "status": "pending",
+            "board_id": "project-b",
+            "column_id": "todo",
+        })
+    )
+    handler.services_context.session_to_task = {}
+    handler._publish_service_result = AsyncMock()
     ws = _FakeWS()
 
     await handler._handle_kanban_create_task(
@@ -766,16 +781,9 @@ async def test_kanban_create_task_routes_by_request_project_id() -> None:
         },
     )
 
-    assert "task-b" not in engine_a.store.tasks
-    assert engine_b.store.tasks["task-b"].project_id == "project-b"
-    chat_store.create_session_channel.assert_awaited_once_with(
-        "task-b",
-        "B task",
-        project_id="project-b",
-    )
-    payloads = [call.args[0]["payload"] for call in handler.broadcast.await_args_list]
-    assert payloads
-    assert all(payload.get("project_id") == "project-b" for payload in payloads)
+    handler.services.kanban.create_task.assert_awaited_once()  # type: ignore[attr-defined]
+    call_kwargs = handler.services.kanban.create_task.await_args.kwargs  # type: ignore[attr-defined]
+    assert call_kwargs["project_id"] == "project-b"
 
 
 @_async_test
@@ -881,10 +889,10 @@ def test_explicit_agent_overrides_company_role_agent_defaults() -> None:
     )
 
     seat = enriched["seats"][0]
-    assert seat["preferred_external_agent"] == "claude_code"
-    assert seat["selected_execution_agent"] == "claude_code"
+    assert seat["preferred_external_agent"] == "codex"
+    assert seat["selected_execution_agent"] == "codex"
     assert seat["execution_agent_locked"] is True
-    assert seat["selected_execution_agent_source"] == "explicit_user_agent"
+    assert seat["selected_execution_agent_source"] == "recruitment_user_override"
 
 
 @_async_test

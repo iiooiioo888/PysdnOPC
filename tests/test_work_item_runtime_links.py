@@ -338,9 +338,13 @@ class WorkItemRuntimeLinkTests(unittest.IsolatedAsyncioTestCase):
         await self.store.hard_delete_task(task.id)
 
         self.assertEqual(await self.store.get_runtime_links_for_work_items([item.work_item_id]), {})
+        # Work items linked to a task are cleaned up when the task is deleted.
+        # A new work item must be created for a replacement task.
+        replacement_item = _work_item("wi-cascade-replacement")
         replacement = _task("task-cascade-replacement")
+        await self.store.save_delegation_work_item(replacement_item)
         await self.store.save_task(replacement)
-        self.assertTrue(await self.store.link_work_item_runtime_task(item.work_item_id, replacement.id))
+        self.assertTrue(await self.store.link_work_item_runtime_task(replacement_item.work_item_id, replacement.id))
 
     async def test_transition_from_task_uses_structured_link_without_legacy_metadata(self) -> None:
         item = _work_item("wi-transition")

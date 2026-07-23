@@ -328,11 +328,36 @@ class LLMProvider:
         self._total_tokens_out = 0
         self._total_cost = 0.0
         self._budget_guard = budget_guard  # 預算守衛（可選）
+        # LLM 響應快取（減少重複調用）
+        self._response_cache: dict[str, dict[str, Any]] = {}
+        self._cache_max_size = 100
+        self._cache_hits = 0
+        self._cache_misses = 0
 
         self._api_key = config.api_key or (
             os.environ.get(config.api_key_env) if config.api_key_env else None
         ) or None
         self._api_base = config.api_base or None
+
+    def _cache_key(self, messages: list[dict[str, Any]], model: str, tools: list[dict[str, Any]] | None) -> str:
+        """Generate a cache key for LLM request."""
+        import hashlib
+        # Create a hash of the request content
+        content = json.dumps({
+            "messages": messages[-5:],  # Only cache last 5 messages for context
+            "model": model,
+            "tools": [t.get("function", {}).get("name", "") for t in (tools or [])],
+        }, sort_keys=True, ensure_ascii=False)
+        return hashlib.md5(content.encode()).hexdigest()
+
+    def get_cache_stats(self) -> dict[str, int]:
+        """Return cache statistics."""
+        return {
+            "hits": self._cache_hits,
+            "misses": self._cache_misses,
+            "size": len(self._response_cache),
+            "hit_rate": self._cache_hits / max(1, self._cache_hits + self._cache_misses),
+        }
 
     def has_credentials(self) -> bool:
         """Whether an LLM call can plausibly authenticate.
@@ -670,12 +695,23 @@ class LLMProvider:
         temperature: float | None = None,
         max_tokens: int | None = None,
         budget_tier: str | None = None,
+        use_cache: bool = True,
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = self._select_model(task_type)
         raw_temp = temperature if temperature is not None else self.config.temperature
         raw_max_tok = max_tokens if max_tokens is not None else self.config.max_tokens
         temp, max_tok = _sanitize_call_params(model, raw_temp, raw_max_tok)
+
+        # 快取查找（僅對無工具調用的簡單查詢啟用）
+        cache_key = None
+        if use_cache and not tools and len(messages) <= 5:
+            cache_key = self._cache_key(messages, model, tools)
+            if cache_key in self._response_cache:
+                self._cache_hits += 1
+                logger.debug(f"LLM cache hit: {cache_key[:8]}...")
+                return self._response_cache[cache_key]
+            self._cache_misses += 1
 
         # 預算守衛檢查
         if self._budget_guard:
@@ -786,6 +822,15 @@ class LLMProvider:
                 if parse_error:
                     tool_call["arguments_parse_error"] = parse_error
                 result["tool_calls"].append(tool_call)
+
+        # 儲存到快取（僅對無工具調用的簡單查詢）
+        if cache_key and not result.get("tool_calls"):
+            # LRU: 移除最舊的條目
+            if len(self._response_cache) >= self._cache_max_size:
+                oldest_key = next(iter(self._response_cache))
+                del self._response_cache[oldest_key]
+            self._response_cache[cache_key] = result
+            logger.debug(f"LLM cache stored: {cache_key[:8]}...")
 
         return result
 

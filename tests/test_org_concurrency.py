@@ -25,8 +25,12 @@ import time
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_add_role_and_reorg_decide_serialized():
+def test_add_role_and_reorg_decide_serialized():
+    """20 mixed ops share one lock; no exceptions, no deadlock, finishes fast."""
+    asyncio.run(_test_add_role_and_reorg_decide_serialized_impl())
+
+
+async def _test_add_role_and_reorg_decide_serialized_impl():
     """20 mixed ops share one lock; no exceptions, no deadlock, finishes fast."""
     lock = asyncio.Lock()
     # Event log records enter/exit around the critical section so we can verify
@@ -78,8 +82,18 @@ async def test_add_role_and_reorg_decide_serialized():
     assert elapsed < 10.0, f"Test took {elapsed:.2f}s, exceeded 10s budget"
 
 
-@pytest.mark.asyncio
-async def test_lock_is_not_reentrant_from_same_task():
+def test_lock_is_not_reentrant_from_same_task():
+    """asyncio.Lock must NOT be re-acquirable from the same task (would deadlock).
+
+    This is the invariant that the P2 plan relied on (D4 deadlock proof): if any
+    code path under `_handle_reorg_decide` re-acquired `_config_lock` we'd
+    deadlock. Here we verify the Lock primitive's behavior — the test passes
+    only when a re-acquire attempt blocks forever (we force it to time out).
+    """
+    asyncio.run(_test_lock_is_not_reentrant_from_same_task_impl())
+
+
+async def _test_lock_is_not_reentrant_from_same_task_impl():
     """asyncio.Lock must NOT be re-acquirable from the same task (would deadlock).
 
     This is the invariant that the P2 plan relied on (D4 deadlock proof): if any

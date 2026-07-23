@@ -474,11 +474,15 @@ class ExternalAgentMixin:
                     )
                 available_for_audit = self._available_external_agents()
                 if selected_name not in available_for_audit:
-                    raise RuntimeError(
-                        "company runtime resume requires unavailable external agent "
-                        f"{selected_name!r} for task {task.id}"
+                    # Fall back to native agent instead of crashing
+                    logger.warning(
+                        "company runtime resume: external agent {!r} unavailable for task {}, falling back to native",
+                        selected_name, task.id
                     )
-                selected = selected_name
+                    selected_name = "native"
+                    selected = None
+                else:
+                    selected = selected_name
             task.assigned_external_agent = selected
             task.metadata["selected_execution_agent"] = selected_name
             task.metadata["preferred_external_agent"] = selected

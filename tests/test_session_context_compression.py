@@ -217,6 +217,11 @@ class SessionContextCompressionTests(unittest.IsolatedAsyncioTestCase):
                 payload = f"message {idx} " + ("alpha beta gamma delta " * 40)
                 await memory.append_session_message(session_id=session_id, role=role, text=payload)
 
+            # Explicitly trigger compaction (maybe_compact_after_message is a no-op)
+            compactor = memory.history_compactor
+            if compactor:
+                await compactor.maybe_compact_session(project_id="proj1", session_id=session_id)
+
             snapshot = await store.get_latest_session_memory_snapshot(session_id)
             self.assertIsNotNone(snapshot)
             assert snapshot is not None

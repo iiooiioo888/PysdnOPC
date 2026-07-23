@@ -148,16 +148,36 @@ class RuntimeService:
         if not task:
             raise ServiceError("task_not_found", "task_not_found", {"task_id": task_id})
         metadata = dict(getattr(task, "metadata", {}) or {})
-        transcript = await store.get_session_transcript(task.session_id) if getattr(task, "session_id", None) else []
-        runtime_sessions = []
+        task_session_id = str(getattr(task, "session_id", "") or "")
+        transcript = await store.get_session_transcript(task_session_id) if task_session_id else []
+        runtime_sessions: list[dict[str, Any]] = []
         runtime_events: list[dict[str, Any]] = []
+        runtime_transcript_entries: list[dict[str, Any]] = []
         if hasattr(store, "list_runtime_sessions"):
+            # Query by task_id first
             runtime_sessions = await store.list_runtime_sessions(project_id=project_id, task_id=task_id, limit=limit)
+            # Also query by session_id to capture child task runtime sessions
+            if task_session_id:
+                session_runtime = await store.list_runtime_sessions(project_id=project_id, session_id=task_session_id, limit=limit)
+                # Merge and dedupe by runtime_session_id
+                seen_ids = {str(s.get("runtime_session_id", "")) for s in runtime_sessions}
+                for s in session_runtime:
+                    if str(s.get("runtime_session_id", "")) not in seen_ids:
+                        runtime_sessions.append(s)
+                        seen_ids.add(str(s.get("runtime_session_id", "")))
+            # Fallback: if no task-specific sessions found, query project-level sessions
+            # This captures company mode child task runtime sessions
+            if not runtime_sessions:
+                runtime_sessions = await store.list_runtime_sessions(project_id=project_id, limit=limit)
         if runtime_sessions and hasattr(store, "list_runtime_events"):
             for session in runtime_sessions:
                 runtime_id = str(session.get("runtime_session_id", "") or "")
                 if runtime_id:
                     runtime_events.extend(await store.list_runtime_events(runtime_id, limit=limit))
+                    # Also fetch transcript entries for LLM conversation history
+                    if hasattr(store, "list_runtime_transcript_entries"):
+                        entries = await store.list_runtime_transcript_entries(runtime_id)
+                        runtime_transcript_entries.extend(entries[-limit:])
         enriched_events = [self._runtime_event_payload(event) for event in runtime_events[-limit:]]
         return ServiceResult({
             "project_id": project_id,
@@ -178,6 +198,7 @@ class RuntimeService:
             "transcript": transcript[-limit:],
             "runtime_sessions": runtime_sessions,
             "runtime_events": enriched_events,
+            "runtime_transcript_entries": runtime_transcript_entries[-limit:],
         })
 
     @staticmethod

@@ -280,7 +280,7 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
         async def capture_progress(text: str) -> None:
             progress.append(text)
 
-        with patch("opc.engine.logger.info") as info_log:
+        with patch("opc.engine._external_agent.logger.info") as info_log:
             await engine._emit_external_agent_audit(
                 Task(title="Ask OpenCode"),
                 {
@@ -1507,7 +1507,7 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("## Skill: memory", worker_task.description)
             self.assertIn("## Skill: memory", final_task.description)
 
-    async def test_engine_stages_uploaded_attachments_for_external_resume_prompt(self) -> None:
+    async def test_engine_queues_uploaded_attachments_for_external_resume_prompt(self) -> None:
         engine = OPCEngine()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2733,23 +2733,26 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
         proc = type("Proc", (), {"pid": 321, "stdin": None, "stdout": object(), "stderr": object()})()
         task = Task(title="demo", description="demo")
         prompt = adapter.build_task_prompt(task)
-        cmd, metadata = adapter.build_interactive_invocation(task, workspace_path="/repo")
 
-        tmpdir = _make_test_dir("codex-no-pty-argv-prompt")
-        try:
-            with patch.object(CodexAdapter, "_supports_pty_input_channel", return_value=False), \
-                patch(
+        # Patch PTY support BEFORE build_interactive_invocation so metadata
+        # reflects the no-PTY code path from the start.
+        with patch.object(CodexAdapter, "_supports_pty_input_channel", return_value=False):
+            cmd, metadata = adapter.build_interactive_invocation(task, workspace_path="/repo")
+
+            tmpdir = _make_test_dir("codex-no-pty-argv-prompt")
+            try:
+                with patch(
                     "opc.layer3_agent.adapters.codex_adapter.asyncio.create_subprocess_exec",
                     AsyncMock(return_value=proc),
                 ) as spawn_mock:
-                started = await adapter.start_process(
-                    cmd,
-                    tmpdir,
-                    task=task,
-                    launch_metadata=metadata,
-                )
-        finally:
-            _cleanup_test_dir(tmpdir)
+                    started = await adapter.start_process(
+                        cmd,
+                        tmpdir,
+                        task=task,
+                        launch_metadata=metadata,
+                    )
+            finally:
+                _cleanup_test_dir(tmpdir)
 
         self.assertIs(started, proc)
         spawn_mock.assert_awaited_once()

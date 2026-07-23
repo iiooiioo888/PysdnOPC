@@ -126,7 +126,7 @@ class ReviewPromptSchemaTests(unittest.TestCase):
         self.assertNotIn("auto-rejected", text.lower())
 
     def test_native_agent_prompt_keeps_suggested_schema(self) -> None:
-        text = native_agent._COMPANY_REVIEW_WORK_ITEM_GUIDELINES
+        text = company_runtime_contract._COMPANY_REVIEW_WORK_ITEM_GUIDELINES
         self.assertIn("review_verdict", text)
         self.assertIn("blocking_issues", text)
         self.assertNotIn("Mandatory verdict schema", text)

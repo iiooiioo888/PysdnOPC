@@ -15,7 +15,7 @@ from opc.llm.budget_guard import (
 
 def _run(coro):
     """同步執行異步函數的輔助方法。"""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class LLMProviderBudgetInitTests(unittest.TestCase):

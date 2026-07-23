@@ -20,7 +20,12 @@ AutoLoopManager = auto_loop.AutoLoopManager
 format_loop_stats = auto_loop.format_loop_stats
 
 
-async def test_retry_loop():
+def test_retry_loop():
+    """測試重試循環。"""
+    asyncio.run(_test_retry_loop())
+
+
+async def _test_retry_loop():
     """測試重試循環。"""
     manager = AutoLoopManager()
     call_count = 0
@@ -47,7 +52,12 @@ async def test_retry_loop():
     print(f"  ✅ Status: {run.status.value} | Attempts: {run.attempt} | Result: {run.result}")
 
 
-async def test_retry_exhausted():
+def test_retry_exhausted():
+    """測試重試耗盡。"""
+    asyncio.run(_test_retry_exhausted())
+
+
+async def _test_retry_exhausted():
     """測試重試耗盡。"""
     manager = AutoLoopManager()
 
@@ -66,7 +76,12 @@ async def test_retry_exhausted():
     print(f"  ✅ Status: {run.status.value} | Attempts: {run.attempt}")
 
 
-async def test_quality_gate():
+def test_quality_gate():
+    """測試質量門禁。"""
+    asyncio.run(_test_quality_gate())
+
+
+async def _test_quality_gate():
     """測試質量門禁。"""
     manager = AutoLoopManager()
     quality_score = 0.3
@@ -93,7 +108,12 @@ async def test_quality_gate():
     print(f"  ✅ Status: {run.status.value} | Attempts: {run.attempt}")
 
 
-async def test_self_heal():
+def test_self_heal():
+    """測試自癒循環。"""
+    asyncio.run(_test_self_heal())
+
+
+async def _test_self_heal():
     """測試自癒循環。"""
     manager = AutoLoopManager()
     heal_attempts = 0
@@ -123,7 +143,12 @@ async def test_self_heal():
     print(f"  ✅ Status: {run.status.value} | Attempts: {run.attempt}")
 
 
-async def test_stats():
+def test_stats():
+    """測試統計功能。"""
+    asyncio.run(_test_stats())
+
+
+async def _test_stats():
     """測試統計功能。"""
     manager = AutoLoopManager()
 

@@ -245,6 +245,7 @@ ALLOWED_TRANSITIONS: dict[Phase, frozenset[Phase]] = {
         Phase.WAITING_DEPENDENCIES,
     }) | _UNIVERSAL_EXITS,
     Phase.READY_FOR_REWORK: frozenset({
+        Phase.READY,
         Phase.RUNNING,
     }) | _UNIVERSAL_EXITS,
 
@@ -288,9 +289,9 @@ ALLOWED_TRANSITIONS: dict[Phase, frozenset[Phase]] = {
         Phase.READY_FOR_REWORK,
     }) | _UNIVERSAL_EXITS | _RECOVERY_EXITS,
 
-    # terminal — no outgoing edges
+    # terminal — no outgoing edges (except FAILED which allows retry)
     Phase.APPROVED: frozenset(),
-    Phase.FAILED: frozenset(),
+    Phase.FAILED: frozenset({Phase.READY}),
     Phase.CANCELLED: frozenset(),
 }
 

@@ -112,21 +112,28 @@ def _coerce_timestamp(value: Any) -> float | None:
         return None
 
 
+def _msg_field(message: Any, field: str, default: Any = None) -> Any:
+    """Access a field on a SessionMessageRecord or a plain dict."""
+    if isinstance(message, dict):
+        return message.get(field, default)
+    return getattr(message, field, default)
+
+
 def _session_message_ui_identity(message: Any) -> tuple[str, float, dict[str, Any]]:
-    metadata = dict(getattr(message, "metadata", {}) or {})
-    canonical_id = str(metadata.get("ui_message_id") or getattr(message, "message_id", "") or "").strip()
+    metadata = dict(_msg_field(message, "metadata", {}) or {})
+    canonical_id = str(metadata.get("ui_message_id") or _msg_field(message, "message_id", "") or "").strip()
 
     timestamp = _coerce_timestamp(metadata.get("ui_created_at"))
     if timestamp is None:
-        created_at = getattr(message, "created_at", None)
+        created_at = _msg_field(message, "created_at", None)
         timestamp = created_at.timestamp() if hasattr(created_at, "timestamp") else time.time()
 
     ui_meta: dict[str, Any] = {}
-    if canonical_id and canonical_id != str(getattr(message, "message_id", "") or "").strip():
+    if canonical_id and canonical_id != str(_msg_field(message, "message_id", "") or "").strip():
         ui_meta["ui_message_id"] = canonical_id
     if "ui_created_at" in metadata and timestamp is not None:
         ui_meta["ui_created_at"] = timestamp
-    return canonical_id or str(getattr(message, "message_id", "") or ""), timestamp, ui_meta
+    return canonical_id or str(_msg_field(message, "message_id", "") or ""), timestamp, ui_meta
 
 
 _FULL_DETAIL_ONLY_TRANSCRIPT_KINDS = FULL_DETAIL_ONLY_TRANSCRIPT_KINDS
@@ -226,7 +233,7 @@ def _normalize_transcript_detail_level(value: Any) -> TranscriptDetailLevel:
 
 
 def _transcript_message_kind(message: Any) -> str:
-    metadata = dict(getattr(message, "metadata", {}) or {})
+    metadata = dict(_msg_field(message, "metadata", {}) or {})
     return str(metadata.get("kind", "") or "").strip()
 
 
@@ -239,15 +246,23 @@ def _transcript_message_hidden_from_ui(
     *,
     detail_level: TranscriptDetailLevel = "summary",
 ) -> bool:
-    metadata = dict(getattr(message, "metadata", {}) or {})
+    metadata = dict(_msg_field(message, "metadata", {}) or {})
     return not transcript_metadata_visible(metadata, detail_level=detail_level)
+
+
+def _part_field(part: Any, field: str, default: Any = "") -> Any:
+    """Access a field on a SessionPartRecord or a plain dict."""
+    if isinstance(part, dict):
+        return part.get(field, default)
+    return getattr(part, field, default)
 
 
 def _render_text_parts(parts: list[Any]) -> str:
     lines: list[str] = []
     for part in parts:
-        payload = part.payload if isinstance(part.payload, dict) else {}
-        if part.part_type != "text":
+        payload = _part_field(part, "payload", {})
+        payload = payload if isinstance(payload, dict) else {}
+        if _part_field(part, "part_type") != "text":
             continue
         text = payload.get("text", "")
         if text:
@@ -258,8 +273,9 @@ def _render_text_parts(parts: list[Any]) -> str:
 def _render_thinking_parts(parts: list[Any]) -> str:
     lines: list[str] = []
     for part in parts:
-        payload = part.payload if isinstance(part.payload, dict) else {}
-        if part.part_type != "thinking":
+        payload = _part_field(part, "payload", {})
+        payload = payload if isinstance(payload, dict) else {}
+        if _part_field(part, "part_type") != "thinking":
             continue
         text = payload.get("text", "")
         if text:
@@ -1066,7 +1082,7 @@ def _transcript_item_to_ui_message(
     message = item.get("message")
     if (
         not message
-        or getattr(message, "summary_flag", False)
+        or _msg_field(message, "summary_flag", False)
         or _transcript_message_hidden_from_ui(message, detail_level=detail_level)
     ):
         return None
@@ -1082,14 +1098,14 @@ def _transcript_item_to_ui_message(
     if not content:
         return None
 
-    role = str(getattr(message, "role", "") or "").strip().lower()
-    agent_id = str(getattr(message, "agent_id", "") or "").strip()
+    role = str(_msg_field(message, "role", "") or "").strip().lower()
+    agent_id = str(_msg_field(message, "agent_id", "") or "").strip()
     if kind == "runtime_v2_user_turn":
         sender = "system"
         sender_name = "Execution"
     elif agent_id and role in ("assistant", "subagent"):
         sender = agent_id
-        sender_name = str(dict(getattr(message, "metadata", {}) or {}).get("visible_speaker", "") or "").strip()
+        sender_name = str(dict(_msg_field(message, "metadata", {}) or {}).get("visible_speaker", "") or "").strip()
         if not sender_name:
             sender_name = agent_id.replace("-", " ").replace("_", " ").title()
         if (
@@ -1113,13 +1129,13 @@ def _transcript_item_to_ui_message(
         verification_footer = None
 
     message_id, timestamp, ui_meta = _session_message_ui_identity(message)
-    message_metadata = dict(getattr(message, "metadata", {}) or {})
+    message_metadata = dict(_msg_field(message, "metadata", {}) or {})
     runtime_thinking = (
         _render_thinking_parts(item.get("parts", []) if isinstance(item, dict) else [])
         or str(message_metadata.get("runtime_thinking", "") or "").strip()
     )
     return {
-        "message_id": message_id or str(getattr(message, "message_id", "") or str(uuid.uuid4())),
+        "message_id": message_id or str(_msg_field(message, "message_id", "") or str(uuid.uuid4())),
         "channel_id": channel_id,
         "sender": sender,
         "sender_name": sender_name,
@@ -2008,7 +2024,7 @@ def _slice_transcript_from_boundary(
         return transcript
     for idx, item in enumerate(transcript):
         message = item.get("message")
-        if getattr(message, "message_id", "") == boundary_message_id:
+        if _msg_field(message, "message_id", "") == boundary_message_id:
             return transcript[idx + 1:]
     return transcript
 
@@ -2045,20 +2061,20 @@ async def _build_session_context_preview(
     blocks: list[str] = []
     for item in visible:
         message = item.get("message")
-        if not message or getattr(message, "summary_flag", False):
+        if not message or _msg_field(message, "summary_flag", False):
             continue
 
         content = _render_parts(item.get("parts", [])).strip()
         if not content:
             continue
 
-        role = str(getattr(message, "role", "") or "").strip().lower()
+        role = str(_msg_field(message, "role", "") or "").strip().lower()
         if role == "user":
             label = "User"
         elif role == "system":
             label = "System"
         else:
-            agent_id = str(getattr(message, "agent_id", "") or "").strip()
+            agent_id = str(_msg_field(message, "agent_id", "") or "").strip()
             label = agent_id or "Assistant"
         blocks.append(f"[{label}]\n{content}")
 
@@ -2085,8 +2101,9 @@ def _render_parts(parts: list[Any]) -> str:
     """Convert session_parts into a single content string for UI display."""
     lines: list[str] = []
     for part in parts:
-        pt = part.part_type
-        payload = part.payload if isinstance(part.payload, dict) else {}
+        pt = _part_field(part, "part_type")
+        payload = _part_field(part, "payload", {})
+        payload = payload if isinstance(payload, dict) else {}
         if pt == "text":
             text = payload.get("text", "")
             if text:

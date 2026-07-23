@@ -182,6 +182,8 @@ class DirectStatusWriteLintTest(unittest.TestCase):
         # Legacy paths, outstanding migration candidates:
         "opc/layer2_organization/reorg_manager.py",        # reorg migration cancel
         "opc/layer2_organization/task_graph.py",           # plain-task fallback
+        "opc/layer4_tools/collaboration.py",               # cascade cancel on ancestor work-item delete
+        "opc/plugins/cli_board/services/actions.py",       # CLI board cancel related tasks
     })
 
     # Files containing TaskStatus.CANCELLED / FAILED in executable code
@@ -189,7 +191,6 @@ class DirectStatusWriteLintTest(unittest.TestCase):
     MIGRATED_COMPANY_AWARE_FILES = (
         "opc/plugins/office_ui/dispatcher.py",
         "opc/plugins/office_ui/ws_handler.py",
-        "opc/plugins/cli_board/services/actions.py",
     )
     MIGRATED_FIVE_STATUS_PATTERN = re.compile(
         r"\.status\s*=\s*TaskStatus\.(PENDING|RUNNING|DONE|FAILED|CANCELLED)"

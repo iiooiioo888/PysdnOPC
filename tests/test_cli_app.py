@@ -13,6 +13,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+# Force English locale for test assertions
+os.environ["OPC_LOCALE"] = "en"
+from opc.core.i18n import set_locale
+set_locale("en")
+
 import opc
 from rich.console import Console
 from typer.testing import CliRunner

@@ -1166,9 +1166,14 @@ class NativeRuntimeV2:
         for message_index, item in enumerate(transcript):
             message = item["message"]
             parts = item["parts"]
-            if getattr(message, "summary_flag", False):
-                continue
-            role = str(getattr(message, "role", "") or "")
+            if isinstance(message, dict):
+                if message.get("summary_flag", False):
+                    continue
+                role = str(message.get("role", "") or "")
+            else:
+                if getattr(message, "summary_flag", False):
+                    continue
+                role = str(getattr(message, "role", "") or "")
             if role == "user":
                 content = self._normalize_content_for_resume(parts)
                 if content:
@@ -1179,12 +1184,17 @@ class NativeRuntimeV2:
                 tool_calls: list[dict[str, Any]] = []
                 tool_results: list[dict[str, Any]] = []
                 for part_index, part in enumerate(parts):
-                    payload = dict(part.payload or {})
-                    if part.part_type == "text":
+                    if isinstance(part, dict):
+                        payload = dict(part.get("payload", {}) or {})
+                        part_type = str(part.get("part_type", "") or "")
+                    else:
+                        payload = dict(part.payload or {})
+                        part_type = part.part_type
+                    if part_type == "text":
                         text = str(payload.get("text", "") or "").strip()
                         if text:
                             assistant_texts.append(text)
-                    elif part.part_type == "tool_call":
+                    elif part_type == "tool_call":
                         tool_name = str(payload.get("tool_name", "") or "").strip()
                         tool_call_id = str(payload.get("tool_call_id", "") or "").strip()
                         if not tool_call_id:
@@ -1207,7 +1217,7 @@ class NativeRuntimeV2:
                             "tool_name": tool_name,
                             "consumed": False,
                         })
-                    elif part.part_type in {"tool_output", "tool_result"}:
+                    elif part_type in {"tool_output", "tool_result"}:
                         tool_results.append(payload)
                 if assistant_texts or tool_calls:
                     assistant_message: dict[str, Any] = {
@@ -1359,16 +1369,21 @@ class NativeRuntimeV2:
     def _normalize_content_for_resume(self, parts: list[Any]) -> str:
         snippets: list[str] = []
         for part in parts:
-            payload = dict(part.payload or {})
-            if part.part_type == "text":
+            if isinstance(part, dict):
+                payload = dict(part.get("payload", {}) or {})
+                part_type = str(part.get("part_type", "") or "")
+            else:
+                payload = dict(part.payload or {})
+                part_type = part.part_type
+            if part_type == "text":
                 text = str(payload.get("text", "") or "").strip()
                 if text:
                     snippets.append(text)
-            elif part.part_type == "tool_output":
+            elif part_type == "tool_output":
                 output = str(payload.get("output", "") or "").strip()
                 if output:
                     snippets.append(f"Tool output [{payload.get('tool_name', 'tool')}]\n{output}")
-            elif part.part_type == "subtask_result":
+            elif part_type == "subtask_result":
                 summary = str(payload.get("summary", "") or "").strip()
                 if summary:
                     snippets.append(summary)
@@ -3174,7 +3189,13 @@ class NativeRuntimeV2:
             })
             task.metadata["runtime_v2"] = runtime_meta
         store = getattr(self.memory_manager, "store", None)
-        if store and hasattr(store, "save_runtime_session"):
+        if store is None:
+            logger.debug(f"_save_runtime_session: store is None, memory_manager={self.memory_manager}")
+            return
+        if not hasattr(store, "save_runtime_session"):
+            logger.debug(f"_save_runtime_session: store missing save_runtime_session method")
+            return
+        try:
             await store.save_runtime_session(
                 runtime_session_id=runtime_session_id,
                 task_id=task.id if task else None,
@@ -3183,6 +3204,9 @@ class NativeRuntimeV2:
                 status=status,
                 metadata=metadata,
             )
+            logger.debug(f"_save_runtime_session: saved session {runtime_session_id} with status {status}")
+        except Exception as e:
+            logger.opt(exception=True).warning(f"_save_runtime_session failed: {e}")
 
     async def _emit_prompt_prefix_state(
         self,

@@ -22,6 +22,7 @@ class WorkspaceTemporaryDirectory:
         _ = dir
         stem = f"{prefix or 'tmp'}{uuid.uuid4().hex}{suffix or ''}"
         self._path = workspace_tmp_root() / stem
+        self._path.mkdir(parents=True, exist_ok=True)
         self.name = str(self._path)
 
     def __enter__(self) -> str:

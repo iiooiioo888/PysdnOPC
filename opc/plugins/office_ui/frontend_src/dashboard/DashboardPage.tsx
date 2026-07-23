@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RoleAggregatedStatus, RoleWorkItemRow, RoleWorkItemSummary, Session } from '../types/kanban'
 import { LlmConversationPanel } from './LlmConversationPanel'
 
@@ -11,6 +11,10 @@ interface DashboardPageProps {
   sendRuntimeLogs?: (projectId: string, taskId: string) => void
   /** Ack handler registration for runtime logs responses */
   onRuntimeLogsAck?: (handler: (payload: Record<string, unknown>) => void) => () => void
+  /** Real-time snapshot data */
+  snapshot?: Record<string, unknown> | null
+  /** Auto-refresh interval in ms (default: 5000) */
+  refreshInterval?: number
 }
 
 interface AggregatedRole {
@@ -210,8 +214,23 @@ function RoleCard({ role, onViewConversation }: { role: AggregatedRole; onViewCo
 
 /* ── Main Component ────────────────────────────────────────────────────── */
 
-export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeLogsAck }: DashboardPageProps) {
+export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeLogsAck, snapshot, refreshInterval = 5000 }: DashboardPageProps) {
   const [conversationTaskId, setConversationTaskId] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now())
+  const [isLive, setIsLive] = useState(true)
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Auto-refresh timer
+  useEffect(() => {
+    if (isLive && refreshInterval > 0) {
+      refreshTimer.current = setInterval(() => {
+        setLastUpdated(Date.now())
+      }, refreshInterval)
+      return () => {
+        if (refreshTimer.current) clearInterval(refreshTimer.current)
+      }
+    }
+  }, [isLive, refreshInterval])
 
   const handleViewConversation = useCallback((taskId: string) => {
     setConversationTaskId(taskId)
@@ -224,6 +243,10 @@ export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeL
   const sendRequest = useCallback((pid: string, taskId: string) => {
     sendRuntimeLogs?.(pid, taskId)
   }, [sendRuntimeLogs])
+
+  const toggleLive = useCallback(() => {
+    setIsLive(prev => !prev)
+  }, [])
 
   // Aggregate role data from all company-mode primary sessions
   const { roles, stats } = useMemo(() => {
@@ -292,8 +315,21 @@ export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeL
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
-        <h2>👥 角色活動與分工</h2>
-        <span className="dash-subtitle">公司模式下的角色工作狀態總覽</span>
+        <div className="dash-header-left">
+          <h2>👥 角色活動與分工</h2>
+          <span className="dash-subtitle">公司模式下的角色工作狀態總覽</span>
+        </div>
+        <div className="dash-header-right">
+          <button
+            className={`dash-live-toggle ${isLive ? 'live' : 'paused'}`}
+            onClick={toggleLive}
+            title={isLive ? '點擊暫停自動刷新' : '點擊開啟自動刷新'}
+          >
+            <span className="dash-live-dot" />
+            {isLive ? '實時' : '已暫停'}
+          </button>
+          <span className="dash-updated">更新: {formatRelativeTime(lastUpdated)}</span>
+        </div>
       </div>
 
       {roles.length === 0 ? (

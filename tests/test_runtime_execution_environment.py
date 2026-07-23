@@ -125,7 +125,8 @@ class WorktreeEnvironmentTests(unittest.IsolatedAsyncioTestCase):
                 _ = (cwd, on_progress)
                 commands.append(list(args))
 
-            with patch("opc.layer3_agent.runtime_v2.worktree._run_process", AsyncMock(side_effect=_record)):
+            with patch("opc.layer3_agent.runtime_v2.worktree._run_process", AsyncMock(side_effect=_record)), \
+                 patch("opc.layer3_agent.runtime_v2.worktree.shutil.which", return_value="/usr/bin/uv"):
                 info = await _prepare_execution_environment(
                     {"path": str(workspace), "mode": "copy", "git_root": ""},
                     config=config,
@@ -182,7 +183,7 @@ class ToolExecutionEnvironmentTests(unittest.IsolatedAsyncioTestCase):
             env = dict(captured["kwargs"]["env"])
             self.assertEqual(args[0], "bwrap")
             self.assertIn("--unshare-net", args)
-            self.assertIn("powershell", " ".join(args).lower())
+            self.assertIn("pwsh", " ".join(args).lower())
             self.assertEqual(env["VIRTUAL_ENV"], str(venv))
             self.assertTrue(env["PATH"].startswith(str(python_path.parent)))
             self.assertEqual(result["sandbox"]["effective_wrapper"], "bwrap")

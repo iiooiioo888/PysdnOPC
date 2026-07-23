@@ -131,11 +131,12 @@ class CollaborationRpcTransportTests(unittest.IsolatedAsyncioTestCase):
                 )
                 parser = cli_collab._build_parser()
                 opts = parser.parse_args(["delegate_work", "--args-json-file", str(args_path)])
+                from pathlib import PosixPath as _PosixPath
                 with patch.object(cli_collab.os, "name", "nt"), patch.dict(
                     "os.environ",
                     server.client_env,
                     clear=True,
-                ):
+                ), patch.object(cli_collab, "Path", _PosixPath):
                     tool_args = cli_collab._collect_tool_args(opts)
                     payload, is_error = await cli_collab._dispatch(opts.tool, tool_args)
         finally:

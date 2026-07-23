@@ -1092,7 +1092,9 @@ class MemoryManager:
         if not boundary_message_id:
             return transcript
         for idx, item in enumerate(transcript):
-            if item["message"].message_id == boundary_message_id:
+            msg = item["message"]
+            msg_id = msg.get("message_id", "") if isinstance(msg, dict) else getattr(msg, "message_id", "")
+            if msg_id == boundary_message_id:
                 return transcript[idx + 1:]
         return transcript
 
@@ -1104,7 +1106,9 @@ class MemoryManager:
         if not message_id:
             return transcript
         for idx, item in enumerate(transcript):
-            if item["message"].message_id == message_id:
+            msg = item["message"]
+            msg_id = msg.get("message_id", "") if isinstance(msg, dict) else getattr(msg, "message_id", "")
+            if msg_id == message_id:
                 return transcript[idx + 1:]
         return transcript
 
@@ -1198,7 +1202,8 @@ class MemoryManager:
         memory_text = str(parsed.get("memory_text", "") or parsed.get("summary_text", "")).strip()
         if not memory_text:
             return {}
-        latest_message_id = str(visible[-1]["message"].message_id)
+        _msg = visible[-1]["message"]
+        latest_message_id = str(_msg.get("message_id", "") if isinstance(_msg, dict) else getattr(_msg, "message_id", ""))
         await self.store.save_session_memory_snapshot(
             SessionMemorySnapshotRecord(
                 project_id=self._resolve_project_id(project_id),
@@ -1406,16 +1411,21 @@ class MemoryManager:
         boundary_message_id = compaction.source_boundary_message_id if compaction else ""
         return self._slice_transcript_from_boundary(transcript, boundary_message_id)
 
-    def _render_session_parts(self, parts: list[SessionPartRecord]) -> str:
+    def _render_session_parts(self, parts: list[SessionPartRecord | dict[str, Any]]) -> str:
         rendered_parts: list[str] = []
         for part in parts:
-            payload = dict(part.payload)
-            if part.part_type == "text":
+            if isinstance(part, dict):
+                part_type = str(part.get("part_type", "") or "")
+                payload = dict(part.get("payload", {}) or {})
+            else:
+                part_type = part.part_type
+                payload = dict(part.payload)
+            if part_type == "text":
                 text = str(payload.get("text", "")).strip()
                 if text:
                     rendered_parts.append(text)
                 continue
-            if part.part_type == "subtask_result":
+            if part_type == "subtask_result":
                 title = payload.get("task_title") or payload.get("child_session_id") or "child task"
                 summary = str(payload.get("summary", "")).strip()
                 artifacts = payload.get("artifacts") or {}
@@ -1428,24 +1438,24 @@ class MemoryManager:
                     lines.extend(f"- {line}" for line in artifact_lines)
                 rendered_parts.append("\n".join(lines))
                 continue
-            if part.part_type == "task_result":
+            if part_type == "task_result":
                 title = payload.get("task_title") or payload.get("task_id") or "task"
                 outcome = str(payload.get("summary", "")).strip()
                 rendered_parts.append(f"Task result: {title}\n{outcome}".strip())
                 continue
-            if part.part_type == "tool_output":
+            if part_type == "tool_output":
                 name = payload.get("tool_name", "tool")
                 output = str(payload.get("output", "")).strip()
                 rendered_parts.append(f"Tool output [{name}]\n{output}".strip())
                 continue
-            if part.part_type == "tool_result":
+            if part_type == "tool_result":
                 name = payload.get("tool_name", "tool")
                 output = payload.get("result", {})
                 if not isinstance(output, str):
                     output = json.dumps(output, ensure_ascii=False, default=str)
                 rendered_parts.append(f"Tool result [{name}]\n{str(output).strip()}".strip())
                 continue
-            if part.part_type == "tool_call":
+            if part_type == "tool_call":
                 name = payload.get("tool_name", "tool")
                 arguments = payload.get("arguments", {})
                 rendered_parts.append(
@@ -1473,9 +1483,14 @@ class MemoryManager:
         for idx in range(len(filtered) - 1, -1, -1):
             item = filtered[idx]
             message = item.get("message")
-            if getattr(message, "summary_flag", False):
-                continue
-            role = str(getattr(message, "role", "") or "").strip().lower()
+            if isinstance(message, dict):
+                if message.get("summary_flag", False):
+                    continue
+                role = str(message.get("role", "") or "").strip().lower()
+            else:
+                if getattr(message, "summary_flag", False):
+                    continue
+                role = str(getattr(message, "role", "") or "").strip().lower()
             if role == "user":
                 return [*filtered[:idx], *filtered[idx + 1 :]]
             break
@@ -1483,11 +1498,20 @@ class MemoryManager:
 
     def _is_child_session_seed_item(self, item: dict[str, Any]) -> bool:
         message = item.get("message")
-        if message is None or getattr(message, "summary_flag", False):
+        if message is None:
             return False
-        if str(getattr(message, "role", "") or "").strip().lower() != "user":
-            return False
-        metadata = dict(getattr(message, "metadata", {}) or {})
+        if isinstance(message, dict):
+            if message.get("summary_flag", False):
+                return False
+            if str(message.get("role", "") or "").strip().lower() != "user":
+                return False
+            metadata = dict(message.get("metadata", {}) or {})
+        else:
+            if getattr(message, "summary_flag", False):
+                return False
+            if str(getattr(message, "role", "") or "").strip().lower() != "user":
+                return False
+            metadata = dict(getattr(message, "metadata", {}) or {})
         return str(metadata.get("kind", "") or "").strip().lower() == "child_session_seed"
 
     async def build_session_history_messages(
@@ -1507,7 +1531,7 @@ class MemoryManager:
             content = self._render_session_parts(item["parts"])
             if not content:
                 continue
-            role = "user" if message.role == "user" else "assistant"
+            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 
@@ -1565,7 +1589,8 @@ class MemoryManager:
             return transcript
         visible_items: list[dict[str, Any]] = []
         for item in transcript:
-            metadata = dict(item["message"].metadata or {})
+            msg = item["message"]
+            metadata = dict(msg.get("metadata", {}) or {}) if isinstance(msg, dict) else dict(getattr(msg, "metadata", {}) or {})
             if str(metadata.get("employee_id", "")).strip() == employee_id:
                 visible_items.append(item)
         return visible_items
@@ -1697,7 +1722,7 @@ class MemoryManager:
             content = self._render_session_parts(item["parts"])
             if not content:
                 continue
-            role = "user" if message.role == "user" else "assistant"
+            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 
@@ -1742,11 +1767,17 @@ class MemoryManager:
             parts.append(f"## Handoff Context\n{getattr(task, 'metadata', {}).get('handoff_context', '')}")
         return "\n\n".join(part for part in parts if part)
 
-    def _render_session_message(self, message: SessionMessageRecord, parts: list[SessionPartRecord]) -> str:
+    def _render_session_message(self, message: SessionMessageRecord | dict[str, Any], parts: list[SessionPartRecord | dict[str, Any]]) -> str:
         rendered = self._render_session_parts(parts)
         if not rendered:
             return ""
-        role = "User" if message.role == "user" else ("Summary" if message.summary_flag else "Assistant")
+        if isinstance(message, dict):
+            role_val = str(message.get("role", "") or "")
+            summary_flag = bool(message.get("summary_flag", False))
+        else:
+            role_val = message.role
+            summary_flag = message.summary_flag
+        role = "User" if role_val == "user" else ("Summary" if summary_flag else "Assistant")
         return f"{role}:\n{rendered}"
 
     def _compact_artifacts(self, artifacts: dict[str, Any]) -> dict[str, Any]:

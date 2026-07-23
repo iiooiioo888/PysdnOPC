@@ -55,7 +55,7 @@ class HistoryCompactor:
         visible_items = await self.memory_manager._get_visible_session_transcript(session_id)
         if not visible_items:
             return False
-        raw_items = [item for item in visible_items if not getattr(item["message"], "summary_flag", False)]
+        raw_items = [item for item in visible_items if not (item["message"].get("summary_flag", False) if isinstance(item["message"], dict) else getattr(item["message"], "summary_flag", False))]
         if not raw_items:
             return False
         visible_messages = self._items_to_messages(visible_items)
@@ -140,7 +140,7 @@ class HistoryCompactor:
         )
         if not visible_items:
             return False
-        raw_items = [item for item in visible_items if not getattr(item["message"], "summary_flag", False)]
+        raw_items = [item for item in visible_items if not (item["message"].get("summary_flag", False) if isinstance(item["message"], dict) else getattr(item["message"], "summary_flag", False))]
         if not raw_items:
             return False
         visible_messages = self._items_to_messages(visible_items)
@@ -384,7 +384,7 @@ class HistoryCompactor:
         if not raw_items:
             return [], ""
         if force or not self.llm:
-            return raw_items, raw_items[-1]["message"].message_id
+            return raw_items, self._item_message_id(raw_items[-1])
 
         threshold_tokens = self._get_token_threshold()
         if threshold_tokens is None:
@@ -397,9 +397,18 @@ class HistoryCompactor:
                 continue
             if tail_tokens < threshold_tokens:
                 compact_items = raw_items if keep_start == 0 else raw_items[:keep_start]
-                return compact_items, compact_items[-1]["message"].message_id
+                return compact_items, self._item_message_id(compact_items[-1])
 
-        return raw_items, raw_items[-1]["message"].message_id
+        return raw_items, self._item_message_id(raw_items[-1])
+
+    @staticmethod
+    def _item_message_id(item: dict[str, Any]) -> str:
+        msg = item.get("message") if isinstance(item, dict) else None
+        if msg is None:
+            return ""
+        if isinstance(msg, dict):
+            return str(msg.get("message_id", "") or "")
+        return str(getattr(msg, "message_id", "") or "")
 
     def _items_to_messages(
         self,
@@ -419,7 +428,7 @@ class HistoryCompactor:
                     budget=per_message_budget,
                     marker=self._COMPACTION_TRUNCATION_MARKER,
                 )
-            role = "user" if message.role == "user" else "assistant"
+            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 

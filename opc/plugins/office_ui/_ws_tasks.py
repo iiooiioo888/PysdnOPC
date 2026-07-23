@@ -20,6 +20,13 @@ from opc.plugins.office_ui.snapshot_builder import (
     _sanitize_ui_message_dict,
     _task_parent_session_link,
 )
+from opc.plugins.office_ui._ws_utils import (
+    _TASK_MODE_PREFERRED_AGENTS,
+    _looks_like_escalation_reply,
+    _normalize_escalation_reply,
+    _ui_conversation_turn_id,
+    _ui_message_identity_metadata,
+)
 import asyncio
 import inspect
 import time

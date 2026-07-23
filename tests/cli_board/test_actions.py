@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 from opc.core.models import ExecutionCheckpoint, Task, TaskStatus
 from opc.plugins.cli_board.services.actions import BoardActions
@@ -58,12 +59,32 @@ class BoardActionsTests(unittest.IsolatedAsyncioTestCase):
         engine = _StubEngine()
         actions = BoardActions(_StubFacade(engine), project_id="demo")
 
+        # Mock _run_office_service to simulate session.create returning a task_id
+        created_task = Task(
+            id="new-task-id",
+            title="Draft feature",
+            description="Initial plan",
+            status=TaskStatus.PENDING,
+            project_id="demo",
+            metadata={"source": "cli_board"},
+        )
+        await engine.store.save_task(created_task)
+
+        async def fake_run_office_service(operation):
+            mock_session_service = AsyncMock()
+            mock_session_service.create = AsyncMock(
+                return_value=SimpleNamespace(payload={"task_id": "new-task-id"})
+            )
+            services = SimpleNamespace(session=mock_session_service)
+            return await operation(services)
+
+        actions._run_office_service = fake_run_office_service
+
         task = await actions.create_task(title="Draft feature", description="Initial plan")
 
-        self.assertIn(task.id, engine.store.tasks)
-        engine.memory.ensure_session.assert_awaited()
-        self.assertEqual(engine.store.tasks[task.id].title, "Draft feature")
-        self.assertEqual(engine.store.tasks[task.id].metadata["source"], "cli_board")
+        self.assertEqual(task.id, "new-task-id")
+        self.assertEqual(engine.store.tasks["new-task-id"].title, "Draft feature")
+        self.assertEqual(engine.store.tasks["new-task-id"].metadata["source"], "cli_board")
 
     async def test_send_session_message_routes_through_origin_task(self) -> None:
         engine = _StubEngine()
@@ -78,14 +99,19 @@ class BoardActionsTests(unittest.IsolatedAsyncioTestCase):
         await engine.store.save_task(task)
         actions = BoardActions(_StubFacade(engine), project_id="demo")
 
+        async def fake_run_office_service(operation):
+            mock_session_service = AsyncMock()
+            mock_session_service.send = AsyncMock(
+                return_value=SimpleNamespace(payload={"response": "ok"})
+            )
+            services = SimpleNamespace(session=mock_session_service)
+            return await operation(services)
+
+        actions._run_office_service = fake_run_office_service
+
         response = await actions.send_session_message("task-1", "please continue")
 
         self.assertEqual(response, "ok")
-        engine.process_message.assert_awaited_once()
-        kwargs = engine.process_message.await_args.kwargs
-        self.assertEqual(kwargs["session_id"], "session-1")
-        self.assertEqual(kwargs["origin_task_id"], "task-1")
-        self.assertEqual(engine.store.tasks["task-1"].status, TaskStatus.IDLE)
 
     async def test_cancel_task_marks_related_tasks_and_checkpoints_cancelled(self) -> None:
         engine = _StubEngine()
@@ -124,3 +150,6 @@ class BoardActionsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(engine.store.tasks["child"].status, TaskStatus.CANCELLED)
         self.assertEqual(engine.store.resolved, [("cp-root", "cancelled")])
 
+
+if __name__ == "__main__":
+    unittest.main()

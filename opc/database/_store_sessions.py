@@ -279,15 +279,29 @@ class SessionStoreMixin:
             return [self._row_to_session_part(row, cursor.description) for row in rows]
 
     async def get_session_transcript(self, session_id: str) -> list[dict[str, Any]]:
+        from dataclasses import asdict, is_dataclass
+        from datetime import datetime as dt_type
+
         messages = await self.list_session_messages(session_id)
         parts = await self.list_session_parts(session_id)
         parts_by_message: dict[str, list[SessionPartRecord]] = {}
         for part in parts:
             parts_by_message.setdefault(part.message_id, []).append(part)
+
+        def _to_dict(obj: Any) -> Any:
+            if is_dataclass(obj) and not isinstance(obj, type):
+                d = asdict(obj)
+                # Convert datetime fields to ISO strings
+                for k, v in d.items():
+                    if isinstance(v, dt_type):
+                        d[k] = v.isoformat()
+                return d
+            return obj
+
         return [
             {
-                "message": message,
-                "parts": parts_by_message.get(message.message_id, []),
+                "message": _to_dict(message),
+                "parts": [_to_dict(p) for p in parts_by_message.get(message.message_id, [])],
             }
             for message in messages
         ]

@@ -301,7 +301,7 @@ def test_company_hot_paths_do_not_call_runtime_link_repair() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     hot_path_files = [
         repo_root / "opc" / "layer2_organization" / "company_mode.py",
-        repo_root / "opc" / "engine.py",
+        repo_root / "opc" / "engine" / "_core.py",
         repo_root / "opc" / "plugins" / "office_ui" / "ws_handler.py",
     ]
     for path in hot_path_files:

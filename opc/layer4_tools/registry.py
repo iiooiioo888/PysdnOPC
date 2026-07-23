@@ -192,6 +192,16 @@ class ToolRegistry:
             call_args["task"] = task
         if "on_progress" in signature.parameters and "on_progress" not in call_args:
             call_args["on_progress"] = on_progress
+        # Check for missing required parameters
+        schema = tool.parameters or {}
+        required_params = schema.get("required", [])
+        missing = [p for p in required_params if p not in call_args or call_args[p] is None]
+        if missing:
+            raise ValueError(
+                f"Tool `{tool.name}` is missing required argument(s): "
+                f"{', '.join(repr(p) for p in missing)}. "
+                f"Please provide all required arguments and retry."
+            )
         # Reject unknown arguments with a helpful error instead of silently
         # dropping them. The error is caught by `invoke()` and packaged as
         # `{"success": False, "error": ...}`, which the agent's tool-call

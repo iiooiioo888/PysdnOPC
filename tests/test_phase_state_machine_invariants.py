@@ -133,13 +133,23 @@ def test_running_can_self_complete() -> None:
 
 
 def test_terminal_phases_immutable() -> None:
-    """APPROVED / FAILED / CANCELLED must have NO outgoing transitions."""
+    """APPROVED / CANCELLED must have NO outgoing transitions.
+
+    FAILED allows a single retry edge (FAILED → READY) so managers can
+    re-dispatch a failed work item.
+    """
     for phase in TERMINAL_PHASES:
         outgoing = ALLOWED_TRANSITIONS.get(phase, frozenset())
-        assert not outgoing, (
-            f"terminal phase {phase.value} must have no outgoing "
-            f"transitions, but allows: {sorted(p.value for p in outgoing)}"
-        )
+        if phase == Phase.FAILED:
+            assert outgoing <= {Phase.READY}, (
+                f"FAILED may only transition to READY (retry), "
+                f"but allows: {sorted(p.value for p in outgoing)}"
+            )
+        else:
+            assert not outgoing, (
+                f"terminal phase {phase.value} must have no outgoing "
+                f"transitions, but allows: {sorted(p.value for p in outgoing)}"
+            )
 
 
 # ── D: validate_transition behavior contracts ─────────────────────────────
@@ -165,11 +175,14 @@ def test_validate_transition_close_idempotent_on_terminal() -> None:
 
 
 def test_validate_transition_rejects_terminal_out() -> None:
-    """Any transition out of a terminal phase to a different phase is rejected."""
+    """Any transition out of a terminal phase to a different phase is rejected,
+    except FAILED → READY (retry)."""
     for src in TERMINAL_PHASES:
         for tgt in Phase:
             if tgt == src:
                 continue
+            if src == Phase.FAILED and tgt == Phase.READY:
+                continue  # retry edge
             with pytest.raises(InvalidPhaseTransition):
                 validate_transition(src, tgt)
 

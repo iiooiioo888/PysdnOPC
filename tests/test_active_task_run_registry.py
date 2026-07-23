@@ -207,7 +207,7 @@ async def test_project_delegate_receives_controller_registry() -> None:
         async def initialize(self) -> None:
             return None
 
-    with patch("opc.engine.OPCEngine", FakeDelegate):
+    with patch("opc.engine._core.OPCEngine", FakeDelegate):
         delegate = await root._get_project_delegate("project-b")
 
     assert delegate is root._project_engine_delegates["project-b"]
