@@ -390,6 +390,25 @@ class LLMConfig(BaseModel):
     # 可選的按模型名稱覆蓋優先於純量值。
     context_window: int = 0  # 上下文視窗大小（0=自動偵測）
     context_window_overrides: dict[str, int] = Field(default_factory=dict)  # 按模型的上下文視窗覆蓋
+    # 預算感知調度：模型分層路由和降級鏈
+    tier_routing: dict[str, str] = Field(default_factory=dict)  # 模型層級路由（tier→model）
+    degrade_chain: dict[str, str] = Field(default_factory=dict)  # 降級鏈（tier→fallback_model）
+
+    def get_model_for_tier(self, tier: str, degraded: bool = False) -> str | None:
+        """取得指定層級的模型。
+
+        Args:
+            tier: 模型層級（critical, reasoning, routine, summary）
+            degraded: 是否使用降級模型
+
+        Returns:
+            模型名稱，如果未配置則返回 None。
+        """
+        if degraded and tier in self.degrade_chain:
+            return self.degrade_chain[tier]
+        if tier in self.tier_routing:
+            return self.tier_routing[tier]
+        return None
 
 
 ExternalAgentApprovalMode = Literal["user-settings", "auto", "full-auto"]  # 外部代理審批模式型別
@@ -1117,6 +1136,72 @@ class MCPServerConfig(BaseModel):
     startup_timeout: float = 30.0  # 啟動逾時（秒）
 
 
+class BudgetConfig(BaseModel):
+    """預算配置 — 三級預算控制（任務/會話/月度）。
+
+    職責說明：
+        定義 LLM API 使用的預算限制和降級策略。
+        當接近或超過預算時，系統會自動降級到較便宜的模型或停止執行。
+
+    關聯關係：
+        - 被 SystemConfig.budget 持有
+        - 被 opc/llm/budget_guard.py 讀取並執行預算檢查
+        - 被 opc/layer6_observability/cost_tracker.py 用於成本報告
+
+    使用範例：
+        budget:
+          task_limit_usd: 2.0      # 單任務上限
+          session_limit_usd: 10.0  # 單會話上限
+          monthly_limit_usd: 100.0 # 月度上限
+          warn_threshold: 0.8      # 80% 時預警
+          degrade_threshold: 0.9   # 90% 時降級模型
+          hard_stop: false         # 超限後降級而非停止
+    """
+    task_limit_usd: float = 0.0  # 單任務上限（美元，0=不限制）
+    session_limit_usd: float = 0.0  # 單會話上限（美元，0=不限制）
+    monthly_limit_usd: float = 0.0  # 月度上限（美元，0=不限制）
+    warn_threshold: float = 0.8  # 預警閾值（0.0-1.0，預設 80%）
+    degrade_threshold: float = 0.9  # 降級閾值（0.0-1.0，預設 90%）
+    hard_stop: bool = False  # 超限後是否硬停止（False=降級到廉价模型繼續）
+
+    def get_effective_limit(self, level: str) -> float:
+        """取得指定層級的有效預算限制。
+
+        Args:
+            level: 預算層級（"task", "session", "monthly"）
+
+        Returns:
+            預算限制（美元），0 表示不限制。
+        """
+        limits = {
+            "task": self.task_limit_usd,
+            "session": self.session_limit_usd,
+            "monthly": self.monthly_limit_usd,
+        }
+        return limits.get(level, 0.0)
+
+    def should_warn(self, level: str, spent: float) -> bool:
+        """檢查是否應該發出預警。"""
+        limit = self.get_effective_limit(level)
+        if limit <= 0:
+            return False
+        return spent >= limit * self.warn_threshold
+
+    def should_degrade(self, level: str, spent: float) -> bool:
+        """檢查是否應該降級模型。"""
+        limit = self.get_effective_limit(level)
+        if limit <= 0:
+            return False
+        return spent >= limit * self.degrade_threshold
+
+    def is_exceeded(self, level: str, spent: float) -> bool:
+        """檢查是否超過預算。"""
+        limit = self.get_effective_limit(level)
+        if limit <= 0:
+            return False
+        return spent >= limit
+
+
 class SystemConfig(BaseModel):
     """系統配置 — OPC 系統的全域運行參數。
 
@@ -1147,6 +1232,7 @@ class SystemConfig(BaseModel):
         validation_alias=AliasChoices("task_mode", "project_mode"),
         serialization_alias="task_mode",
     )
+    budget: BudgetConfig = Field(default_factory=BudgetConfig)  # 預算配置
 
 
 class AutonomyConfig(BaseModel):
@@ -2156,6 +2242,53 @@ class OPCConfig(BaseModel):
             )
         except Exception:
             pass
+        return config
+
+    @classmethod
+    def from_quickstart(
+        cls,
+        intent: str,
+        overrides: dict[str, Any] | None = None,
+        api_key: str | None = None,
+        api_key_env: str | None = None,
+    ) -> "OPCConfig":
+        """從自然語言意圖建立臨時配置（零配置啟動）。
+
+        不需要 `opc init` 或磁碟上的配置檔，直接使用預設值 + 推斷覆蓋。
+
+        參數：
+            intent: 使用者輸入的自然語言意圖描述。
+            overrides: 額外配置覆蓋（優先級最高）。
+            api_key: 直接提供的 API key。
+            api_key_env: API key 環境變數名稱。
+
+        返回值：
+            OPCConfig — 記憶體中的臨時配置實例。
+
+        使用範例：
+            config = OPCConfig.from_quickstart("幫我寫一個 Python 爬蟲")
+            engine = OPCEngine(config=config)
+        """
+        from opc.core.quickstart import QuickStartEngine
+
+        engine = QuickStartEngine()
+        result = engine.infer_config(intent)
+        inferred = engine.build_ephemeral_config(
+            result,
+            api_key=api_key,
+            api_key_env=api_key_env,
+        )
+
+        # 合併覆蓋配置
+        if overrides:
+            for key, value in overrides.items():
+                if isinstance(value, dict) and key in inferred and isinstance(inferred[key], dict):
+                    inferred[key].update(value)
+                else:
+                    inferred[key] = value
+
+        # 使用 model_validate 建立配置（使用預設值填充缺失欄位）
+        config = cls.model_validate(inferred)
         return config
 
     def save(self, config_dir: Path | None = None) -> None:

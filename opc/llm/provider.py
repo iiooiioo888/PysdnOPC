@@ -227,12 +227,18 @@ class LLMProvider:
         "ARK_API_KEY",
     )
 
-    def __init__(self, config: LLMConfig, opc_home: Path | None = None) -> None:
+    def __init__(
+        self,
+        config: LLMConfig,
+        opc_home: Path | None = None,
+        budget_guard: Any | None = None,
+    ) -> None:
         self.config = config
         self.opc_home = opc_home
         self._total_tokens_in = 0
         self._total_tokens_out = 0
         self._total_cost = 0.0
+        self._budget_guard = budget_guard  # 預算守衛（可選）
 
         self._api_key = config.api_key or (
             os.environ.get(config.api_key_env) if config.api_key_env else None
@@ -508,11 +514,27 @@ class LLMProvider:
         task_type: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        budget_tier: str | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = self._select_model(task_type)
         temp = temperature if temperature is not None else self.config.temperature
         max_tok = _clamp_max_tokens(model, max_tokens if max_tokens is not None else self.config.max_tokens)
+
+        # 預算守衛檢查
+        if self._budget_guard:
+            from opc.llm.budget_guard import BudgetAction, BudgetExhaustedError
+
+            # 估算輸入 token 數（粗略估算：每 4 字元約 1 token）
+            estimated_tokens = sum(len(str(m.get("content", ""))) for m in messages) // 4
+            tier = budget_tier or task_type or "routine"
+            decision = await self._budget_guard.pre_call(tier, estimated_tokens, model)
+
+            if decision.action == BudgetAction.BLOCK:
+                raise BudgetExhaustedError(decision.reason, decision)
+            if decision.action == BudgetAction.DEGRADE and decision.degraded_model:
+                model = decision.degraded_model
+                logger.info("BudgetGuard: 降級模型至 {}", model)
 
         call_kwargs: dict[str, Any] = {
             "model": model,
@@ -547,6 +569,10 @@ class LLMProvider:
                 self._total_cost += cost
             except Exception:
                 pass
+
+        # 更新預算守衛計量
+        if self._budget_guard and cost > 0:
+            await self._budget_guard.post_call(cost)
 
         choice = response.choices[0]
         message = choice.message
@@ -653,11 +679,26 @@ class LLMProvider:
         task_type: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        budget_tier: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[RuntimeLLMEvent]:
         model = self._select_model(task_type)
         temp = temperature if temperature is not None else self.config.temperature
         max_tok = _clamp_max_tokens(model, max_tokens if max_tokens is not None else self.config.max_tokens)
+
+        # 預算守衛檢查
+        if self._budget_guard:
+            from opc.llm.budget_guard import BudgetAction, BudgetExhaustedError
+
+            estimated_tokens = sum(len(str(m.get("content", ""))) for m in messages) // 4
+            tier = budget_tier or task_type or "routine"
+            decision = await self._budget_guard.pre_call(tier, estimated_tokens, model)
+
+            if decision.action == BudgetAction.BLOCK:
+                raise BudgetExhaustedError(decision.reason, decision)
+            if decision.action == BudgetAction.DEGRADE and decision.degraded_model:
+                model = decision.degraded_model
+                logger.info("BudgetGuard: 降級模型至 {}", model)
 
         call_kwargs: dict[str, Any] = {
             "model": model,

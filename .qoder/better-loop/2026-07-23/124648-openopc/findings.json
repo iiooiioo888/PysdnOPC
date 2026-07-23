@@ -1,0 +1,167 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "项目拥有结构良好的 AGENTS.md 指引、双阶段 CI 和本地质量门禁（ruff + mypy + pre-commit），但验证执行链存在断裂：CI 未强制 lint/typecheck，会话中用户明确要求的测试未被执行，且经验沉淀机制因缺少规范化事件而无法评估。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows",
+        "Plugins"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml",
+            ".github/workflows/full-test.yml"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "better-loop",
+            "qoder-create-plugin",
+            "qoder-harness",
+            "security-scan"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "try-pre-commit-in-ci",
+        "kind": "try-existing",
+        "title": "将现有 pre-commit 门禁提升为 CI 必需步骤",
+        "reason": "ruff + mypy 已在 .pre-commit-config.yaml 中配置，但仅本地可绕过执行；CI 未包含等效检查。",
+        "confidence": "High",
+        "owner": "CI 维护者",
+        "nextStep": "在 full-test.yml 中添加 lint job 运行 ruff check 和 mypy，使其成为合并的必需条件。",
+        "validation": "确认 PR 中 lint/typecheck 失败会阻止合并。"
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 70,
+        "summary": "AGENTS.md 提供了清晰的目录职责、高风险区域和任务路由表，会话中目标可辨识且可演化，但验收边界未在会话中得到确认。",
+        "findingRefs": [
+          "agents-md-directory-table-stale"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 66,
+        "summary": "Makefile + uv.lock + pyproject.toml 提供可复现的启动路径，CLI 命令已文档化；.codex 声明了权限策略但未观察到运行时强制执行。",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 52,
+        "summary": "CI 仅运行 pytest 而未包含 lint/typecheck；用户在会话中两次要求全面测试但无执行记录；pre-commit 门禁可被绕过且无 CI 后备。",
+        "findingRefs": [
+          "validation-requested-not-executed",
+          "ci-lint-typecheck-not-enforced"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 55,
+        "summary": "PR + 双阶段 CI 流程已声明，但分支保护、回滚路径和恢复机制均未在可观察范围内得到验证。",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "工作流需求信号存在（1 个重复候选），但规范化事件缺失导致覆盖评估不可执行，无可比后续窗口验证改进效果。",
+        "findingRefs": [
+          "learning-capture-evaluation-blocked"
+        ]
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "validation-requested-not-executed",
+      "title": "用户明确要求的全面测试未在会话中执行",
+      "severity": "Medium",
+      "reason": "用户在主会话中两次发出「全面測試」指令，但观察边界内无任何 pytest 或等效测试运行器的执行记录。验证意图未被闭环，改动质量无法从会话证据中确认。",
+      "expectedOutput": [
+        "用户请求测试后，观察到 pytest 命令执行及结果输出。"
+      ],
+      "expectedArtifact": "验证执行记录",
+      "aiFixPrompt": "/better-loop fix this issue\n\n确保当用户请求全面测试时，Harness 能自动执行项目的 pytest 套件并返回结果摘要。\n\n## 验证\n\n- 在下次会话中请求「全面测试」\n- 确认 pytest 命令被实际执行且结果可见",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "ci-lint-typecheck-not-enforced",
+      "title": "CI 未强制 lint 和 typecheck 门禁",
+      "severity": "Medium",
+      "reason": "full-test.yml 仅运行 pytest，而 ruff 和 mypy 仅存在于可绕过的 pre-commit 钩子中。风格违规和类型错误可在 --no-verify 后合入主分支，无不可绕过的执行路径。",
+      "expectedOutput": [
+        "full-test.yml 包含独立的 lint/typecheck job，且为 required check。"
+      ],
+      "expectedArtifact": "CI 工作流更新",
+      "aiFixPrompt": "/better-loop fix this issue\n\n在 .github/workflows/full-test.yml 中添加一个 lint job，运行 ruff check opc/ 和 mypy opc/，使其成为 PR 合并的必需检查。\n\n## 验证\n\n- 提交一个包含类型错误的 PR\n- 确认 CI lint job 失败并阻止合并",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "agents-md-directory-table-stale",
+      "title": "AGENTS.md 目录职责表遗漏 full-test.yml",
+      "severity": "Low",
+      "reason": "目录表将 .github/workflows/ 的职责描述为仅 'CI: external-agent-smoke.yml'，但 CI 章节正确描述了双阶段流程。Agent 仅读取目录表时可能忽略主验证门禁 full-test.yml 的存在。",
+      "expectedOutput": [
+        "目录表 .github/workflows/ 行显示 'CI: external-agent-smoke.yml, full-test.yml'。"
+      ],
+      "expectedArtifact": "AGENTS.md 更新",
+      "aiFixPrompt": "/better-loop fix this issue\n\n更新 AGENTS.md 目录职责表中 .github/workflows/ 的描述，使其同时列出 external-agent-smoke.yml 和 full-test.yml。\n\n## 验证\n\n- 读取 AGENTS.md 目录表\n- 确认 .github/workflows/ 行包含两个工作流名称",
+      "dimensionRefs": [
+        "task-understanding"
+      ]
+    },
+    {
+      "id": "learning-capture-evaluation-blocked",
+      "title": "经验沉淀因规范化事件缺失而无法完成评估",
+      "severity": "Low",
+      "reason": "工作流需求诊断发现 1 个重复候选信号，但 Capture、Routing、Application、Evolution 覆盖边界均为 not-evaluable-missing-normalized-events。无法判定该候选是否为真实可复用机会，经验沉淀路径被阻断。",
+      "expectedOutput": [
+        "后续分析中 Capture 和 Routing 覆盖边界升级为 checked-clean 或 candidate-found。"
+      ],
+      "expectedArtifact": "事件记录机制",
+      "aiFixPrompt": "/better-loop fix this issue\n\n为项目补充规范化事件记录机制（如任务完成后的结构化日志），使 Better Loop 能评估重复工作流候选并路由至持久化所有者。\n\n## 验证\n\n- 运行 better-loop 分析\n- 确认 learning capture 覆盖边界不再是 not-evaluable",
+      "dimensionRefs": [
+        "learning-capture"
+      ]
+    }
+  ]
+}

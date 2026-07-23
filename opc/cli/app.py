@@ -646,6 +646,97 @@ def chat(
         ))
 
 
+@app.command()
+def quick(
+    intent: str = typer.Argument(..., help="自然語言意圖描述，例如：'幫我寫一個 Python 爬蟲'"),
+    project: Optional[str] = typer.Option(None, "--project", "-p", help=t("cli.opt.project")),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="覆蓋推斷的模型"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", help="直接提供 API key"),
+    api_key_env: Optional[str] = typer.Option(None, "--api-key-env", help="API key 環境變數名稱"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help=t("cli.opt.verbose")),
+    no_markdown: bool = typer.Option(False, "--no-markdown", help=t("cli.opt.no_markdown")),
+    save_config: bool = typer.Option(False, "--save", help="執行後儲存配置為正式專案"),
+):
+    """零配置快速啟動 — 從自然語言意圖直接執行任務。
+
+    無需 `opc init` 或編輯 YAML，60 秒內執行第一個任務。
+
+    範例：
+        opc quick "幫我寫一個 Python 爬蟲抓取新聞標題"
+        opc quick "寫一篇關於 AI 的文章" --model openai/gpt-5.4
+    """
+    from opc.core.quickstart import QuickStartEngine
+
+    # 1. 推斷配置
+    engine = QuickStartEngine()
+    result = engine.infer_config(intent)
+
+    # 顯示推斷結果
+    console.print(f"\n[info]意圖分析：[/info]")
+    console.print(f"  領域：{', '.join(d.value for d in result.intent_profile.domains)}")
+    console.print(f"  模型層級：{result.intent_profile.model_tier.value}")
+    console.print(f"  複雜度：{result.intent_profile.complexity_score:.0%}")
+    if result.intent_profile.skills:
+        console.print(f"  技能：{', '.join(result.intent_profile.skills)}")
+
+    # 2. 處理缺失項
+    if result.missing_items and not api_key and not api_key_env:
+        console.print("\n[warning]未檢測到 API key。[/warning]")
+        console.print("請選擇以下方式之一：")
+        console.print("  1. 設定環境變數：export OPENROUTER_API_KEY=your-key")
+        console.print("  2. 使用 --api-key 參數：opc quick \"...\" --api-key your-key")
+        console.print("  3. 使用 --api-key-env 參數：opc quick \"...\" --api-key-env MY_KEY")
+
+        # 互動式詢問
+        if sys.stdin.isatty():
+            console.print("\n或現在輸入 API key（留空取消）：")
+            try:
+                api_key = input().strip() or None
+            except (EOFError, KeyboardInterrupt):
+                api_key = None
+
+        if not api_key:
+            console.print("[error]無法繼續：缺少 API key[/error]")
+            raise typer.Exit(code=1)
+
+    # 3. 顯示警告
+    for warning in result.warnings:
+        console.print(f"[warning]{warning}[/warning]")
+
+    # 4. 構建配置
+    config = OPCConfig.from_quickstart(
+        intent,
+        api_key=api_key,
+        api_key_env=api_key_env,
+    )
+
+    # 覆蓋模型（如果指定）
+    if model:
+        config.llm.default_model = model
+
+    if verbose:
+        config.system.log_level = "DEBUG"
+
+    # 5. 執行任務
+    console.print(f"\n[info]執行任務...[/info]\n")
+    asyncio.run(_single_message(
+        config,
+        intent,
+        project,
+        no_markdown,
+        mode="task",
+    ))
+
+    # 6. 可選：儲存配置
+    if save_config:
+        console.print("\n[info]儲存配置...[/info]")
+        config_dir = get_opc_home() / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config.save(config_dir)
+        console.print(f"[success]配置已儲存至 {config_dir}[/success]")
+        console.print("下次可直接使用 `opc chat` 繼續。")
+
+
 @app.command("exec")
 def exec_command(
     prompt: Optional[str] = typer.Argument(None, help=t("cli.opt.prompt")),

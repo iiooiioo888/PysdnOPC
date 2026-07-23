@@ -1,0 +1,166 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "OpenOPC 拥有高质量的 AGENTS.md 上下文地图和 .codex 生命周期约束，pre-commit 钩子提供提交时反馈；但 CI 仅覆盖 152 个测试文件中的 2 个，高风险区域无机械化守护，且缺少依赖锁定文件影响环境可复现性。本次为无会话证据的静态审查。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows",
+        "Plugins"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-loop/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/security-scan/.qoder-plugin/plugin.json"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "add-make-test-target",
+        "kind": "try-existing",
+        "title": "在 Makefile 中添加 test 目标以补全命令面",
+        "reason": "Makefile 已有 lint/typecheck/format/check 四个目标，agent 可自然发现；但运行测试需查阅 AGENTS.md 才能获知 pytest 调用方式，增加认知开销。",
+        "confidence": "High",
+        "owner": "项目维护者",
+        "nextStep": "在 Makefile 中添加 test 目标（python -m pytest tests/ -q），并更新 .PHONY 声明。",
+        "validation": "运行 make test 确认输出可操作的测试结果。"
+      },
+      {
+        "id": "expand-ci-coverage",
+        "kind": "horizon",
+        "title": "扩展 CI 覆盖至高风险模块测试",
+        "reason": "当前 CI 仅覆盖 external-agent preflight，AGENTS.md 标注的 7 个高风险区域（状态机、公司运行时、审批、数据库、检查点、外部代理、配置）均无 CI 守护。",
+        "confidence": "Medium",
+        "owner": "CI/CD 维护者",
+        "nextStep": "优先为 phase.py、work_item_transition.py、approval.py 相关测试添加 CI job，逐步扩展至完整套件。",
+        "validation": "高风险区域测试在 PR 时自动运行并阻止违规合并。",
+        "prerequisites": [
+          "需确认测试套件在 CI 环境中的运行时间和稳定性。"
+        ]
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 68,
+        "summary": "AGENTS.md 提供完整的目录职责、高风险区域、任务路径和验证命令导航；.codex 定义了禁区路径和沙箱语义。无会话证据验证实际使用效果。",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 58,
+        "summary": "安装路径明确（pip install -e . + opc init），Makefile 提供 lint/typecheck/format 命令面，.codex 定义权限边界；但缺少依赖锁定文件且 Makefile 无 test 目标。",
+        "findingRefs": [
+          "no-dependency-lock-file"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 55,
+        "summary": "152 个测试文件和 pre-commit 三钩子提供本地验证层；但 CI 仅运行 2 个测试文件，高风险区域变更可绕过机械化守护合并。",
+        "findingRefs": [
+          "ci-coverage-gap-high-risk",
+          "makefile-missing-test-target"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 45,
+        "summary": "CI 在 PR 时触发但覆盖面极窄；.codex 要求高风险操作确认但为文档约束而非机械化强制；reset_stuck_task.py 仅覆盖单一恢复场景。",
+        "findingRefs": [
+          "ci-coverage-gap-high-risk"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "无可分析的会话记录，9 个 Skill 候选均未路由或验证，无干预台账或后续对比窗口。",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "ci-coverage-gap-high-risk",
+      "title": "CI 仅覆盖 152 个测试文件中的 2 个，高风险区域无机械化守护",
+      "severity": "High",
+      "reason": "external-agent-smoke.yml 仅运行 test_cli_app 的一个用例和 test_external_agent_preflight.py。AGENTS.md 明确标注的 7 个高风险区域（状态机、公司运行时、审批/Shell 安全、数据库迁移、引擎检查点、外部代理、配置加载）对应的大量测试文件无任何 CI 执行保障，变更可在未通过测试的情况下合并。",
+      "expectedOutput": [
+        "新增 CI workflow 覆盖高风险区域测试，PR 时自动执行并阻止违规。"
+      ],
+      "expectedArtifact": "CI workflow",
+      "aiFixPrompt": "/better-loop fix this issue\n\n为高风险模块添加 CI 测试覆盖。在 .github/workflows/ 中新增一个 full-test.yml，在 PR 时运行完整 pytest 套件或至少覆盖 AGENTS.md 标注的高风险区域测试。\n\n## Validation\n\n- 新 CI workflow 在 PR 触发时运行高风险区域测试\n- 测试失败阻止合并",
+      "dimensionRefs": [
+        "change-validation",
+        "reliable-delivery"
+      ]
+    },
+    {
+      "id": "no-dependency-lock-file",
+      "title": "缺少依赖锁定文件，环境可复现性无保障",
+      "severity": "Medium",
+      "reason": "pyproject.toml 中除 litellm==1.82.1 外所有依赖使用 >= 范围约束，项目无 uv.lock、requirements.lock 或任何锁定文件。同一 commit 在不同时间安装可能解析为不同依赖版本，导致 agent 和 CI 环境行为不一致。",
+      "expectedOutput": [
+        "生成 uv.lock 或 requirements.lock，Makefile 包含 setup 目标使用锁定文件安装。"
+      ],
+      "expectedArtifact": "Lock file",
+      "aiFixPrompt": "/better-loop fix this issue\n\n生成依赖锁定文件以确保环境可复现。使用 uv lock 或 pip-compile 生成锁定文件，并在 AGENTS.md 和 Makefile 中记录安装命令。\n\n## Validation\n\n- 锁定文件存在且与 pyproject.toml 一致\n- make setup 或等效命令可从锁定文件安装精确版本",
+      "dimensionRefs": [
+        "controlled-execution"
+      ]
+    },
+    {
+      "id": "makefile-missing-test-target",
+      "title": "Makefile 缺少 test 目标，agent 无法通过统一命令面发现测试路由",
+      "severity": "Low",
+      "reason": "Makefile 提供 lint、typecheck、format、check 四个目标形成快速反馈命令面，但缺少 test 目标。agent 必须查阅 AGENTS.md 才能获知 python -m pytest 调用方式，打断了从命令面自然发现验证路由的路径。",
+      "expectedOutput": [
+        "Makefile 包含 test 目标，make test 可一键运行测试。"
+      ],
+      "expectedArtifact": "Makefile target",
+      "aiFixPrompt": "/better-loop fix this issue\n\n在 Makefile 中添加 test 目标，运行 python -m pytest tests/ -q，并更新 .PHONY 声明。\n\n## Validation\n\n- make test 成功运行测试套件并输出可操作结果",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    }
+  ]
+}

@@ -31,6 +31,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = [
+    "ruff>=0.12.0",
+    "mypy>=1.10",
+    "pre-commit>=3.0",
+]
 # Backwards-compatible alias: browser tools are now native and the dependency
 # is installed with the base package.
 browser = []
@@ -75,6 +80,30 @@ all = [
 
 [project.scripts]
 opc = "opc.cli.app:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "B905",  # zip without explicit strict
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["opc"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["opc"]

@@ -1,0 +1,170 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "OpenOPC 拥有结构清晰的分层架构、广泛的测试覆盖和跨平台 CI 冒烟门，但缺少面向 Agent 的显式上下文边界、生命周期约束和快速静态分析反馈路径。本次评审为 session-limited 模式（0 个可用会话），行为层面的结论均为 Unobserved。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Workflows",
+        "Plugins",
+        "Skills"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "better-loop",
+            "qoder-create-plugin",
+            "qoder-harness",
+            "security-scan"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Project"
+          ],
+          "count": 9,
+          "paths": [
+            ".opc/skills/clawhub/SKILL.md",
+            ".opc/skills/collaboration-playbook/SKILL.md",
+            ".opc/skills/cron/SKILL.md",
+            ".opc/skills/github/SKILL.md",
+            ".opc/skills/memory/SKILL.md"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "try-existing-ci-smoke-local",
+        "kind": "try-existing",
+        "title": "将 CI 冒烟测试命令提取为本地可执行的快速验证入口",
+        "reason": "CI 工作流中已有跨平台 pytest 冒烟命令，但仅绑定在 PR 触发路径上；Agent 编辑后无法在本地 30 秒内获得相同反馈。",
+        "confidence": "Medium",
+        "owner": "开发基础设施维护者",
+        "nextStep": "在 pyproject.toml 或 Makefile 中暴露等效的 `test:smoke` 命令，使 Agent 可在编辑后立即运行。",
+        "validation": "确认本地运行结果与 CI 冒烟一致，且耗时在 30 秒内。"
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 52,
+        "summary": "README 和分层目录提供了基本的项目定位与模块边界，但缺少面向 Agent 的导航入口、风险区域标注和显式范围约束。",
+        "findingRefs": [
+          "agent-context-boundary-missing"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 45,
+        "summary": "uv 快速启动和 CLI 入口点可用，运行时配置包含沙箱与审批语义；但 .codex 为空、无环境模板，Agent 面临隐式启动和未声明的权限边界。",
+        "findingRefs": [
+          "codex-lifecycle-guardrails-empty",
+          "env-provisioning-undocumented"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 55,
+        "summary": "152 个测试文件和跨平台 CI 冒烟提供了单一但结构广泛的验证路径；缺少 lint/typecheck 层和本地快速反馈命令。",
+        "findingRefs": [
+          "no-static-analysis-fast-feedback"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 42,
+        "summary": "CI 在 PR 时运行冒烟测试构成基本交付门，但无分支保护证据、无显式恢复路径、无 CODEOWNERS 或审批策略。",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "会话遥测源缺失导致无法检测生命周期机会、捕获重复模式或验证改进效果；学习基础设施尚未建立。",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "agent-context-boundary-missing",
+      "title": "缺少面向 Agent 的上下文与边界导航文件",
+      "severity": "Medium",
+      "reason": "项目无 AGENTS.md、CLAUDE.md 或 .qoder/rules；Agent 必须通读完整 README 才能推断模块边界、高风险区域和验证路径，无法获得显式的禁止操作列表或任务路由。",
+      "expectedOutput": [
+        "一个 80-150 行的 AGENTS.md，包含项目定位、目录路由、高风险区域、验证命令映射。"
+      ],
+      "expectedArtifact": "AGENTS.md",
+      "aiFixPrompt": "/better-loop fix this issue\n\n创建一个简洁的 AGENTS.md（80-150 行），包含：项目定位、目录职责表、高风险区域标注、常用任务路径、验证命令映射和 deeper-links。保持与现有 README 和分层架构一致。\n\n## Validation\n\n- 确认 AGENTS.md 独立可读，无需先读 README\n- 确认高风险区域和验证路由与 CI 工作流一致",
+      "dimensionRefs": [
+        "task-understanding"
+      ]
+    },
+    {
+      "id": "codex-lifecycle-guardrails-empty",
+      "title": ".codex 为空，Agent 生命周期无约束信号",
+      "severity": "Medium",
+      "reason": ".codex 文件仅含一个空行，未声明任何禁止路径、不安全操作约束、提交前检查或范围限制。Agent 在该仓库中工作时无法获得任何确定性的生命周期约束反馈。",
+      "expectedOutput": [
+        "填充后的 .codex 文件，包含禁止路径、验证命令和高风险操作约束。"
+      ],
+      "expectedArtifact": ".codex",
+      "aiFixPrompt": "/better-loop fix this issue\n\n为 .codex 添加最小化的 Agent 生命周期约束：禁止编辑的路径（如 .opc/global.db、config/ 中的密钥字段）、提交前必须运行的验证命令、高风险操作（如数据库迁移、外部 API 调用）需确认。保持与 system_config.yaml 中的沙箱语义一致。\n\n## Validation\n\n- 确认 .codex 包含至少一条禁止路径、一条验证命令和一条高风险约束\n- 确认约束与 system_config.yaml 的审批阈值不冲突",
+      "dimensionRefs": [
+        "controlled-execution"
+      ]
+    },
+    {
+      "id": "no-static-analysis-fast-feedback",
+      "title": "无静态分析配置，缺少快速反馈层",
+      "severity": "Medium",
+      "reason": "pyproject.toml 中无 ruff、mypy 或 pyright 配置；无 pre-commit hook 或本地 lint/typecheck 命令。Agent 编辑后只能依赖 pytest 运行时测试获得反馈，类型错误和风格问题无法在秒级内被发现。",
+      "expectedOutput": [
+        "pyproject.toml 包含 [tool.ruff] 配置，且 `ruff check opc/` 可正常运行。"
+      ],
+      "expectedArtifact": "pyproject.toml",
+      "aiFixPrompt": "/better-loop fix this issue\n\n在 pyproject.toml 中添加 [tool.ruff] 配置（line-length、target-version、select 规则集），并在 scripts 或 Makefile 中暴露 `lint` 和 `typecheck` 命令。可选添加 pre-commit 配置。\n\n## Validation\n\n- 运行 ruff check 确认零配置错误\n- 确认 lint 命令在 10 秒内完成对 opc/ 目录的检查",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "env-provisioning-undocumented",
+      "title": "环境配置无模板，启动依赖隐式知识",
+      "severity": "Low",
+      "reason": "项目无 .env.example 或等效的环境变量模板；LLM API 密钥、频道令牌等必需配置只能从 README 散文或 config/*.yaml 注释中推断，Agent 无法通过确定性路径完成环境准备。",
+      "expectedOutput": [
+        "一个 .env.example 文件，列出所有必需/可选环境变量及用途说明。"
+      ],
+      "expectedArtifact": ".env.example",
+      "aiFixPrompt": "/better-loop fix this issue\n\n创建 .env.example，列出所有必需和可选的环境变量（LLM API key、频道 token、数据库路径等），附带简短注释说明用途和获取方式。确保与 config/ 目录中的 yaml 配置对齐。\n\n## Validation\n\n- 确认 .env.example 中的变量与 config/*.yaml 中引用的环境变量一致\n- 确认新成员仅凭 .env.example 和 README Quick Start 即可完成环境准备",
+      "dimensionRefs": [
+        "controlled-execution"
+      ]
+    }
+  ]
+}
