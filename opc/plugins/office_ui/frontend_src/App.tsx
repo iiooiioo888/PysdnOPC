@@ -2356,7 +2356,6 @@ export default function App() {
                 return total > 0 ? <span className="nav-unread-badge">{total > 99 ? '99+' : total}</span> : null
               })()}
             </button>
-<<<<<<< HEAD
             <button className={`page-nav-btn${activePage === 'office' ? ' active' : ''}`} onClick={() => setActivePage('office')}>{t('nav.game')}</button>
             <button className={`page-nav-btn${activePage === 'org' ? ' active' : ''}`} onClick={() => setActivePage('org')}>{t('nav.org')}</button>
           </div>
@@ -2364,15 +2363,6 @@ export default function App() {
             <span className="stat-chip"><b>{metrics.totalAgents}</b> {t('stats.agents')}</span>
             <span className="stat-chip"><b>{metrics.totalSkills}</b> {t('stats.skills')}</span>
             <span className="stat-chip"><b>{boardStore.getOpenTaskCount()}</b> {t('stats.tasks')}</span>
-=======
-            <button className={`page-nav-btn${activePage === 'office' ? ' active' : ''}`} onClick={() => setActivePage('office')}>{t('nav.office')}</button>
-            <button className={`page-nav-btn${activePage === 'org' ? ' active' : ''}`} onClick={() => setActivePage('org')}>{t('nav.org')}</button>
-          </div>
-          <div className="stat-chips">
-            <span className="stat-chip"><b>{metrics.totalAgents}</b> {t('app.agents')}</span>
-            <span className="stat-chip"><b>{metrics.totalSkills}</b> {t('app.skills')}</span>
-            <span className="stat-chip"><b>{boardStore.getOpenTaskCount()}</b> {t('app.tasks')}</span>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
           </div>
         </div>
         <div className="topbar-right">

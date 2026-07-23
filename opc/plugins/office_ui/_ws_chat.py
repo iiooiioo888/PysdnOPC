@@ -4,6 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
+from opc.plugins.office_ui.snapshot_builder import (
+    _normalize_transcript_detail_level,
+    build_transcript_ui_messages,
+    collapse_adjacent_transcript_duplicates,
+)
+from opc.plugins.office_ui._ws_utils import (
+    _PERSISTED_WORKER_NOTIFICATION_KINDS,
+    _add_execution_turn_aliases,
+    _ui_message_identity_metadata,
+)
+
 if TYPE_CHECKING:
     from opc.plugins.office_ui.ws_handler import WSHandler
 

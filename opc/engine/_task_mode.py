@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
+import copy
+import json
+import re
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger
+
+from opc.core.models import (
+    ExecutionMode,
+    ModeSelection,
+    Task,
+    TaskResult,
+    TaskStatus,
+    WorkItemExecutionStrategy,
+)
+from opc.layer2_organization.recruiter import normalize_recruitment_agent_choice
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

@@ -177,7 +177,7 @@ class DirectStatusWriteLintTest(unittest.TestCase):
         # writes deferred to Step 7 do not match this lint regex.)
         "opc/layer2_organization/phase.py",                # enum defs
         "opc/layer2_organization/work_item_transition.py", # docstring example
-        "opc/engine.py",                                   # legacy fallback (wraps transition_work_item)
+        "opc/engine/_core.py",                                   # legacy fallback (wraps transition_work_item)
         "opc/layer3_agent/external_broker.py",             # runtime_session rows (not work_item)
         # Legacy paths, outstanding migration candidates:
         "opc/layer2_organization/reorg_manager.py",        # reorg migration cancel

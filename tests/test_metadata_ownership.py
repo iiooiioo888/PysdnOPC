@@ -284,7 +284,7 @@ class MetadataOwnershipMatrixTests(unittest.TestCase):
         offenders = []
         for rel in (
             "opc/layer2_organization/company_mode.py",
-            "opc/engine.py",
+            "opc/engine/_core.py",
             "opc/layer2_organization/company_runtime.py",
         ):
             source = (repo_root / rel).read_text(encoding="utf-8")

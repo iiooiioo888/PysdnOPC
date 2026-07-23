@@ -2,7 +2,50 @@
 
 from __future__ import annotations
 
+import copy
+import json
+import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger
+
+from opc.core.models import (
+    DelegationCell,
+    DelegationRun,
+    DelegationWorkItem,
+    ExecutionMode,
+    ModeSelection,
+    Phase,
+    Task,
+    TaskStatus,
+    TeamInstance,
+)
+from opc.layer2_organization.company_mode import (
+    CompanyRuntimeSpec,
+    CompanyWorkItemExecutor,
+    deserialize_company_runtime_spec,
+    deserialize_company_work_item_runtime_plan,
+    serialize_company_runtime_spec,
+    serialize_company_work_item_runtime_plan,
+)
+from opc.layer2_organization.company_runtime import canonical_role_session_id
+from opc.layer2_organization.company_runtime_identity import (
+    build_company_runtime_identity_index,
+    load_company_runtime_identity_index,
+)
+from opc.layer2_organization.org_work_item_planner import (
+    CompanyWorkItemRuntimePlan,
+    WorkItemProjectionSpec,
+)
+from opc.layer2_organization.phase import DONE_PHASES, IN_PROGRESS_PHASES, task_status_for_phase
+from opc.layer2_organization.work_item_identity import (
+    mark_projected_work_item_task,
+    projection_id_for_task,
+    projection_id_for_work_item,
+)
+from opc.layer2_organization.work_item_links import set_linked_work_item_id
+from opc.layer2_organization.work_item_runtime import mark_work_item_runtime
 
 if TYPE_CHECKING:
     from opc.engine._core import OPCEngine

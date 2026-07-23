@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
+from opc.plugins.office_ui._ws_utils import (
+    _ui_conversation_turn_id,
+    _ui_message_identity_metadata,
+)
+
 if TYPE_CHECKING:
     from opc.plugins.office_ui.ws_handler import WSHandler
 

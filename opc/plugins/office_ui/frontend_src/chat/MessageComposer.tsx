@@ -499,15 +499,9 @@ export function MessageComposer({
           <div className="composer-status">
             <div className="composer-status-indicator" />
             <span className="composer-status-text">{statusText}</span>
-<<<<<<< HEAD
             <button className="composer-stop-btn" onClick={onStop} title={t('chat.stop')} disabled={!stopEnabled || !onStop}>
               <IconStop />
               <span>{isStopping ? t('chat.stopping') : t('chat.stop')}</span>
-=======
-            <button className="composer-stop-btn" onClick={onStop} title={t('composer.stop')} disabled={!stopEnabled || !onStop}>
-              <IconStop />
-              <span>{isStopping ? t('composer.stopping') : t('composer.stop')}</span>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
             </button>
           </div>
         )}
@@ -546,11 +540,7 @@ export function MessageComposer({
                 <button
                   className="attachment-chip-remove"
                   onClick={() => removeAttachment(attachment.id)}
-<<<<<<< HEAD
                   title={t('chat.remove')}
-=======
-                  title={t('common.remove')}
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                 >
                   <IconClose />
                 </button>
@@ -573,11 +563,7 @@ export function MessageComposer({
                 handleSend()
               }
             }}
-<<<<<<< HEAD
             placeholder={placeholder ?? t('chat.placeholder')}
-=======
-            placeholder={placeholder ?? t('composer.placeholder')}
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
             rows={1}
             disabled={disabled}
           />
@@ -586,11 +572,7 @@ export function MessageComposer({
             <button
               className="composer-attach-btn"
               onClick={() => fileInputRef.current?.click()}
-<<<<<<< HEAD
               title={t('chat.attachFiles')}
-=======
-              title={t('composer.attachFiles')}
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
               disabled={disabled}
             >
               <IconPaperclip />
@@ -612,15 +594,9 @@ export function MessageComposer({
                   <label
                     className="composer-mode-inline"
                     data-kind="mode"
-<<<<<<< HEAD
                     title={t('chat.execModeTitle')}
                   >
                     <span className="composer-mode-inline-label">{t('chat.mode')}</span>
-=======
-                    title={t('composer.executionModeTitle')}
-                  >
-                    <span className="composer-mode-inline-label">{t('composer.mode')}</span>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                     <span className="composer-mode-select-wrap">
                       <select
                         className="composer-mode-select"
@@ -638,13 +614,8 @@ export function MessageComposer({
                         disabled={disabled}
                         aria-label="Execution mode"
                       >
-<<<<<<< HEAD
                         <option value="task">{t('chat.modeTask')}</option>
                         <option value="company">{t('chat.modeCompany')}</option>
-=======
-                        <option value="task">{t('composer.task')}</option>
-                        <option value="company">{t('composer.company')}</option>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                       </select>
                     </span>
                   </label>
@@ -713,15 +684,9 @@ export function MessageComposer({
                     <label
                       className="composer-mode-inline"
                       data-kind="org"
-<<<<<<< HEAD
                       title={t('chat.companyTitle')}
                     >
                       <span className="composer-mode-inline-label">{t('chat.company')}</span>
-=======
-                      title={t('composer.companyArchitectureTitle')}
-                    >
-                      <span className="composer-mode-inline-label">{t('composer.company')}</span>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                       <span className="composer-mode-select-wrap">
                         <select
                           className="composer-mode-select"
@@ -742,15 +707,9 @@ export function MessageComposer({
                           disabled={disabled}
                           aria-label="Company architecture"
                         >
-<<<<<<< HEAD
                           <option value="corporate">{t('chat.corporate')}</option>
                           {!selectedCompanyArchitecture && (
                             <option value="" disabled>{t('chat.selectSavedOrg')}</option>
-=======
-                          <option value="corporate">{t('composer.corporate')}</option>
-                          {!selectedCompanyArchitecture && (
-                            <option value="" disabled>{t('composer.selectSavedOrg')}</option>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                           )}
                           {selectedCompanyArchitecture
                             && selectedCompanyArchitecture !== 'corporate'
@@ -758,11 +717,7 @@ export function MessageComposer({
                               <option value={selectedCompanyArchitecture}>{selectedOrgLabel || selectedOrgValue}</option>
                             )}
                           {savedOrgOptions.length === 0 ? (
-<<<<<<< HEAD
                             <option value="" disabled>{t('chat.noSavedOrgs')}</option>
-=======
-                            <option value="" disabled>{t('composer.noSavedOrgs')}</option>
->>>>>>> edbdb3b79d29ed68033dccda9fe79b1f7b0eb316
                           ) : savedOrgOptions.map(org => (
                             <option key={org.name} value={`org:${org.name}`}>
                               {savedOrgLabel(org)}

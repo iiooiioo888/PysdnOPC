@@ -4,6 +4,32 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from loguru import logger
+
+from opc.core.models import normalize_role_runtime_status
+
+from opc.plugins.office_ui.snapshot_builder import (
+    _build_company_runtime_control_by_task,
+    _build_session_context_preview,
+    _extract_markdown_text,
+    _normalize_session_company_profile,
+    _normalize_session_exec_mode,
+    _normalize_transcript_detail_level,
+    _resolve_task_preferred_agent,
+    _resolve_task_session_config,
+    _sanitize_ui_message_dict,
+    _task_parent_session_link,
+)
+from opc.plugins.office_ui._ws_utils import (
+    _TASK_MODE_PREFERRED_AGENTS,
+    _compact_session_title,
+    _looks_like_escalation_reply,
+    _normalize_escalation_reply,
+    _ui_conversation_turn_id,
+    _ui_message_identity_metadata,
+)
+from opc.presentation.kanban import STATUS_TO_COLUMN
+
 if TYPE_CHECKING:
     from opc.plugins.office_ui.ws_handler import WSHandler
 

@@ -40,7 +40,7 @@ def test_production_does_not_request_custom_workflow_graph_generation() -> None:
     matches = _scan(
         r"build_workflow_definition\(\s*[\"']custom[\"']",
         [
-            REPO_ROOT / "opc/engine.py",
+            REPO_ROOT / "opc/engine/_core.py",
             REPO_ROOT / "opc/layer2_organization",
             REPO_ROOT / "opc/plugins/office_ui",
         ],
@@ -52,7 +52,7 @@ def test_company_runtime_does_not_import_legacy_workflow_plan_types() -> None:
     matches = _scan(
         r"\bCompanyWorkflowPlan\b|\bWorkflowStage\b|\bStageGate\b|\bStageGateType\b|workflow_plan",
         [
-            REPO_ROOT / "opc/engine.py",
+            REPO_ROOT / "opc/engine/_core.py",
             REPO_ROOT / "opc/layer2_organization/company_mode.py",
             REPO_ROOT / "opc/layer2_organization/org_engine.py",
         ],
@@ -68,7 +68,7 @@ def test_company_runtime_does_not_use_work_item_plan_stage_bridge() -> None:
         r"_coerce_work_item_assignment|_default_work_item_assignment|_task_effective_stage|_work_item_effective_stage|"
         r"source_stage_refs|delivery_stage_id",
         [
-            REPO_ROOT / "opc/engine.py",
+            REPO_ROOT / "opc/engine/_core.py",
             REPO_ROOT / "opc/layer2_organization/company_mode.py",
             REPO_ROOT / "opc/layer2_organization/org_work_item_planner.py",
         ],

@@ -2980,7 +2980,8 @@ class WSHandler(
         if self._shutting_down:
             logger.debug(f"Ignoring WS message during shutdown: {msg_type}")
             return
-        handler = self._HANDLERS.get(msg_type)
+        handler_name = self._HANDLERS.get(msg_type)
+        handler = getattr(self, handler_name, None) if handler_name else None
         handoff_registry = None
         handoff_token: str | None = None
         if handler and msg_type in _EXECUTION_HANDOFF_MESSAGE_TYPES:
@@ -3009,9 +3010,9 @@ class WSHandler(
             try:
                 if handoff_registry is not None and handoff_token is not None:
                     with handoff_registry.bind_handoff(handoff_token):
-                        await handler(self, ws, data)
+                        await handler(ws, data)
                 else:
-                    await handler(self, ws, data)
+                    await handler(ws, data)
             except Exception as e:
                 if self._is_ws_disconnect_error(e) or self._is_expected_shutdown_error(e):
                     logger.debug(
@@ -4546,83 +4547,83 @@ class WSHandler(
 
     # Handler routing table
     _HANDLERS: dict[str, Any] = {
-        "ping":                _handle_ping,
-        "collab_sync":         _handle_collab_sync,
-        "project_index":       _handle_project_index,
-        "kanban_create_board": _handle_kanban_create_board,
-        "kanban_create_task":  _handle_kanban_create_task,
-        "kanban_update_task":  _handle_kanban_update_task,
-        "kanban_move_task":    _handle_kanban_move_task,
-        "kanban_delete_task":  _handle_kanban_delete_task,
-        "kanban_delete_board": _handle_kanban_delete_board,
-        "kanban_assign":       _handle_kanban_assign,
-        "kanban_status":       _handle_kanban_status,
-        "create_agent":        _handle_create_agent,
-        "delete_agent":        _handle_delete_agent,
-        "list_agents":         _handle_list_agents,
-        "move_agent":          _handle_move_agent,
-        "set_execution_mode":  _handle_set_mode,
-        "run_task":            _handle_run_task,
-        "cross_office_collab": _handle_cross_office,
-        "agent_workload":      _handle_agent_workload,
-        "kanban_switch_view":  _handle_kanban_switch_view,
-        "get_agent_detail":    _handle_get_agent_detail,
+        "ping":                "_handle_ping",
+        "collab_sync":         "_handle_collab_sync",
+        "project_index":       "_handle_project_index",
+        "kanban_create_board": "_handle_kanban_create_board",
+        "kanban_create_task":  "_handle_kanban_create_task",
+        "kanban_update_task":  "_handle_kanban_update_task",
+        "kanban_move_task":    "_handle_kanban_move_task",
+        "kanban_delete_task":  "_handle_kanban_delete_task",
+        "kanban_delete_board": "_handle_kanban_delete_board",
+        "kanban_assign":       "_handle_kanban_assign",
+        "kanban_status":       "_handle_kanban_status",
+        "create_agent":        "_handle_create_agent",
+        "delete_agent":        "_handle_delete_agent",
+        "list_agents":         "_handle_list_agents",
+        "move_agent":          "_handle_move_agent",
+        "set_execution_mode":  "_handle_set_mode",
+        "run_task":            "_handle_run_task",
+        "cross_office_collab": "_handle_cross_office",
+        "agent_workload":      "_handle_agent_workload",
+        "kanban_switch_view":  "_handle_kanban_switch_view",
+        "get_agent_detail":    "_handle_get_agent_detail",
         # Session handlers
-        "create_session":      _handle_create_session,
-        "session_update_config": _handle_session_update_config,
-        "session_detail":      _handle_session_detail,
-        "session_send":        _handle_session_send,
-        "session_stop":        _handle_session_stop,
-        "session_resume":      _handle_session_resume,
-        "session_delete":      _handle_session_delete,
-        "session_complete":    _handle_session_complete,
-        "session_update_title": _handle_session_update_title,
+        "create_session":      "_handle_create_session",
+        "session_update_config": "_handle_session_update_config",
+        "session_detail":      "_handle_session_detail",
+        "session_send":        "_handle_session_send",
+        "session_stop":        "_handle_session_stop",
+        "session_resume":      "_handle_session_resume",
+        "session_delete":      "_handle_session_delete",
+        "session_complete":    "_handle_session_complete",
+        "session_update_title": "_handle_session_update_title",
         # Secretary handler
-        "secretary_send":      _handle_secretary_send,
+        "secretary_send":      "_handle_secretary_send",
         # Project management
-        "list_projects":       _handle_list_projects,
-        "create_project":      _handle_create_project,
-        "delete_project":      _handle_delete_project,
-        "switch_project":      _handle_switch_project,
+        "list_projects":       "_handle_list_projects",
+        "create_project":      "_handle_create_project",
+        "delete_project":      "_handle_delete_project",
+        "switch_project":      "_handle_switch_project",
         # Org info
-        "org_info":            _handle_org_info,
+        "org_info":            "_handle_org_info",
         # Phase 4: Talent Market, Employee Detail, Reorg
-        "talent_import":       _handle_talent_import,
-        "talent_list":         _handle_talent_list,
-        "talent_scan_local":   _handle_talent_scan_local,
-        "talent_import_selected": _handle_talent_import_selected,
-        "talent_hire":         _handle_talent_hire,
-        "import_employee_as_agent": _handle_import_employee_as_agent,
-        "employee_detail":     _handle_employee_detail,
-        "reorg_list":          _handle_reorg_list,
-        "reorg_decide":        _handle_reorg_decide,
+        "talent_import":       "_handle_talent_import",
+        "talent_list":         "_handle_talent_list",
+        "talent_scan_local":   "_handle_talent_scan_local",
+        "talent_import_selected": "_handle_talent_import_selected",
+        "talent_hire":         "_handle_talent_hire",
+        "import_employee_as_agent": "_handle_import_employee_as_agent",
+        "employee_detail":     "_handle_employee_detail",
+        "reorg_list":          "_handle_reorg_list",
+        "reorg_decide":        "_handle_reorg_decide",
         # OPC Market
-        "market_browse":       _handle_market_browse,
-        "market_preview":      _handle_market_preview,
-        "market_apply_preset": _handle_market_apply_preset,
-        "market_list_installed": _handle_market_list_installed,
-        "market_export":       _handle_market_export,
-        "market_install":      _handle_market_install,
-        "market_uninstall":    _handle_market_uninstall,
+        "market_browse":       "_handle_market_browse",
+        "market_preview":      "_handle_market_preview",
+        "market_apply_preset": "_handle_market_apply_preset",
+        "market_list_installed": "_handle_market_list_installed",
+        "market_export":       "_handle_market_export",
+        "market_install":      "_handle_market_install",
+        "market_uninstall":    "_handle_market_uninstall",
         # Org config import/export
-        "org_config_export":   _handle_org_config_export,
-        "org_config_import":   _handle_org_config_import,
+        "org_config_export":   "_handle_org_config_export",
+        "org_config_import":   "_handle_org_config_import",
         # Saved org architectures (named snapshots)
-        "org_saved_list":      _handle_org_saved_list,
-        "org_saved_save_as":   _handle_org_saved_save_as,
-        "org_saved_create":    _handle_org_saved_create,
-        "org_saved_load":      _handle_org_saved_load,
-        "org_saved_delete":    _handle_org_saved_delete,
+        "org_saved_list":      "_handle_org_saved_list",
+        "org_saved_save_as":   "_handle_org_saved_save_as",
+        "org_saved_create":    "_handle_org_saved_create",
+        "org_saved_load":      "_handle_org_saved_load",
+        "org_saved_delete":    "_handle_org_saved_delete",
         # Org editing (custom mode)
-        "bulk_add_roles":      _handle_bulk_add_roles,
-        "add_role":            _handle_add_role,
-        "update_role":         _handle_update_role,
-        "update_org_strategy": _handle_update_org_strategy,
-        "delete_role":         _handle_delete_role,
-        "update_runtime_policy": _handle_update_runtime_policy,
-        "reset_architecture":  _handle_reset_architecture,
+        "bulk_add_roles":      "_handle_bulk_add_roles",
+        "add_role":            "_handle_add_role",
+        "update_role":         "_handle_update_role",
+        "update_org_strategy": "_handle_update_org_strategy",
+        "delete_role":         "_handle_delete_role",
+        "update_runtime_policy": "_handle_update_runtime_policy",
+        "reset_architecture":  "_handle_reset_architecture",
     }
 
     # Register handlers defined after _HANDLERS class-level dict
-    _HANDLERS["comms_state"] = _handle_comms_state
-    _HANDLERS["comms_read_message"] = _handle_comms_read_message
+    _HANDLERS["comms_state"] = "_handle_comms_state"
+    _HANDLERS["comms_read_message"] = "_handle_comms_read_message"

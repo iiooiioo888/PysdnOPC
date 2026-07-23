@@ -95,7 +95,7 @@ def test_company_work_item_executor_has_no_legacy_workflow_alias() -> None:
 def test_company_mode_work_item_runtime_has_projection_naming_guards() -> None:
     files = [
         REPO_ROOT / "opc/layer2_organization/company_mode.py",
-        REPO_ROOT / "opc/engine.py",
+        REPO_ROOT / "opc/engine/_core.py",
         REPO_ROOT / "opc/layer1_perception/context_assembler.py",
     ]
     matches = _scan(
@@ -113,7 +113,7 @@ def test_gate_rework_runtime_paths_are_projection_only() -> None:
         REPO_ROOT / "opc/layer2_organization/gate_harness.py",
         REPO_ROOT / "opc/layer2_organization/work_item_identity.py",
         REPO_ROOT / "opc/layer2_organization/company_mode.py",
-        REPO_ROOT / "opc/engine.py",
+        REPO_ROOT / "opc/engine/_core.py",
     ]
     matches = _scan(
         r"target_stage_id|target_stage_ids|preserve_stage_ids|review_stage_id|"
@@ -151,7 +151,7 @@ def test_company_runtime_has_no_old_config_or_policy_names() -> None:
 
 def test_company_runtime_uses_work_item_org_engine_api_names() -> None:
     files = [
-        REPO_ROOT / "opc/engine.py",
+        REPO_ROOT / "opc/engine/_core.py",
         REPO_ROOT / "opc/layer2_organization/company_mode.py",
         REPO_ROOT / "opc/layer2_organization/org_engine.py",
         REPO_ROOT / "opc/layer3_agent/company_runtime_contract.py",
@@ -172,7 +172,7 @@ def test_company_runtime_uses_work_item_progress_and_gate_names() -> None:
         REPO_ROOT / "opc/layer2_organization/company_mode.py",
         REPO_ROOT / "opc/layer2_organization/communication.py",
         REPO_ROOT / "opc/layer2_organization/collaboration_policy.py",
-        REPO_ROOT / "opc/engine.py",
+        REPO_ROOT / "opc/engine/_core.py",
     ]
     matches = _scan(
         r"workflow_progress|WorkflowProgressEntry|WorkflowProgressPayload|"
