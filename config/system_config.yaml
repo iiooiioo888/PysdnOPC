@@ -370,3 +370,20 @@ capabilities:
     method: hybrid
     cache_remote_skills: true
     promote_after_successes: 2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 數據管理設定
+# 控制公司共用文件庫和任務數據整合的行為。
+# ─────────────────────────────────────────────────────────────────────────────
+data_management:
+  # 共用文件庫設定
+  shared_files:
+    enabled: true                    # 啟用共用文件庫功能
+    max_file_size_mb: 50             # 單一檔案大小上限（MB）
+    storage_subdir: shared_files     # 儲存子目錄名稱（相對於 opc_home）
+  # 數據匯出設定
+  data_export:
+    enabled: true                    # 啟用數據匯出功能
+    default_format: json             # 預設匯出格式：json 或 csv
+    auto_save_to_library: true       # 匯出時自動存入共用文件庫
+    export_folder: exports           # 匯出檔案存放資料夾

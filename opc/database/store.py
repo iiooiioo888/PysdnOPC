@@ -219,6 +219,7 @@ from opc.database._store_work_items import WorkItemStoreMixin  # 工作項目 CR
 from opc.database._store_delegation import DelegationStoreMixin  # 委派執行 CRUD
 from opc.database._store_sessions import SessionStoreMixin  # 工作階段 CRUD
 from opc.database._store_collaboration import CollaborationStoreMixin  # 協作狀態 CRUD
+from opc.database._store_shared_files import SharedFileStoreMixin  # 共用文件庫 CRUD
 
 class OPCStore(
     TaskStoreMixin,
@@ -226,6 +227,7 @@ class OPCStore(
     DelegationStoreMixin,
     SessionStoreMixin,
     CollaborationStoreMixin,
+    SharedFileStoreMixin,
 ):
     """OPC 資料的非同步 SQLite 儲存層（WAL 模式支援並發）。
 
@@ -1242,6 +1244,8 @@ class OPCStore(
                 timestamp TEXT NOT NULL
             );
         """)
+        # 共用文件庫表（數據管理功能）
+        await self._create_shared_files_table()
         await self._db.commit()
 
     async def _ensure_schema(self) -> None:

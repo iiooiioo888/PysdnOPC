@@ -4545,6 +4545,109 @@ class WSHandler(
     # Org editing handlers (custom mode)
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Data management handlers (file library + data export)
+    # ------------------------------------------------------------------
+
+    async def _handle_file_library_list(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.list_files(
+                folder=data.get("folder"),
+                tags=data.get("tags", ""),
+                uploaded_by=data.get("uploaded_by", ""),
+                limit=int(data.get("limit", 100)),
+                offset=int(data.get("offset", 0)),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_list")
+
+    async def _handle_file_library_folders(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.list_folders()
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_folders")
+
+    async def _handle_file_library_upload(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.upload(
+                filename=data.get("filename", ""),
+                content_base64=data.get("content_base64", ""),
+                folder=data.get("folder", ""),
+                tags=data.get("tags", ""),
+                description=data.get("description", ""),
+                uploaded_by=data.get("uploaded_by", ""),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_upload")
+
+    async def _handle_file_library_download(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.download(file_id=data.get("file_id", ""))
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_download")
+
+    async def _handle_file_library_delete(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.delete(file_id=data.get("file_id", ""))
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_delete")
+
+    async def _handle_file_library_search(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.file_library.search(
+                query=data.get("query", ""),
+                limit=int(data.get("limit", 50)),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="file_library_search")
+
+    async def _handle_data_export_summary(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.data_export.get_summary(
+                project_id=data.get("project_id", ""),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="data_export_summary")
+
+    async def _handle_data_export_query(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.data_export.query_tasks(
+                project_id=data.get("project_id", ""),
+                status=data.get("status", ""),
+                assigned_to=data.get("assigned_to", ""),
+                limit=int(data.get("limit", 100)),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="data_export_query")
+
+    async def _handle_data_export_snapshot(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.data_export.export_snapshot(
+                project_id=data.get("project_id", ""),
+                format=data.get("format", "json"),
+                include_work_items=bool(data.get("include_work_items", True)),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="data_export_snapshot")
+
+    async def _handle_data_export_list(self, ws: Any, data: dict) -> None:
+        try:
+            result = await self.services.data_export.list_exports(
+                limit=int(data.get("limit", 50)),
+            )
+            await self._send_service_ack(ws, result)
+        except ServiceError as exc:
+            await self._send_service_error(ws, exc, action="data_export_list")
+
     # Handler routing table
     _HANDLERS: dict[str, Any] = {
         "ping":                "_handle_ping",
@@ -4622,6 +4725,17 @@ class WSHandler(
         "delete_role":         "_handle_delete_role",
         "update_runtime_policy": "_handle_update_runtime_policy",
         "reset_architecture":  "_handle_reset_architecture",
+        # Data management (file library + data export)
+        "file_library_list":   "_handle_file_library_list",
+        "file_library_folders": "_handle_file_library_folders",
+        "file_library_upload": "_handle_file_library_upload",
+        "file_library_download": "_handle_file_library_download",
+        "file_library_delete": "_handle_file_library_delete",
+        "file_library_search": "_handle_file_library_search",
+        "data_export_summary": "_handle_data_export_summary",
+        "data_export_query":   "_handle_data_export_query",
+        "data_export_snapshot": "_handle_data_export_snapshot",
+        "data_export_list":    "_handle_data_export_list",
     }
 
     # Register handlers defined after _HANDLERS class-level dict

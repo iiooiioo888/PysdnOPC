@@ -1991,3 +1991,55 @@ class OPCEvent:
     payload: dict = field(default_factory=dict)  # 事件酬載
     timestamp: datetime = field(default_factory=_utcnow)  # 事件時間
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # 事件唯一 ID
+
+
+# ---------------------------------------------------------------------------
+# 數據管理：共用文件庫 + 任務數據整合
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SharedFileRecord:
+    """共用文件庫記錄 — 公司共享檔案的索引元資訊。
+
+    職責說明：
+        記錄上傳到公司共用文件庫的每個檔案的元資訊。
+        實際檔案內容存放於磁碟（{opc_home}/shared_files/），
+        此記錄僅為 SQLite 索引，支援資料夾分類、標籤和搜尋。
+
+    關聯關係：
+        - 被 opc/core/shared_file_store.py 建立和管理
+        - 被 opc/database/_store_shared_files.py 持久化
+        - 被 opc/layer4_tools/shared_files.py 的 Agent 工具查詢
+        - 被 opc/plugins/office_ui/services/file_library.py 的 UI 服務使用
+    """
+    file_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # 檔案唯一 ID
+    filename: str = ""  # 原始檔名
+    folder: str = ""  # 資料夾路徑（如 "reports/2026"）
+    mime_type: str = ""  # MIME 類型
+    size_bytes: int = 0  # 檔案大小（位元組）
+    tags: list[str] = field(default_factory=list)  # 標籤列表
+    description: str = ""  # 文件描述
+    uploaded_by: str = ""  # 上傳者角色 ID
+    created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+    updated_at: datetime = field(default_factory=_utcnow)  # 更新時間
+
+
+@dataclass
+class CompanyDataSnapshot:
+    """公司數據快照 — 任務、工作項、協作記錄的統一匯出視圖。
+
+    職責說明：
+        將分散在不同資料表中的任務、工作項、協作運行記錄
+        聚合為一個結構化快照，支援 JSON/CSV 格式匯出和備份。
+
+    關聯關係：
+        - 由 opc/core/data_export.py 產生
+        - 被 opc/layer4_tools/company_data.py 的 Agent 工具調用
+        - 被 opc/plugins/office_ui/services/data_export.py 的 UI 服務使用
+    """
+    exported_at: datetime = field(default_factory=_utcnow)  # 匯出時間
+    project_id: str = ""  # 專案 ID
+    tasks: list[dict] = field(default_factory=list)  # 任務列表
+    work_items: list[dict] = field(default_factory=list)  # 工作項列表
+    delegation_runs: list[dict] = field(default_factory=list)  # 協作運行記錄
+    summary: dict = field(default_factory=dict)  # 統計摘要

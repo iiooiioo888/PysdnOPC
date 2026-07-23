@@ -5,6 +5,8 @@ from __future__ import annotations
 from .agent import AgentService
 from .comms import CommsService
 from .context import ModeState, OfficeServiceContext
+from .data_export import DataExportService
+from .file_library import FileLibraryService
 from .kanban import KanbanService
 from .market import MarketService
 from .models import ServiceError, ServiceEvent, ServiceResult
@@ -29,11 +31,15 @@ class OfficeServices:
         self.market = MarketService(context)
         self.comms = CommsService(context)
         self.work_item = WorkItemService(context)
+        self.file_library = FileLibraryService(context)
+        self.data_export = DataExportService(context)
 
 
 __all__ = [
     "AgentService",
     "CommsService",
+    "DataExportService",
+    "FileLibraryService",
     "KanbanService",
     "MarketService",
     "ModeState",
