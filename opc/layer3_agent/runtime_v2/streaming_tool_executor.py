@@ -17,7 +17,8 @@ from opc.layer4_tools.registry import ToolRegistry
 
 RuntimeToolHandler = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
 RuntimeEventCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
-_HEARTBEAT_INTERVAL_SECONDS = 1.0
+_HEARTBEAT_INTERVAL_SECONDS = 10.0
+_TOOL_EXECUTION_TIMEOUT_SECONDS = 600
 
 
 def _now_ms() -> int:
@@ -186,6 +187,21 @@ class StreamingToolExecutor:
                     "source": predicted.source,
                 },
             )
+            # Resolve immediately — the tool will still execute (auto-approved
+            # or hook-gated).  Emitting resolved here prevents the UI from
+            # showing a stale "pending permission" while the tool runs.
+            await self.emit_event(
+                "permission_resolved",
+                {
+                    "batch_id": batch_id,
+                    "tool_call_id": call.get("id", ""),
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "resolution": predicted.resolution.value,
+                    "scope": predicted.scope.value,
+                    "rationale": f"auto-resolved: {predicted.rationale}",
+                },
+            )
         if self.emit_event:
             await self.emit_event(
                 "tool_started",
@@ -300,14 +316,20 @@ class StreamingToolExecutor:
             heartbeat_task = asyncio.create_task(_heartbeat())
             try:
                 if tool is not None and tool.runtime_managed and self.runtime_tool_handler is not None:
-                    result = await self.runtime_tool_handler(tool_name, arguments)
+                    result = await asyncio.wait_for(
+                        self.runtime_tool_handler(tool_name, arguments),
+                        timeout=_TOOL_EXECUTION_TIMEOUT_SECONDS,
+                    )
                 else:
-                    result = await self.registry.execute(
-                        tool_name,
-                        arguments,
-                        task=task,
-                        on_progress=_tool_progress,
-                        skip_approval=True,
+                    result = await asyncio.wait_for(
+                        self.registry.execute(
+                            tool_name,
+                            arguments,
+                            task=task,
+                            on_progress=_tool_progress,
+                            skip_approval=True,
+                        ),
+                        timeout=_TOOL_EXECUTION_TIMEOUT_SECONDS,
                     )
                 result = await self._maybe_retry_with_escalated_sandbox(
                     tool_name=tool_name,
@@ -318,6 +340,12 @@ class StreamingToolExecutor:
                     batch_id=batch_id,
                     call=call,
                 )
+            except asyncio.TimeoutError:
+                result = {
+                    "success": False,
+                    "error": f"{tool_name} timed out after {_TOOL_EXECUTION_TIMEOUT_SECONDS}s",
+                    "timed_out": True,
+                }
             finally:
                 heartbeat_active["value"] = False
                 heartbeat_task.cancel()
@@ -335,18 +363,6 @@ class StreamingToolExecutor:
                     result = dict(hook_context.result or result)
             decision = self.permission_resolver.decision_from_result(tool_name, arguments, result)
         if self.emit_event:
-            await self.emit_event(
-                "permission_resolved",
-                {
-                    "batch_id": batch_id,
-                    "tool_call_id": call.get("id", ""),
-                    "tool_name": tool_name,
-                    "arguments": arguments,
-                    "resolution": decision.resolution.value,
-                    "scope": decision.scope.value,
-                    "rationale": decision.rationale,
-                },
-            )
             await self.emit_event(
                 "tool_completed",
                 {

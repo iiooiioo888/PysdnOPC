@@ -21,6 +21,7 @@ _STDOUT_LIMIT = 50_000
 _STDERR_LIMIT = 20_000
 _SETUP_STAGE_DEFAULT_TIMEOUT = 1800
 _DEFAULT_SHELL_TIMEOUT = 300
+_MAX_SHELL_TIMEOUT = 900  # Hard cap: no shell command may exceed 15 minutes
 _POWERSHELL_CMD_SEPARATOR = " ; "
 _BASH_CMD_SEPARATOR = " && "
 _STREAM_READ_SIZE = 8192
@@ -102,6 +103,10 @@ async def _run_shell_command(
                 pass
         elif work_item_turn_type_from_metadata(meta, fallback="") == "setup":
             timeout = max(timeout, _SETUP_STAGE_DEFAULT_TIMEOUT)
+    # Enforce hard cap regardless of caller-supplied or metadata-derived values
+    timeout = min(timeout, _MAX_SHELL_TIMEOUT)
+    if task is not None:
+        meta = getattr(task, "metadata", {}) or {}
         shell_prefix = ""
         shell_prefix_win = ""
         inherited = meta.get("inherited_environment")
