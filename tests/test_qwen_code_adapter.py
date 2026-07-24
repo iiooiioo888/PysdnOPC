@@ -163,24 +163,29 @@ class QwenCodeInvocationTests(unittest.TestCase):
         self.assertEqual(metadata["binary"], "/usr/bin/qwen-code")
         self.assertEqual(metadata["agent"], "qwen_code")
 
-    def test_build_invocation_includes_auto_approve(self) -> None:
+    def test_build_invocation_includes_output_format(self) -> None:
         task = _make_task()
         with patch.object(self.adapter, "resolve_binary", return_value="qwen-code"):
             cmd, _ = self.adapter.build_invocation(task)
-        self.assertIn("--auto-approve", cmd)
+        self.assertIn("--output-format", cmd)
+        fmt_idx = cmd.index("--output-format")
+        self.assertEqual(cmd[fmt_idx + 1], "stream-json")
 
-    def test_build_invocation_includes_show_thinking(self) -> None:
+    def test_build_invocation_uses_prompt_flag(self) -> None:
         task = _make_task()
         with patch.object(self.adapter, "resolve_binary", return_value="qwen-code"):
             cmd, _ = self.adapter.build_invocation(task)
-        self.assertIn("--show-thinking", cmd)
+        self.assertIn("-p", cmd)
 
-    def test_build_invocation_no_auto_approve_when_not_full_auto(self) -> None:
-        adapter = QwenCodeAdapter(config=_make_config(approval_mode="auto"))
+    def test_build_invocation_no_legacy_flags(self) -> None:
+        """New qwen CLI removed --auto-approve, --show-thinking, --auth-type."""
         task = _make_task()
-        with patch.object(adapter, "resolve_binary", return_value="qwen-code"):
-            cmd, _ = adapter.build_invocation(task)
+        with patch.object(self.adapter, "resolve_binary", return_value="qwen-code"):
+            cmd, _ = self.adapter.build_invocation(task)
         self.assertNotIn("--auto-approve", cmd)
+        self.assertNotIn("--show-thinking", cmd)
+        self.assertNotIn("--auth-type", cmd)
+        self.assertNotIn("--format", cmd)
 
     def test_build_invocation_includes_prompt(self) -> None:
         task = _make_task(title="Fix bug", description="Fix the login bug")
@@ -189,13 +194,14 @@ class QwenCodeInvocationTests(unittest.TestCase):
         # Last element should be the prompt
         self.assertIn("Fix the login bug", cmd[-1])
 
-    def test_build_interactive_invocation_includes_json_format(self) -> None:
+    def test_build_interactive_invocation_includes_stream_json_format(self) -> None:
         task = _make_task()
         with patch.object(self.adapter, "resolve_binary", return_value="qwen-code"):
             cmd, metadata = self.adapter.build_interactive_invocation(task)
-        self.assertIn("--format", cmd)
-        json_idx = cmd.index("--format")
-        self.assertEqual(cmd[json_idx + 1], "json")
+        self.assertIn("--output-format", cmd)
+        fmt_idx = cmd.index("--output-format")
+        self.assertEqual(cmd[fmt_idx + 1], "stream-json")
+        self.assertIn("-i", cmd)
 
     def test_build_model_args_with_model(self) -> None:
         adapter = QwenCodeAdapter(config=_make_config(model="qwen-max"))

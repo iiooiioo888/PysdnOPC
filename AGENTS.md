@@ -59,6 +59,7 @@ These modules have broad blast radius — changes here require full test runs:
 | Add/modify skill | `skills/core/*.md` |
 | Modify LLM routing | `opc/llm/` + `config/llm_config.yaml` |
 | Add org architecture preset | `opc/market/` + `config/company_corporate_config.yaml` |
+| Add/modify daily tasks for a role | `opc/layer2_organization/org_work_item_planner.py` + `company_runtime.py` |
 
 ## Verification Commands
 

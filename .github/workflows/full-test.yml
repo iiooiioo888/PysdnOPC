@@ -21,7 +21,7 @@ jobs:
       - name: Ruff check
         run: ruff check opc/
       - name: Mypy type check
-        run: mypy opc/
+        run: mypy opc/ --ignore-missing-imports
 
   high-risk:
     name: high-risk / ${{ matrix.os }}

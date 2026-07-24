@@ -429,6 +429,8 @@ export interface RoleWorkItemRow {
   /** Detailed runtime activity grouped by visible work item + hidden
    *  report/review helper work items that belong to this row. */
   activitySections?: RoleWorkItemActivitySection[]
+  /** Deliverable summary text produced when the work item completed. */
+  deliverableSummary?: string
 }
 
 export interface RoleWorkItemSummary {

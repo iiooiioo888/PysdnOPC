@@ -13109,6 +13109,10 @@ class CompanyWorkItemExecutor:
         role_id = self._role_id_for_task(task)
         if not role_id:
             return ""
+        # 優先使用 persona_name（人格化名字）
+        persona = str(task.metadata.get("persona_name", "") or "").strip()
+        if persona:
+            return persona
         agent = self.org_engine.get_agent(role_id) if self.org_engine else None
         return str(getattr(agent, "name", "") or task.metadata.get("work_item_role_name", "") or role_id).strip()
 

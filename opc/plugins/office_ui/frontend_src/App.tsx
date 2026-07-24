@@ -248,7 +248,7 @@ export default function App() {
           onCollabSync={() => ws.clientRef.current?.collabSync(ws.getActiveProjectId(), undefined, ws.projectViewGenerationRef.current)} />
       )}
       {activePage === 'dashboard' && (<DashboardPage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} sendRuntimeLogs={(pid, taskId) => ws.clientRef.current?.requestRuntimeLogs(pid, taskId)} onRuntimeLogsAck={(handler) => { ws.runtimeLogsAckHandlersRef.current.add(handler); return () => { ws.runtimeLogsAckHandlersRef.current.delete(handler) } }} />)}
-      {activePage === 'roleProfile' && (<RoleProfilePage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} sendRequest={(payload) => ws.clientRef.current?.send(payload)} onAck={(handler) => { ws.roleProfileAckHandlersRef.current.add(handler); return () => { ws.roleProfileAckHandlersRef.current.delete(handler) } }} />)}
+      {activePage === 'roleProfile' && (<RoleProfilePage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} orgInfoData={ws.orgInfoData} sendRequest={(payload) => ws.clientRef.current?.send(payload)} onAck={(handler) => { ws.roleProfileAckHandlersRef.current.add(handler); return () => { ws.roleProfileAckHandlersRef.current.delete(handler) } }} />)}
       {activePage === 'templates' && (<TemplatesPage onApplyTemplate={(templateId) => { if (ws.clientRef.current) ws.clientRef.current.send(JSON.stringify({ action: 'apply_org_template', template_id: templateId })) }} />)}
       {activePage === 'settings' && (
         <div>

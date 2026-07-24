@@ -248,18 +248,22 @@ class ExternalAgentPreflightTests(unittest.IsolatedAsyncioTestCase):
             any("authentication not configured" in issue for issue in qwen.issues)
         )
 
-    def test_qwen_code_adapter_builds_auth_type_args(self) -> None:
-        """QwenCodeAdapter 配置了 auth_type 時命令應包含 --auth-type。"""
+    def test_qwen_code_adapter_resolves_auth_type_from_config(self) -> None:
+        """QwenCodeAdapter 配置了 auth_type 時 resolve_auth_type 應回傳該值。
+
+        新版 CLI 不再接受 --auth-type 旗標，認證透過環境變數處理，
+        但 resolve_auth_type 仍用於 build_process_env 的 API key 傳播邏輯。
+        """
         adapter = QwenCodeAdapter(config=ExternalAgentConfig(
             command="qwen-code",
             auth_type="openai",
         ))
+        self.assertEqual(adapter.resolve_auth_type(), "openai")
+        # Command should NOT include --auth-type (removed in new CLI)
         task = Task(title="test", project_id="default")
         with patch.object(adapter, "resolve_binary", return_value="qwen-code"):
             cmd, _ = adapter.build_invocation(task)
-        self.assertIn("--auth-type", cmd)
-        idx = cmd.index("--auth-type")
-        self.assertEqual(cmd[idx + 1], "openai")
+        self.assertNotIn("--auth-type", cmd)
 
     def test_qwen_code_adapter_omits_auth_type_when_empty(self) -> None:
         """QwenCodeAdapter 未配置 auth_type 且無環境變數時命令不應包含 --auth-type。"""
@@ -283,13 +287,8 @@ class ExternalAgentPreflightTests(unittest.IsolatedAsyncioTestCase):
             command="qwen-code",
             auth_type="",
         ))
-        task = Task(title="test", project_id="default")
-        with patch.object(adapter, "resolve_binary", return_value="qwen-code"), \
-             patch.dict("os.environ", {"QWEN_CODE_AUTH_TYPE": "oauth"}, clear=False):
-            cmd, _ = adapter.build_invocation(task)
-        self.assertIn("--auth-type", cmd)
-        idx = cmd.index("--auth-type")
-        self.assertEqual(cmd[idx + 1], "oauth")
+        with patch.dict("os.environ", {"QWEN_CODE_AUTH_TYPE": "oauth"}, clear=False):
+            self.assertEqual(adapter.resolve_auth_type(), "oauth")
 
     def test_qwen_code_adapter_auto_detects_api_key_from_dashscope_env(self) -> None:
         """QwenCodeAdapter 應從 DASHSCOPE_API_KEY 存在自動推斷 openai 認證。"""
@@ -297,15 +296,10 @@ class ExternalAgentPreflightTests(unittest.IsolatedAsyncioTestCase):
             command="qwen-code",
             auth_type="",
         ))
-        task = Task(title="test", project_id="default")
         env_clean = {
             k: v for k, v in __import__("os").environ.items()
             if k not in ("QWEN_CODE_AUTH_TYPE", "QWEN_API_KEY")
         }
         env_clean["DASHSCOPE_API_KEY"] = "sk-test-key"
-        with patch.object(adapter, "resolve_binary", return_value="qwen-code"), \
-             patch.dict("os.environ", env_clean, clear=True):
-            cmd, _ = adapter.build_invocation(task)
-        self.assertIn("--auth-type", cmd)
-        idx = cmd.index("--auth-type")
-        self.assertEqual(cmd[idx + 1], "openai")
+        with patch.dict("os.environ", env_clean, clear=True):
+            self.assertEqual(adapter.resolve_auth_type(), "openai")

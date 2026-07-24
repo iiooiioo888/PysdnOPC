@@ -937,6 +937,15 @@ def _build_role_work_items_for_session(
                 _public_activity_section(section)
                 for section in activity_sections
             ],
+            "deliverable_summary": str(
+                view.get("completion_report", "")
+                or view.get("work_item_summary_for_downstream", "")
+                or view.get("work_item_summary", "")
+                or getattr(item, "deliverable_summary", "")
+                or getattr(item, "summary", "")
+                or (str((getattr(linked_task, "result", None) or {}).get("content", "") or "").strip() if linked_task else "")
+                or ""
+            ).strip() or None,
         }
 
         # Group by effective owner role. ``role_id`` is stable per logical

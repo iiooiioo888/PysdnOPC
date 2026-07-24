@@ -140,10 +140,12 @@ class ContextAssembler:
         memory: Any,
         store: Any | None = None,
         communication: Any | None = None,
+        role_repo_manager: Any | None = None,
     ) -> None:
         self.memory = memory
         self.store = store
         self.communication = communication
+        self.role_repo_manager = role_repo_manager
 
     async def build_sections(self, task: Task, role_id: str = "") -> dict[str, str]:
         mode = str(task.metadata.get("execution_mode", "") or "")
@@ -168,6 +170,9 @@ class ContextAssembler:
         if company_collaboration_enabled(mode):
             sections["collaboration"] = await self.build_collaboration_context(task, role_id=role_id)
         sections["team_deliverables"] = await self.build_team_deliverables_context(task)
+        # 角色知識庫上下文（三庫架構）
+        if self.role_repo_manager and role_id:
+            sections["role_knowledge"] = self.build_role_knowledge_context(role_id)
         return sections
 
     async def _load_task_work_item(self, task: Task) -> Any:
@@ -1493,6 +1498,26 @@ class ContextAssembler:
                     if rid:
                         roles.append(rid)
         return roles
+
+    def build_role_knowledge_context(self, role_id: str) -> str:
+        """從角色知識庫讀取知識條目，組裝為 prompt 上下文段落。"""
+        if not self.role_repo_manager or not role_id:
+            return ""
+        try:
+            entries = self.role_repo_manager.list_knowledge(role_id)
+        except Exception:
+            return ""
+        if not entries:
+            return ""
+        lines = ["## Role Knowledge Base"]
+        for entry in entries[:10]:
+            title = str(entry.get("title", "") or "").strip()
+            content = str(entry.get("content", "") or "").strip()
+            if title and content:
+                lines.append(f"- **{title}**: {content}")
+            elif content:
+                lines.append(f"- {content}")
+        return "\n".join(lines) if len(lines) > 1 else ""
 
     async def build_role_reference_context(self, task: Task, role_id: str = "") -> str:
         if not self.store or not role_id:

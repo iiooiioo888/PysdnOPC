@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '../types/kanban'
+import type { OrgInfoPayload } from '../types/visual'
 import './role-profile.css'
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -7,16 +8,17 @@ import './role-profile.css'
 interface RoleProfilePageProps {
   sessions: Session[]
   projectId?: string
+  orgInfoData?: OrgInfoPayload | null
   sendRequest: (payload: Record<string, unknown>) => void
   onAck: (handler: (payload: Record<string, unknown>) => void) => () => void
 }
 
 interface MemoryRecord {
-  record_id: string
+  memory_id: string
   scope: string
-  key: string
-  value: string
-  updated_at?: string
+  summary: string
+  details: Record<string, unknown> | string
+  created_at?: string
 }
 
 interface WorkRecord {
@@ -139,7 +141,7 @@ const TASK_COLUMNS = [
 
 /* ── Main Component ────────────────────────────────────────────────────── */
 
-export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: RoleProfilePageProps) {
+export function RoleProfilePage({ sessions, projectId, orgInfoData, sendRequest, onAck }: RoleProfilePageProps) {
   const [selectedRoleId, setSelectedRoleId] = useState<string>('')
   const [sections, setSections] = useState<ProfileSections | null>(null)
   const [loading, setLoading] = useState(false)
@@ -154,9 +156,18 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
   const onAckRef = useRef(onAck)
   onAckRef.current = onAck
 
-  // Extract role list from sessions (roleWorkItems is Record<string, RoleWorkItemSummary>)
+  // Extract role list from orgInfoData.roles (primary) + sessions roleWorkItems (supplement)
   const roleList = useMemo(() => {
     const roles = new Map<string, string>()
+    // Primary source: org config roles (always available when org is configured)
+    if (orgInfoData?.roles) {
+      for (const role of orgInfoData.roles) {
+        if (role.role_id && !roles.has(role.role_id)) {
+          roles.set(role.role_id, role.name || role.role_id)
+        }
+      }
+    }
+    // Supplement: active session roleWorkItems
     for (const session of sessions) {
       const items = session.roleWorkItems ?? session.executorRoleWorkItems
       if (items && typeof items === 'object') {
@@ -168,7 +179,7 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
       }
     }
     return Array.from(roles.entries()).map(([id, name]) => ({ id, name }))
-  }, [sessions])
+  }, [sessions, orgInfoData?.roles])
 
   // Auto-select first role
   useEffect(() => {
@@ -287,9 +298,9 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
             <div className="rp-memory-list">
               {filteredMemory.length === 0 && <div className="rp-empty-hint">尚無記憶資料</div>}
               {filteredMemory.map(m => (
-                <div key={m.record_id} className="rp-memory-card">
-                  <div className="rp-memory-key">{m.key}</div>
-                  <div className="rp-memory-value">{m.value}</div>
+                <div key={m.memory_id} className="rp-memory-card">
+                  <div className="rp-memory-key">{m.summary}</div>
+                  <div className="rp-memory-value">{typeof m.details === 'string' ? m.details : JSON.stringify(m.details, null, 2)}</div>
                 </div>
               ))}
             </div>

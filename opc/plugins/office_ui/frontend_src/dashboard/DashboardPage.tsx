@@ -513,15 +513,24 @@ export function DashboardPage({ sessions, projectId, sendRuntimeLogs, onRuntimeL
         for (const wi of summary.workItems) {
           // Done work items with a completion report are treated as deliverables
           if (wi.kanbanColumn === 'done') {
-            const completionContent = wi.activitySections
-              ?.filter(s => s.kind === 'report' || s.kind === 'completion')
-              .flatMap(s => s.entries.map(e => e.detail || e.summary || ''))
-              .filter(Boolean)
-              .join('\n')
+            // Primary: use deliverableSummary from backend
+            // Fallback: extract from report/completion activity sections
+            // Last resort: extract from ALL activity sections
+            const completionContent = wi.deliverableSummary
+              || wi.activitySections
+                ?.filter(s => s.kind === 'report' || s.kind === 'completion')
+                .flatMap(s => s.entries.map(e => e.detail || e.summary || ''))
+                .filter(Boolean)
+                .join('\n')
+              || wi.activitySections
+                ?.flatMap(s => s.entries.map(e => e.detail || e.summary || ''))
+                .filter(Boolean)
+                .join('\n')
+              || undefined
             role.deliverables.push({
               id: `${wi.workItemId}-completion`,
               name: wi.title,
-              content: completionContent || undefined,
+              content: completionContent,
               source: 'work-item',
               workItemTitle: wi.title,
               roleName: role.roleName,

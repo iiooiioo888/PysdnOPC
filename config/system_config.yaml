@@ -26,6 +26,10 @@ system:
     warn_threshold: 0.8        # 預警閾值（80%）
     degrade_threshold: 0.9     # 降級閾值（90%）
     hard_stop: false           # 超限後降級而非停止
+  # 人員配置策略（架構優先、按需補人）
+  staffing_policy:
+    skip_recruitment_when_structure_ready: true  # 架構就緒時跳過招聘
+    skill_match_mode: fuzzy    # 技能匹配模式：strict（精確）/ fuzzy（模糊）
   # 瀏覽器設定
   browser:
     mode: embedded          # 瀏覽器模式：embedded（內建）或 external（外部）

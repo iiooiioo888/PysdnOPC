@@ -79,17 +79,17 @@ external_agents:
   # Qwen Code 代理設定（國內首選代碼代理）
   qwen_code:
     enabled: true
-    command: qwen-code
+    command: qwen
     model: ""
-    model_flag: ""
+    model_flag: "--model"
     auth_type: "openai"     # 認證類型（openai, api_key, oauth）。非交互模式必須設定。
                             # 亦可透過環境變數 QWEN_CODE_AUTH_TYPE 或
                             # DASHSCOPE_API_KEY / QWEN_API_KEY 自動推斷。
-    show_thinking: true     # 顯示思考過程
+    show_thinking: true     # 顯示思考過程（新版 CLI 已移除此旗標，僅保留供參考）
     session_mode: auto
     session_id: ""
     new_session_flag: ""
-    resume_session_flag: ""
+    resume_session_flag: "--resume"  # 新版 CLI 使用 --resume <id> 或 --continue
     run_mode: interactive
     interactive_timeout_seconds: 21600
     approval_mode: full-auto

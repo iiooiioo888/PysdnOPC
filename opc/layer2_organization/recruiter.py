@@ -16,6 +16,7 @@ from opc.core.models import (
     RecruitmentPlan,
     RecruitmentProposal,
 )
+from opc.layer2_organization.skill_gap_analyzer import analyze_skill_gaps
 
 RECRUITER_PROMPT = """\
 你是公司開始執行前的人員配置招聘者。
@@ -428,6 +429,34 @@ class CompanyRecruiter:
             recruitment_agent,
             default="native",
         ) or "native"
+
+        # ── 架構優先快速路徑 ──────────────────────────────────────────────
+        staffing_policy = dict(
+            getattr(runtime_spec, "metadata", {}) or {}
+        ).get("staffing_policy", {}) or {}
+        skip_when_ready = bool(staffing_policy.get("skip_recruitment_when_structure_ready", False))
+        skill_match_mode = str(staffing_policy.get("skill_match_mode", "fuzzy") or "fuzzy")
+
+        if skip_when_ready:
+            gap_report = analyze_skill_gaps(
+                self.org_engine,
+                skill_match_mode=skill_match_mode,
+            )
+            if gap_report.structure_ready and not gap_report.has_gaps:
+                # 架構就緒且無技能缺口 → 所有角色直接執行
+                return self._build_direct_execution_plan(runtime_spec, project_id, feedback)
+            if gap_report.structure_ready and gap_report.has_gaps:
+                # 架構就緒但有缺口 → 僅對缺口角色招聘
+                return await self._recruit_for_gaps_only(
+                    gap_report,
+                    runtime_spec,
+                    project_id=project_id,
+                    feedback=feedback,
+                    active_llm=active_llm,
+                    selected_recruitment_agent=selected_recruitment_agent,
+                )
+        # ── 原有完整招聘邏輯 ──────────────────────────────────────────────
+
         needs = self._collect_needs(runtime_spec)
         triage_by_role = await self._triage_staffing_for_needs(
             needs,
@@ -496,6 +525,141 @@ class CompanyRecruiter:
             )
         )
         summary = self.render_recruitment_summary(plan)
+        return ensure_recruitment_plan_default_agents(RecruitmentPlan(
+            company_profile=str(getattr(runtime_spec, "profile", "corporate") or "corporate"),
+            proposals=proposals,
+            recruiter_feedback=feedback,
+            summary=summary,
+            metadata=plan_metadata,
+        ))
+
+    def _build_direct_execution_plan(
+        self,
+        runtime_spec: Any,
+        project_id: str,
+        feedback: list[str],
+    ) -> RecruitmentPlan:
+        """架構就緒且無技能缺口：所有角色直接執行，跳過招聘。"""
+        proposals: list[RecruitmentProposal] = []
+        for agent in self.org_engine.list_agents():
+            role_id = str(getattr(agent, "role_id", "") or "").strip()
+            if not role_id or role_id == "task_generalist":
+                continue
+            proposals.append(RecruitmentProposal(
+                role_id=role_id,
+                status="direct_role_execution",
+                rationale="Structure ready, no skill gaps detected. Skipping recruitment.",
+            ))
+        plan_metadata = {
+            "project_id": project_id,
+            "execution_mode": str(getattr(runtime_spec, "metadata", {}).get("execution_mode", "company_mode") or "company_mode"),
+            "request_label": str(getattr(runtime_spec, "metadata", {}).get("request_label", "runtime") or "runtime"),
+            "recruitment_agent": "skipped_structure_ready",
+            "staffing_fast_path": True,
+        }
+        return ensure_recruitment_plan_default_agents(RecruitmentPlan(
+            company_profile=str(getattr(runtime_spec, "profile", "corporate") or "corporate"),
+            proposals=proposals,
+            recruiter_feedback=feedback,
+            summary="All roles satisfied by existing structure. Recruitment skipped.",
+            metadata=plan_metadata,
+        ))
+
+    async def _recruit_for_gaps_only(
+        self,
+        gap_report: Any,
+        runtime_spec: Any,
+        *,
+        project_id: str,
+        feedback: list[str],
+        active_llm: Any,
+        selected_recruitment_agent: str,
+    ) -> RecruitmentPlan:
+        """架構就緒但有技能缺口：僅對缺口角色執行招聘，其餘直接執行。"""
+        gap_roles = set(gap_report.gap_roles)
+        proposals: list[RecruitmentProposal] = []
+
+        # 非缺口角色 → direct_role_execution
+        for agent in self.org_engine.list_agents():
+            role_id = str(getattr(agent, "role_id", "") or "").strip()
+            if not role_id or role_id == "task_generalist":
+                continue
+            if role_id not in gap_roles:
+                proposals.append(RecruitmentProposal(
+                    role_id=role_id,
+                    status="direct_role_execution",
+                    rationale="Existing structure satisfies skill requirements.",
+                ))
+
+        # 缺口角色 → 走正常招聘流程
+        needs = self._collect_needs(runtime_spec)
+        gap_needs = [n for n in needs if n.role_id in gap_roles]
+        if gap_needs:
+            triage_by_role = await self._triage_staffing_for_needs(
+                gap_needs,
+                recruiter_feedback=feedback,
+                llm=active_llm,
+            )
+            prepared_needs: list[dict[str, Any]] = []
+            selected_category_union: list[str] = []
+            for need in gap_needs:
+                existing = self.org_engine.list_employees(role_id=need.role_id)
+                triage_action, selected_categories, category_rationale = triage_by_role.get(
+                    need.role_id,
+                    ("direct_role_execution", [], "No staffing triage was produced for this role."),
+                )
+                for category in selected_categories:
+                    if category not in selected_category_union:
+                        selected_category_union.append(category)
+                prepared_needs.append({
+                    "need": need,
+                    "existing_employees": list(existing),
+                    "candidates": [],
+                    "triage_action": triage_action,
+                    "selected_categories": list(selected_categories),
+                    "category_rationale": category_rationale,
+                })
+            candidate_pool = self._recall_candidates_for_need(
+                selected_categories=selected_category_union,
+            )
+            employee_pool = self._recall_existing_employee_pool(
+                prepared_needs,
+                candidate_pool=candidate_pool,
+                selected_categories=selected_category_union,
+                project_id=project_id,
+            )
+            for item in prepared_needs:
+                item["candidates"] = candidate_pool
+                item["employee_pool"] = employee_pool
+            if active_llm:
+                gap_proposals = await self._recruit_globally(
+                    prepared_needs,
+                    recruiter_feedback=feedback,
+                    project_id=project_id,
+                    llm=active_llm,
+                    candidate_pool=candidate_pool,
+                    employee_pool=employee_pool,
+                )
+            else:
+                gap_proposals = [
+                    self._heuristic_proposal_for_prepared_need(item, project_id=project_id)
+                    for item in prepared_needs
+                ]
+            proposals.extend(gap_proposals)
+
+        plan_metadata = {
+            "project_id": project_id,
+            "execution_mode": str(getattr(runtime_spec, "metadata", {}).get("execution_mode", "company_mode") or "company_mode"),
+            "request_label": str(getattr(runtime_spec, "metadata", {}).get("request_label", "runtime") or "runtime"),
+            "recruitment_agent": selected_recruitment_agent,
+            "staffing_fast_path": True,
+            "gap_roles": sorted(gap_roles),
+        }
+        summary = self.render_recruitment_summary(RecruitmentPlan(
+            company_profile=str(getattr(runtime_spec, "profile", "corporate") or "corporate"),
+            proposals=proposals,
+            metadata=plan_metadata,
+        ))
         return ensure_recruitment_plan_default_agents(RecruitmentPlan(
             company_profile=str(getattr(runtime_spec, "profile", "corporate") or "corporate"),
             proposals=proposals,

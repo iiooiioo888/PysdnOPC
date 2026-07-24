@@ -52,6 +52,7 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         candidates.extend([
             str(Path.home() / ".qwen-code" / "bin" / "qwen-code"),
             str(Path.home() / ".local" / "bin" / "qwen-code"),
+            "qwen",
             "qwen-code",
         ])
         return list(dict.fromkeys(candidates))
@@ -193,11 +194,12 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         command = self._runtime_command()
         cmd = [
             command,
-            *self._build_approval_args(),
-            *self._build_thinking_args(),
+            "--output-format",
+            "stream-json",
             *self._build_model_args(),
-            *self._build_auth_type_args(),
+            *self._build_session_resume_args(),
             *list(self.config.extra_args),
+            "-p",
             prompt,
         ]
         metadata = self.build_invocation_metadata(cmd)
@@ -214,13 +216,12 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         command = self._runtime_command()
         cmd = [
             command,
-            "--format",
-            "json",
-            *self._build_approval_args(),
-            *self._build_thinking_args(),
+            "--output-format",
+            "stream-json",
             *self._build_model_args(),
-            *self._build_auth_type_args(),
+            *self._build_session_resume_args(),
             *list(self.config.extra_args),
+            "-i",
             prompt,
         ]
         metadata = self.build_invocation_metadata(cmd)
@@ -366,22 +367,26 @@ class QwenCodeAdapter(ExternalAgentAdapter):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_approval_args(self) -> list[str]:
-        mode = str(self.config.approval_mode or "auto").strip().lower()
-        if mode == "full-auto":
-            return ["--auto-approve"]
-        return []
-
-    def _build_thinking_args(self) -> list[str]:
-        if self.config.show_thinking:
-            return ["--show-thinking"]
-        return []
-
     def _build_model_args(self) -> list[str]:
         if self.config.model and self.config.model_flag:
             return [self.config.model_flag, self.config.model]
         if self.config.model:
             return ["--model", self.config.model]
+        return []
+
+    def _build_session_resume_args(self) -> list[str]:
+        """Build session resume flags for the new qwen CLI.
+
+        New CLI supports:
+          -c / --continue   Resume most recent session
+          -r / --resume ID  Resume a specific session by ID
+        """
+        mode = str(self.config.session_mode or "auto").strip().lower()
+        if mode == "resume":
+            session_id = str(self.config.session_id or "").strip()
+            if session_id:
+                return ["--resume", session_id]
+            return ["--continue"]
         return []
 
     def resolve_auth_type(self) -> str:
@@ -392,6 +397,11 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         2. ``QWEN_CODE_AUTH_TYPE`` environment variable
         3. Auto-detect: if ``DASHSCOPE_API_KEY`` or ``QWEN_API_KEY`` is set → ``openai``
         4. Empty string (unconfigured)
+
+        Note: The new qwen CLI no longer accepts ``--auth-type`` as a flag.
+        Auth is handled via environment variables (DASHSCOPE_API_KEY /
+        OPENAI_API_KEY) which are set in ``build_process_env``.
+        This method is retained for env-var propagation logic only.
         """
         configured = str(getattr(self.config, "auth_type", "") or "").strip()
         if configured:
@@ -405,9 +415,8 @@ class QwenCodeAdapter(ExternalAgentAdapter):
         return ""
 
     def _build_auth_type_args(self) -> list[str]:
-        auth_type = self.resolve_auth_type()
-        if auth_type:
-            return ["--auth-type", auth_type]
+        # The new qwen CLI no longer supports --auth-type.
+        # Auth is handled via environment variables set in build_process_env.
         return []
 
     @staticmethod

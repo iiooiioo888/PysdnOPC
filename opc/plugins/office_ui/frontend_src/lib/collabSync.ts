@@ -550,6 +550,7 @@ function mapBackendRoleWorkItemRow(raw: any): RoleWorkItemRow {
       .filter((section): section is Record<string, unknown> => !!section && typeof section === 'object')
       .map(mapBackendRoleWorkItemActivitySection),
     progressLog: mapBackendProgressLog(raw.progress_log ?? raw.progressLog),
+    deliverableSummary: typeof raw.deliverable_summary === 'string' ? raw.deliverable_summary : (typeof raw.deliverableSummary === 'string' ? raw.deliverableSummary : undefined),
   }
 }
 

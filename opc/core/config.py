@@ -1031,7 +1031,8 @@ class EmployeeConfig(BaseModel):
     """
     employee_id: str  # 員工唯一 ID
     template_id: str = ""  # 來源人才模板 ID
-    name: str  # 員工名稱
+    name: str  # 員工名稱（職位稱謂）
+    persona_name: str = ""  # 人格化簡單名字（如"小明"、"Alice"），用於看板顯示、協作署名
     role_id: str  # 所屬角色 ID
     description: str = ""  # 員工描述
     category: str = ""  # 員工分類
