@@ -746,6 +746,10 @@ class LLMProvider:
             call_kwargs["tools"] = tools
             call_kwargs["tool_choice"] = "auto"
 
+        # MiMo API requires max_completion_tokens instead of max_tokens
+        if "mimo" in model.lower():
+            call_kwargs["max_completion_tokens"] = call_kwargs.pop("max_tokens")
+
         logger.debug(f"LLM call: model={model}, base={self._api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}")
 
         try:
@@ -948,6 +952,10 @@ class LLMProvider:
         if tools:
             call_kwargs["tools"] = tools
             call_kwargs["tool_choice"] = "auto"
+
+        # MiMo API requires max_completion_tokens instead of max_tokens
+        if "mimo" in model.lower():
+            call_kwargs["max_completion_tokens"] = call_kwargs.pop("max_tokens")
 
         logger.debug(
             f"LLM stream call: model={model}, base={self._api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}"

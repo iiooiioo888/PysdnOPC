@@ -126,6 +126,16 @@
   border-radius: 8px;
 }
 
+.rp-empty-hint {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--text-muted, #71717a);
+  font-size: 0.85rem;
+  border: 1px dashed var(--border-color, #3f3f46);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary, #18181b) 60%, transparent);
+}
+
 /* ── Memory Section ── */
 .rp-memory-tabs {
   display: flex;
@@ -402,6 +412,67 @@
 }
 
 /* ── Collaboration ── */
+.rp-collab-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Heat Matrix */
+.rp-heat-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #27272a);
+  background: var(--bg-secondary, #18181b);
+  overflow-x: auto;
+}
+.rp-heat-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rp-heat-header-row {
+  margin-bottom: 4px;
+}
+.rp-heat-corner {
+  min-width: 70px;
+  flex-shrink: 0;
+}
+.rp-heat-col-label {
+  flex: 1;
+  min-width: 48px;
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--text-muted, #71717a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-heat-row-label {
+  min-width: 70px;
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--text-muted, #71717a);
+  font-weight: 600;
+}
+.rp-heat-cell {
+  flex: 1;
+  min-width: 48px;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  transition: transform 0.15s;
+}
+.rp-heat-cell:hover {
+  transform: scale(1.08);
+}
+
 .rp-collab-list {
   display: flex;
   flex-direction: column;
@@ -430,6 +501,65 @@
 }
 
 /* ── Skills ── */
+.rp-skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Radar Chart */
+.rp-radar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #27272a);
+  background: var(--bg-secondary, #18181b);
+}
+.rp-radar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+.rp-radar-inner {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: var(--bg-primary, #0f1117);
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+.rp-radar-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rp-radar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+.rp-radar-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6366f1;
+  flex-shrink: 0;
+}
+.rp-radar-legend-label {
+  color: var(--text-primary, #e4e4e7);
+  font-weight: 500;
+}
+.rp-radar-legend-val {
+  color: var(--text-muted, #71717a);
+  margin-left: auto;
+  font-weight: 600;
+}
+
 .rp-skills-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -557,6 +687,72 @@
 .rp-trend-flat { color: var(--text-muted, #71717a); }
 
 /* ── Resource Usage ── */
+.rp-resource-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Stacked Bar Chart */
+.rp-stacked-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 130px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color, #27272a);
+}
+.rp-stacked-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+.rp-stacked-bar {
+  width: 100%;
+  max-width: 30px;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+.rp-stacked-in {
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+  width: 100%;
+}
+.rp-stacked-out {
+  background: linear-gradient(180deg, #f59e0b, #d97706);
+  width: 100%;
+}
+.rp-stacked-label {
+  margin-top: 4px;
+  font-size: 0.6rem;
+  color: var(--text-muted, #71717a);
+}
+.rp-stacked-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+}
+.rp-stacked-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.rp-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.rp-legend-in { background: #3b82f6; }
+.rp-legend-out { background: #f59e0b; }
+
 .rp-resource-list {
   display: flex;
   flex-direction: column;

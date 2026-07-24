@@ -45,6 +45,8 @@ def _latest_mtime(root: Path, *, exclude_dirs: set[str] | None = None) -> float:
 
 
 def _frontend_needs_rebuild() -> bool:
+    if os.environ.get("OPC_SKIP_FRONTEND_BUILD", "").strip().lower() in ("1", "true", "yes"):
+        return False
     if not _FRONTEND_DIST.is_dir() or not any(_FRONTEND_DIST.iterdir()):
         return True
     latest_src = _latest_mtime(_FRONTEND_SRC, exclude_dirs={"node_modules"})

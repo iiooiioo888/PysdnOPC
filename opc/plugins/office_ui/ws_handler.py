@@ -251,6 +251,7 @@ class WSHandler(
         self._pending_escalation_order: list[str] = []
         self._progress_buffer: dict[str, list[dict[str, Any]]] = {}
         self._progress_project_ids: dict[str, str] = {}
+        self._last_heartbeat_broadcast: dict[str, float] = {}
         self._assistant_delta_buffers: dict[tuple[str, str, str], dict[str, Any]] = {}
         self._assistant_delta_flush_tasks: dict[tuple[str, str, str], asyncio.Task[None]] = {}
         self._assistant_delta_seq: int = 0
@@ -1646,12 +1647,23 @@ class WSHandler(
                 # must be visible in buffer∪DB or the snapshot will erase it.
                 self._progress_buffer.setdefault(task_id, []).append(entry)
                 self._progress_project_ids[task_id] = pid
-                await self.broadcast({"type": "session_progress", "payload": {
-                    "project_id": pid,
-                    "task_id": task_id,
-                    **_add_execution_turn_aliases({}, raw_task_id or task_id),
-                    "entry": entry,
-                }})
+                # Throttle heartbeat broadcasts: max once per 30s per task
+                _is_heartbeat = entry.get("heartbeat") is True
+                _should_broadcast = True
+                if _is_heartbeat:
+                    _now_ts = _time.time()
+                    _last_hb = self._last_heartbeat_broadcast.get(task_id, 0.0)
+                    if _now_ts - _last_hb < 30.0:
+                        _should_broadcast = False
+                    else:
+                        self._last_heartbeat_broadcast[task_id] = _now_ts
+                if _should_broadcast:
+                    await self.broadcast({"type": "session_progress", "payload": {
+                        "project_id": pid,
+                        "task_id": task_id,
+                        **_add_execution_turn_aliases({}, raw_task_id or task_id),
+                        "entry": entry,
+                    }})
                 # ── Company runtime dual-route: broadcast to primary session ──
                 origin = self._active_runtime_children.get(task_id)
                 if entry.get("is_company_runtime") and origin:

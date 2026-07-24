@@ -1096,8 +1096,43 @@ export function WorkspacePage({
   const isSecretary = effectiveView.kind === 'secretary'
   const channelName = isSecretary ? 'Secretary' : activeSession ? activeSession.title : 'Activity'
 
+  // ── Pending permission approval banner ──
+  const pendingPermissionSessions = useMemo(() => {
+    return sessions.filter(
+      (s) => typeof s.pendingPermissionCount === 'number' && s.pendingPermissionCount > 0 && s.status !== 'cancelled',
+    )
+  }, [sessions])
+  const totalPendingPermissions = useMemo(
+    () => pendingPermissionSessions.reduce((sum, s) => sum + (s.pendingPermissionCount ?? 0), 0),
+    [pendingPermissionSessions],
+  )
+
   return (
     <div className={`workspace-page${panelState === 'maximized' ? ' panel-maximized' : ''}`}>
+      {/* Pending permission approval banner */}
+      {totalPendingPermissions > 0 && (
+        <div className="permission-approval-banner">
+          <span className="permission-approval-banner-icon">⚠️</span>
+          <span className="permission-approval-banner-text">
+            {totalPendingPermissions} 個權限請求待審批
+          </span>
+          <div className="permission-approval-banner-actions">
+            {pendingPermissionSessions.slice(0, 3).map((s) => (
+              <button
+                key={s.taskId}
+                className="permission-approval-banner-btn"
+                onClick={() => focusSession(s.taskId)}
+              >
+                {s.title || s.taskId}
+                <span className="permission-approval-banner-badge">{s.pendingPermissionCount}</span>
+              </button>
+            ))}
+            {pendingPermissionSessions.length > 3 && (
+              <span className="permission-approval-banner-more">+{pendingPermissionSessions.length - 3}</span>
+            )}
+          </div>
+        </div>
+      )}
       {/* Comms panel — floating overlay so it stays visible
           regardless of which workspace column is currently active /
           maximized. Pinned to top-right under any global header. */}

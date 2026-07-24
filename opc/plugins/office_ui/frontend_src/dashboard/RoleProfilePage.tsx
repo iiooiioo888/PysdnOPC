@@ -344,10 +344,10 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
                   </div>
                 )}
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無取向數據，LLM 執行任務時將自動生成</div>}
           </section>
 
-          {/* ④ Personality - Placeholder */}
+          {/* ④ Personality */}
           <section id="personality" ref={(el) => registerSectionRef('personality', el)} className="rp-section">
             <h3 className="rp-section-title">🎭 角色性格</h3>
             {sections.personality ? (
@@ -366,43 +366,129 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
                   <ul className="rp-behavior-notes">{sections.personality.behavior_notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
                 )}
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無性格數據，系統將根據互動歷史自動分析</div>}
           </section>
 
-          {/* ⑤ Collaboration - Placeholder */}
+          {/* ⑤ Collaboration - Heat Matrix */}
           <section id="collaboration" ref={(el) => registerSectionRef('collaboration', el)} className="rp-section">
             <h3 className="rp-section-title">🤝 協作網路</h3>
             {(sections.collaboration ?? []).length > 0 ? (
-              <div className="rp-collab-list">
-                {(sections.collaboration ?? []).map((c, i) => (
-                  <div key={i} className="rp-collab-card">
-                    <span className="rp-collab-partner">{c.partner_role_id}</span>
-                    <span className="rp-collab-count">{c.interaction_count} 次互動</span>
-                    <span className="rp-collab-score">品質 {c.quality_score.toFixed(1)}</span>
-                    {c.notes && <span className="rp-collab-notes">{c.notes}</span>}
+              <div className="rp-collab-section">
+                {/* Heat matrix */}
+                <div className="rp-heat-matrix">
+                  <div className="rp-heat-row rp-heat-header-row">
+                    <span className="rp-heat-corner" />
+                    {(sections.collaboration ?? []).map((c, i) => (
+                      <span key={`h-${i}`} className="rp-heat-col-label" title={c.partner_role_id}>
+                        {c.partner_role_id.length > 6 ? c.partner_role_id.slice(0, 6) + '…' : c.partner_role_id}
+                      </span>
+                    ))}
                   </div>
-                ))}
+                  <div className="rp-heat-row">
+                    <span className="rp-heat-row-label">互動次數</span>
+                    {(sections.collaboration ?? []).map((c, i) => {
+                      const maxCount = Math.max(...(sections.collaboration ?? []).map(x => x.interaction_count), 1)
+                      const intensity = c.interaction_count / maxCount
+                      return (
+                        <span
+                          key={`c-${i}`}
+                          className="rp-heat-cell"
+                          style={{ background: `rgba(59, 130, 246, ${0.1 + intensity * 0.8})` }}
+                          title={`${c.partner_role_id}: ${c.interaction_count} 次`}
+                        >
+                          {c.interaction_count}
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <div className="rp-heat-row">
+                    <span className="rp-heat-row-label">品質分數</span>
+                    {(sections.collaboration ?? []).map((c, i) => {
+                      const intensity = c.quality_score / 5
+                      return (
+                        <span
+                          key={`q-${i}`}
+                          className="rp-heat-cell"
+                          style={{ background: `rgba(34, 197, 94, ${0.1 + intensity * 0.8})` }}
+                          title={`${c.partner_role_id}: 品質 ${c.quality_score.toFixed(1)}`}
+                        >
+                          {c.quality_score.toFixed(1)}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+                {/* Detail cards */}
+                <div className="rp-collab-list">
+                  {(sections.collaboration ?? []).map((c, i) => (
+                    <div key={i} className="rp-collab-card">
+                      <span className="rp-collab-partner">{c.partner_role_id}</span>
+                      <span className="rp-collab-count">{c.interaction_count} 次互動</span>
+                      <span className="rp-collab-score">品質 {c.quality_score.toFixed(1)}</span>
+                      {c.notes && <span className="rp-collab-notes">{c.notes}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無協作記錄，角色間互動後將自動統計</div>}
           </section>
 
-          {/* ⑥ Skills - Placeholder */}
+          {/* ⑥ Skills - Category Radar */}
           <section id="skills" ref={(el) => registerSectionRef('skills', el)} className="rp-section">
             <h3 className="rp-section-title">⚡ 技能圖譜</h3>
             {(sections.skills ?? []).length > 0 ? (
-              <div className="rp-skills-grid">
-                {(sections.skills ?? []).map(s => (
-                  <div key={s.skill_id} className="rp-skill-card">
-                    <div className="rp-skill-header">
-                      <span className="rp-skill-name">{s.skill_name}</span>
-                      <span className={`rp-skill-cat rp-cat-${s.category}`}>{s.category}</span>
+              <div className="rp-skills-section">
+                {/* Radar chart by category */}
+                {(() => {
+                  const skills = sections.skills ?? []
+                  const categories = [...new Set(skills.map(s => s.category))]
+                  const catAverages = categories.map(cat => {
+                    const catSkills = skills.filter(s => s.category === cat)
+                    const avg = catSkills.reduce((sum, s) => sum + s.level, 0) / catSkills.length
+                    return { category: cat, average: avg, count: catSkills.length }
+                  })
+                  return (
+                    <div className="rp-radar-wrap">
+                      <div
+                        className="rp-radar"
+                        style={{
+                          background: `conic-gradient(${catAverages.map((c, i) => {
+                            const startDeg = (360 / catAverages.length) * i
+                            const endDeg = (360 / catAverages.length) * (i + 1)
+                            const alpha = 0.15 + c.average * 0.6
+                            return `rgba(99, 102, 241, ${alpha}) ${startDeg}deg ${endDeg}deg`
+                          }).join(', ')})`,
+                        }}
+                      >
+                        <div className="rp-radar-inner" />
+                      </div>
+                      <div className="rp-radar-legend">
+                        {catAverages.map(c => (
+                          <div key={c.category} className="rp-radar-legend-item">
+                            <span className="rp-radar-legend-dot" style={{ opacity: 0.3 + c.average * 0.7 }} />
+                            <span className="rp-radar-legend-label">{c.category}</span>
+                            <span className="rp-radar-legend-val">{Math.round(c.average * 100)}%</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="rp-skill-bar"><div className="rp-skill-fill" style={{ width: `${s.level * 100}%` }} /></div>
-                    {s.learning_goals.length > 0 && <div className="rp-skill-goals">目標：{s.learning_goals.join('、')}</div>}
-                  </div>
-                ))}
+                  )
+                })()}
+                {/* Skill detail cards */}
+                <div className="rp-skills-grid">
+                  {(sections.skills ?? []).map(s => (
+                    <div key={s.skill_id} className="rp-skill-card">
+                      <div className="rp-skill-header">
+                        <span className="rp-skill-name">{s.skill_name}</span>
+                        <span className={`rp-skill-cat rp-cat-${s.category}`}>{s.category}</span>
+                      </div>
+                      <div className="rp-skill-bar"><div className="rp-skill-fill" style={{ width: `${s.level * 100}%` }} /></div>
+                      {s.learning_goals.length > 0 && <div className="rp-skill-goals">目標：{s.learning_goals.join('、')}</div>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無技能數據，LLM 完成任務後將自動累積技能經驗</div>}
           </section>
 
           {/* ⑦ Output Analytics - Mini bar chart */}
@@ -446,22 +532,47 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
             ) : <div className="rp-empty-hint">尚無產出數據</div>}
           </section>
 
-          {/* ⑧ Resource Usage - Placeholder */}
+          {/* ⑧ Resource Usage - Stacked Bar Chart */}
           <section id="resource_usage" ref={(el) => registerSectionRef('resource_usage', el)} className="rp-section">
             <h3 className="rp-section-title">🔋 資源消耗</h3>
             {(sections.resource_usage ?? []).length > 0 ? (
-              <div className="rp-resource-list">
-                {(sections.resource_usage ?? []).slice(-6).map(r => (
-                  <div key={r.usage_id} className="rp-resource-row">
-                    <span className="rp-resource-period">{r.period}</span>
-                    <span>📥 {r.tokens_in.toLocaleString()}</span>
-                    <span>📤 {r.tokens_out.toLocaleString()}</span>
-                    <span>💰 ${r.cost_usd.toFixed(3)}</span>
-                    <span>⏱ {formatDuration(r.duration_seconds)}</span>
-                  </div>
-                ))}
+              <div className="rp-resource-section">
+                {/* Stacked bar chart */}
+                <div className="rp-stacked-chart">
+                  {(sections.resource_usage ?? []).slice(-12).map(r => {
+                    const total = r.tokens_in + r.tokens_out
+                    const maxTotal = Math.max(...(sections.resource_usage ?? []).slice(-12).map(x => x.tokens_in + x.tokens_out), 1)
+                    const heightPct = Math.max(8, (total / maxTotal) * 100)
+                    const inPct = total > 0 ? (r.tokens_in / total) * 100 : 50
+                    return (
+                      <div key={r.usage_id} className="rp-stacked-col" title={`${r.period}\n📥 ${r.tokens_in.toLocaleString()} / 📤 ${r.tokens_out.toLocaleString()}\n💰 $${r.cost_usd.toFixed(3)}`}>
+                        <div className="rp-stacked-bar" style={{ height: `${heightPct}%` }}>
+                          <div className="rp-stacked-in" style={{ height: `${inPct}%` }} />
+                          <div className="rp-stacked-out" style={{ height: `${100 - inPct}%` }} />
+                        </div>
+                        <span className="rp-stacked-label">{r.period.slice(-4)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="rp-stacked-legend">
+                  <span className="rp-stacked-legend-item"><span className="rp-legend-dot rp-legend-in" /> Token In</span>
+                  <span className="rp-stacked-legend-item"><span className="rp-legend-dot rp-legend-out" /> Token Out</span>
+                </div>
+                {/* Detail rows */}
+                <div className="rp-resource-list">
+                  {(sections.resource_usage ?? []).slice(-6).map(r => (
+                    <div key={r.usage_id} className="rp-resource-row">
+                      <span className="rp-resource-period">{r.period}</span>
+                      <span>📥 {r.tokens_in.toLocaleString()}</span>
+                      <span>📤 {r.tokens_out.toLocaleString()}</span>
+                      <span>💰 ${r.cost_usd.toFixed(3)}</span>
+                      <span>⏱ {formatDuration(r.duration_seconds)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無資源消耗數據，LLM 執行任務時將自動記錄</div>}
           </section>
 
           {/* ⑨ Task Queue - 4-column kanban */}
@@ -512,7 +623,7 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
                   </div>
                 ))}
               </div>
-            ) : <div className="rp-placeholder">🚧 即將推出</div>}
+            ) : <div className="rp-empty-hint">尚無通訊記錄，角色間的決策對話將顯示於此</div>}
           </section>
         </div>
       )}
