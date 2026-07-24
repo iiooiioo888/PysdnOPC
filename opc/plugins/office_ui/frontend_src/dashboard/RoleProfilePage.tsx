@@ -148,15 +148,21 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
-  // Extract role list from sessions
+  // Stabilize callback refs to prevent effect re-triggers on parent re-render
+  const sendRequestRef = useRef(sendRequest)
+  sendRequestRef.current = sendRequest
+  const onAckRef = useRef(onAck)
+  onAckRef.current = onAck
+
+  // Extract role list from sessions (roleWorkItems is Record<string, RoleWorkItemSummary>)
   const roleList = useMemo(() => {
     const roles = new Map<string, string>()
     for (const session of sessions) {
-      const items = session.roleWorkItems
-      if (Array.isArray(items)) {
-        for (const item of items) {
-          if (item.roleId && !roles.has(item.roleId)) {
-            roles.set(item.roleId, item.roleName || item.roleId)
+      const items = session.roleWorkItems ?? session.executorRoleWorkItems
+      if (items && typeof items === 'object') {
+        for (const summary of Object.values(items)) {
+          if (summary.roleId && !roles.has(summary.roleId)) {
+            roles.set(summary.roleId, summary.roleName || summary.roleId)
           }
         }
       }
@@ -171,7 +177,7 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
     }
   }, [roleList, selectedRoleId])
 
-  // Register ack handler
+  // Register ack handler (stable — only re-subscribes on mount)
   useEffect(() => {
     const handler = (payload: Record<string, unknown>) => {
       if (payload.action === 'get_role_profile' && payload.ok) {
@@ -179,16 +185,18 @@ export function RoleProfilePage({ sessions, projectId, sendRequest, onAck }: Rol
         setLoading(false)
       }
     }
-    return onAck(handler)
-  }, [onAck])
+    const ackFn = onAckRef.current
+    if (!ackFn) return
+    return ackFn(handler)
+  }, [])
 
-  // Fetch profile data when role changes
+  // Fetch profile data when role changes (NOT when callback identity changes)
   useEffect(() => {
     if (!selectedRoleId) return
     setLoading(true)
     setSections(null)
-    sendRequest({ type: 'get_role_profile', role_id: selectedRoleId, project_id: projectId || 'default' })
-  }, [selectedRoleId, projectId, sendRequest])
+    sendRequestRef.current({ type: 'get_role_profile', role_id: selectedRoleId, project_id: projectId || 'default' })
+  }, [selectedRoleId, projectId])
 
   // IntersectionObserver for scroll spy
   useEffect(() => {

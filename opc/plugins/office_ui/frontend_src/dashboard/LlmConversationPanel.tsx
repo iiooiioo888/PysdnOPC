@@ -332,18 +332,25 @@ export function LlmConversationPanel({
   const [targetInfo, setTargetInfo] = useState<RuntimeLogsResponse['target'] | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  // Request data on mount
+  // Stabilize callback refs to prevent effect re-triggers on parent re-render
+  const sendRequestRef = useRef(sendRequest)
+  sendRequestRef.current = sendRequest
+  const onAckRef = useRef(onAck)
+  onAckRef.current = onAck
+
+  // Request data on mount / when target changes (NOT when callback identity changes)
   useEffect(() => {
     setLoading(true)
     setError(null)
-    sendRequest(projectId, taskId)
-  }, [projectId, taskId, sendRequest])
+    sendRequestRef.current(projectId, taskId)
+  }, [projectId, taskId])
 
-  // Handle ack responses
+  // Handle ack responses (stable subscription — only re-subscribes when taskId changes)
   useEffect(() => {
-    if (!onAck) return
-    const unsubscribe = onAck((payload) => {
-      if (payload.task_id !== taskId && payload.target?.task_id !== taskId) return
+    const ackFn = onAckRef.current
+    if (!ackFn) return
+    const unsubscribe = ackFn((payload) => {
+      if (payload.task_id !== taskId && (payload.target as Record<string, unknown> | undefined)?.task_id !== taskId) return
       if (!payload.ok && payload.error) {
         setError(str(payload.error))
         setLoading(false)
@@ -362,7 +369,7 @@ export function LlmConversationPanel({
       setLoading(false)
     })
     return unsubscribe
-  }, [onAck, taskId])
+  }, [taskId])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

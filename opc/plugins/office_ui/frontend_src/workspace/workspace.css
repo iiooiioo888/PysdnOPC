@@ -8,12 +8,15 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  flex-wrap: wrap;
+  position: relative;
 }
 
 /* ── Permission approval banner ── */
 .permission-approval-banner {
-  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -23,8 +26,7 @@
   color: #856404;
   font-size: 13px;
   font-weight: 600;
-  flex-shrink: 0;
-  z-index: 10;
+  z-index: 100;
   animation: permission-banner-slide-in 0.25s ease-out;
 }
 @keyframes permission-banner-slide-in {
