@@ -14,6 +14,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="Office UI" src="https://img.shields.io/badge/Office%20UI-React%20%2B%20Phaser-14b8a6?style=flat-square">
   <img alt="CLI and UI" src="https://img.shields.io/badge/interface-CLI%20%2B%20Office%20UI-64748b?style=flat-square">
+  <img alt="Docker" src="https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-111827?style=flat-square">
 </p>
 
@@ -21,6 +22,8 @@
 
 ## News
 
+- **Jul 24, 2026 — Budget-aware scheduling:** Tier-based model routing automatically selects the right model per task importance, with graceful degradation under budget pressure.
+- **Jul 20, 2026 — Docker deployment:** First-class container support with multi-stage builds, `docker compose up` for the full Office UI stack.
 - **Jul 14, 2026 — More resilient company runs:** Company-mode sessions now recover and resume more seamlessly while preserving agent identity, shared role context, delegation, and review progress.
 - **Jul 13, 2026 — Smoother Office UI:** Faster live updates and chat scrolling improve long-running projects.
 - **Jul 8, 2026 — Smarter approvals:** Session grants persist, low-risk actions flow automatically, and deferred decisions stay available.
@@ -28,12 +31,15 @@
 ## Table Of Contents
 
 - [When To Use OpenOPC](#when-to-use-openopc)
+- [Feature Highlights](#feature-highlights)
 - [Demos](#demos)
 - [How OpenOPC Works](#how-openopc-works)
 - [Quick Start](#quick-start)
+- [Docker Deployment](#docker-deployment)
 - [Office UI Guide](#office-ui-guide)
 - [CLI Guide](#cli-guide)
 - [Configuration](#configuration)
+- [Architecture](#architecture)
 - [Ecosystem And Sharing](#ecosystem-and-sharing)
 - [Roadmap](#roadmap)
 - [Acknowledgements](#acknowledgements)
@@ -86,6 +92,23 @@
     </td>
   </tr>
 </table>
+
+## Feature Highlights
+
+| Capability | Description |
+|---|---|
+| **Multi-agent company runtime** | Recruit AI employees, assign roles, orchestrate delegation DAG with parallel execution, review gates, and escalation. |
+| **Work-item state machine** | Phase-driven kanban workflow — planning, execution, review, integration, done — with dependency resolution. |
+| **Budget-aware model routing** | Tier-based LLM scheduling (critical / reasoning / routine / summary) with automatic degradation under budget pressure. |
+| **External agent integration** | Delegate to Qwen Code, Codex, Claude Code, Cursor, or OpenCode with session continuity and approval control. |
+| **Native tool stack** | Shell, file ops, browser (Playwright), web search, Python exec, git, and collaboration tools — all risk-classified. |
+| **MCP server support** | Connect local (stdio) or remote (HTTP/SSE) Model Context Protocol servers; discovered tools auto-register. |
+| **Organizational memory** | Per-employee experience profiles, shared playbooks, session compaction, and durable memory extraction. |
+| **10+ channel providers** | Feishu, Telegram, Slack, Discord, DingTalk, Email, Matrix, QQ, WhatsApp, Mochat — deny-by-default security. |
+| **Office UI** | React + Phaser animated office: kanban, execution progress, talent market, org editor, comms, and team cockpit. |
+| **Org architecture presets** | Built-in templates (fullstack app, research report, deep research, article series, quick task) + custom orgs. |
+| **Docker deployment** | Multi-stage image (base CLI / dev with UI + Playwright), `docker compose up` for persistent Office UI. |
+| **Bounded autonomy & approval** | Risk-classified tool calls, session-granted permissions, shell AST validation, and human escalation. |
 
 ## Demos
 
@@ -186,7 +209,7 @@ Execution generates raw experience; Self-Grown turns it into lasting improvement
 
 OpenOPC requires Python `>=3.10`; the examples below use Python `3.12`.
 
-For direct one-off work, OpenOPC also includes Task Mode, a LobeChat-like single-agent workspace using OpenOPC Native, Codex, Claude Code, Cursor, or OpenCode.
+For direct one-off work, OpenOPC also includes Task Mode, a LobeChat-like single-agent workspace using OpenOPC Native, Qwen Code, Codex, Claude Code, Cursor, or OpenCode.
 
 <details open>
 <summary><strong>Recommended: uv environment setup</strong></summary>
@@ -265,7 +288,7 @@ Open `http://localhost:8765` by default.
 uv run opc chat -p demo
 
 # One-shot task mode
-uv run opc chat -p demo --mode task --agent codex "Refactor this module and run focused tests"
+uv run opc chat -p demo --mode task --agent qwen_code "Refactor this module and run focused tests"
 
 # Company mode with the built-in Corporate architecture
 uv run opc chat -p demo --mode company --company-profile corporate "Plan, implement, review, and document this feature"
@@ -302,6 +325,45 @@ npm run build
 
 The frontend build output is served from `opc/plugins/office_ui/frontend_dist/`.
 </details>
+
+## Docker Deployment
+
+OpenOPC ships a multi-stage Dockerfile with two targets:
+
+| Target | Contents |
+|---|---|
+| `base` | Minimal production image with the `opc` CLI only. |
+| `dev` (default) | Full image: Office UI (aiohttp), Playwright + Chromium, all channel extras. |
+
+**Quick start with Docker Compose:**
+
+```bash
+# 1. Copy and fill in your API keys
+cp .env.example .env
+
+# 2. Start the full stack (Office UI + persistent .opc volume)
+docker compose up -d
+
+# 3. Open http://localhost:8765
+```
+
+**Manual build:**
+
+```bash
+# Full dev image (default)
+docker build -t openopc .
+
+# Minimal CLI-only image
+docker build --target base -t openopc .
+
+# Run the Office UI
+docker run -p 8765:8765 -v ./.opc:/app/.opc --env-file .env openopc
+
+# Run a CLI command
+docker run --rm -v ./.opc:/app/.opc --env-file .env openopc chat -p demo --mode task --agent native "Hello"
+```
+
+The `.opc/` directory is mounted as a volume so config, databases, memory, and logs persist across container restarts.
 
 ## Office UI Guide
 
@@ -373,7 +435,7 @@ The Workspace page is the default screen.
 1. Create or select a project from the top project selector.
 2. In Workspace, click `New Chat`.
 3. In the composer, choose `Task` or `Company`.
-4. For Task Mode, choose the agent: `OpenOPC Native`, `Codex`, `Claude Code`, `Cursor`, or `OpenCode`.
+4. For Task Mode, choose the agent: `OpenOPC Native`, `Qwen Code`, `Codex`, `Claude Code`, `Cursor`, or `OpenCode`.
 5. For Company Mode, choose `Corporate` or a saved org architecture.
 6. Send the brief.
 
@@ -464,7 +526,7 @@ opc chat -p demo --mode task --agent native "Inspect the failing tests"
 opc chat -p demo --mode company --company-profile corporate "Ship this change with review"
 
 # Scriptable execution
-opc exec -p demo --mode task --agent codex --stream-json "Run the migration check"
+opc exec -p demo --mode task --agent qwen_code --stream-json "Run the migration check"
 opc exec -p demo --mode company --company-profile corporate "Draft the research report"
 
 # Project lifecycle
@@ -499,7 +561,7 @@ Run `opc chat`, then use slash commands:
 /status
 /mode task
 /mode company corporate
-/agent codex
+/agent qwen_code
 /project switch demo
 /session list
 /runtime --full
@@ -545,12 +607,12 @@ opc session create "Research sprint" -p demo --mode org --org hku_research_lab
 Run `opc init` once from the repo root. It creates `.opc/`, copies the template config from `config/`, creates memory/skills/log folders, and optionally creates the first project.
 
 <details>
-<summary><b>Expand configuration — config files, LLM keys, external agents, channels, browser/MCP, troubleshooting</b></summary>
+<summary><b>Expand configuration — config files, LLM keys, budget, external agents, channels, browser/MCP, troubleshooting</b></summary>
 
 | File | Purpose |
 |---|---|
-| `.opc/config/llm_config.yaml` | Default model, LiteLLM/OpenRouter-compatible API base, API key, env var indirection, routing, fallback, temperature, token limit. |
-| `.opc/config/system_config.yaml` | Runtime behavior, browser tools, native runtime, compaction, verification, permissions, sandbox, and safety settings. |
+| `.opc/config/llm_config.yaml` | Default model, LiteLLM/OpenRouter-compatible API base, API key, env var indirection, routing, fallback, tier routing, temperature, token limit. |
+| `.opc/config/system_config.yaml` | Runtime behavior, budget, browser tools, native runtime, compaction, verification, permissions, sandbox, safety, and data management settings. |
 | `.opc/config/agent_config.yaml` | External agent command paths, preferred order, model flags, session modes, timeouts, approval modes, and native subagent profiles. |
 | `.opc/config/channel_config.yaml` | External messaging providers and credentials. Inbound sender lists are deny-by-default. |
 | `.opc/config/company_corporate_config.yaml` | Built-in corporate company architecture template. |
@@ -565,9 +627,10 @@ The template leaves secrets empty. Write your key directly into the file:
 
 ```yaml
 llm:
-  default_model: "openai/gpt-5.4"
-  api_base: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-..."   # your OpenRouter (or other provider) API key
+  default_model: "deepseek/deepseek-chat"
+  api_base: "https://api.deepseek.com"
+  api_key: ""                    # your API key (or use api_key_env below)
+  api_key_env: "DEEPSEEK_API_KEY"  # env var holding the key (recommended)
 
   max_tokens: 32768         # max output tokens per request; lower it if your
                             # model's output cap is smaller
@@ -580,6 +643,38 @@ llm:
 Then verify with `opc status`.
 
 If you prefer not to store the key in the file, leave `api_key` empty and set `api_key_env` to the name of an environment variable that holds it (e.g. `api_key_env: "OPENROUTER_API_KEY"`).
+
+Any LiteLLM-compatible provider works — DeepSeek, OpenAI, Anthropic, Qwen (DashScope), Gemini, Mistral, Groq, Azure, OpenRouter, and more.
+
+### Budget-Aware Scheduling
+
+OpenOPC supports tier-based model routing that selects the right model per task importance:
+
+```yaml
+llm:
+  tier_routing:
+    critical: "deepseek/deepseek-reasoner"   # key decisions, complex code gen
+    reasoning: "deepseek/deepseek-reasoner"  # multi-step planning
+    routine: "deepseek/deepseek-chat"        # daily conversation, simple tasks
+    summary: "deepseek/deepseek-chat"        # summarization, classification
+
+  degrade_chain:
+    critical: "deepseek/deepseek-chat"       # fallback under budget pressure
+    reasoning: "deepseek/deepseek-chat"
+```
+
+Budget limits are configured in `system_config.yaml`:
+
+```yaml
+system:
+  budget:
+    task_limit_usd: 2.0        # per-task cap (0 = unlimited)
+    session_limit_usd: 10.0    # per-session cap
+    monthly_limit_usd: 100.0   # monthly cap
+    warn_threshold: 0.8        # warn at 80%
+    degrade_threshold: 0.9     # switch to cheaper models at 90%
+    hard_stop: false           # degrade instead of stopping
+```
 
 ### Approval & Agent Permissions
 
@@ -605,12 +700,31 @@ The first time a tool is used you are always prompted (unless the tool is in `to
 Task Mode can explicitly select an execution agent:
 
 ```bash
-opc chat -p demo --mode task --agent codex "Implement the change"
+opc chat -p demo --mode task --agent qwen_code "Implement the change"
 ```
 
-Available values are `native`, `codex`, `claude_code`, `cursor`, and `opencode`. Configure command names, flags, timeouts, session reuse, and approval behavior in `.opc/config/agent_config.yaml`.
+Available values are `native`, `qwen_code`, `codex`, `claude_code`, `cursor`, and `opencode`. Configure command names, flags, timeouts, session reuse, and approval behavior in `.opc/config/agent_config.yaml`.
 
 In Company Mode, roles can prefer external agents through their role config or the Org role inspector. A role can use `auto`, `native`, or `external` execution strategy, with an optional preferred external agent.
+
+### Org Architecture Templates
+
+OpenOPC ships built-in organization templates for common scenarios:
+
+| Template | Use case |
+|---|---|
+| `dev/fullstack_app` | Full-stack application development team |
+| `finance/research_report` | Investment research and report writing |
+| `general/deep_research` | Multi-step deep research with synthesis |
+| `content/article_series` | Content planning and article series production |
+| `general/quick_task` | Lightweight single-role quick execution |
+
+Apply a template from the Org → Architecture page, or via CLI:
+
+```bash
+opc market presets
+opc market apply-preset <preset_id>
+```
 
 ### Feishu Connection
 
@@ -731,7 +845,7 @@ Run:
 opc status
 ```
 
-Check `.opc/config/agent_config.yaml` for command names such as `codex`, `claude`, `cursor-agent`, and `opencode`. Disable or reprioritize agents you do not have installed.
+Check `.opc/config/agent_config.yaml` for command names such as `qwen-code`, `codex`, `claude`, `cursor-agent`, and `opencode`. Disable or reprioritize agents you do not have installed.
 </details>
 
 <details>
@@ -748,6 +862,34 @@ Check:
 
 </details>
 
+## Architecture
+
+OpenOPC is a coordination runtime, not just an agent launcher — it separates interaction, organization, execution, tools, memory, and observability into seven layers.
+
+<details>
+<summary><b>The seven layers</b></summary>
+
+| Layer | Name | Responsibilities |
+|---|---|---|
+| 0 | Interaction | CLI, Office UI (WebSocket), message bus, external channel runtime. |
+| 1 | Perception & Context | Context loading, routing metadata, context assembly, prompt harness. |
+| 2 | Organization | Work-item planning, company runtime, comms, escalation, approval, phase machine, recruitment. |
+| 3 | Agent Execution | Native runtime (v2), subagents, external agent broker, permissions, tool planning. |
+| 4 | Tools | Shell, file ops, browser (Playwright), web search, Python execution, git, collaboration tools. |
+| 5 | Memory & Evolution | Markdown memory, session compaction, preferences, skill library, talent import, durable memory. |
+| 6 | Observability | Events, cost tracking, structured logs, UI/runtime snapshots. |
+</details>
+
+<details>
+<summary><b>Core mechanisms</b></summary>
+
+- **Collaboration** — Company Mode compiles a brief into a work-item graph; each role runs in its own session, with reviewers and final deciders as first-class runtime roles. Roles pause on `AWAITING_PEER`, hand off, meet, and pass review/delivery gates — all mirrored to the UI (chat, transcripts, Agents, Comms, Kanban, Execution Progress).
+- **Communication** — a file-backed, role-scoped `.opc-comms/` workspace (inboxes, meeting transcripts, shared memory) that can be audited, replayed, and used to wake blocked peers.
+- **Self-evolution** — runs feed employee experience, reviewer preferences, checklists, and learned skills into `employee_evolution.json`, so the org improves who it assigns and what context each role gets.
+- **Budget guard** — per-task, per-session, and monthly cost caps with tier-based model routing and automatic degradation when approaching limits.
+- **Reactive compaction** — context window pressure triggers automatic history summarization, artifact compaction, and tool-result trimming to keep long sessions within model limits.
+</details>
+
 ## Ecosystem And Sharing
 
 Everything OpenOPC builds is yours to keep, reuse, and share — organizations, employees, talent templates, skills, and channels are just files. Import a popular talent library, reuse a team across projects, or package a whole company as a shareable `.opcpkg`.
@@ -762,34 +904,6 @@ opc org export --json > my-org.yaml
 opc market export --id hku_lab --name "HKU Lab" --output-dir packages
 opc market install packages/hku_lab.opcpkg
 ```
-
-<!--
-## Architecture
-
-OpenOPC is a coordination runtime, not just an agent launcher — it separates interaction, organization, execution, tools, memory, and observability into seven layers.
-
-<details>
-<summary><b>The seven layers</b></summary>
-
-| Layer | Name | Responsibilities |
-|---|---|---|
-| 0 | Interaction | CLI, Office UI, message bus, external channel runtime. |
-| 1 | Perception & Context | Context loading, routing metadata, context assembly. |
-| 2 | Organization | Work-item planning, company runtime, comms, escalation, approval, recovery, recruitment. |
-| 3 | Agent Execution | Native runtime, subagents, external agent adapters, permissions, tool planning. |
-| 4 | Tools | Shell, file ops, browser, web search, Python execution, git, collaboration tools. |
-| 5 | Memory & Evolution | Markdown memory, session compaction, preferences, skill library, talent import. |
-| 6 | Observability | Events, cost tracking, structured logs, UI/runtime snapshots. |
-</details>
-
-<details>
-<summary><b>Core mechanisms</b></summary>
-
-- **Collaboration** — Company Mode compiles a brief into a work-item graph; each role runs in its own session, with reviewers and final deciders as first-class runtime roles. Roles pause on `AWAITING_PEER`, hand off, meet, and pass review/delivery gates — all mirrored to the UI (chat, transcripts, Agents, Comms, Kanban, Execution Progress).
-- **Communication** — a file-backed, role-scoped `.opc-comms/` workspace (inboxes, meeting transcripts, shared memory) that can be audited, replayed, and used to wake blocked peers.
-- **Self-evolution** — runs feed employee experience, reviewer preferences, checklists, and learned skills into `employee_evolution.json`, so the org improves who it assigns and what context each role gets.
-</details>
--->
 
 ## Roadmap
 

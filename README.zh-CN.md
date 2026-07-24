@@ -14,6 +14,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="Office UI" src="https://img.shields.io/badge/Office%20UI-React%20%2B%20Phaser-14b8a6?style=flat-square">
   <img alt="CLI and UI" src="https://img.shields.io/badge/interface-CLI%20%2B%20Office%20UI-64748b?style=flat-square">
+  <img alt="Docker" src="https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-111827?style=flat-square">
 </p>
 
@@ -22,12 +23,15 @@
 ## 目錄
 
 - [何時使用 OpenOPC](#何時使用-openopc)
+- [功能亮點](#功能亮點)
 - [演示](#演示)
 - [OpenOPC 如何工作](#openopc-如何工作)
 - [快速開始](#快速開始)
+- [Docker 部署](#docker-部署)
 - [Office UI 指南](#office-ui-指南)
 - [CLI 指南](#cli-指南)
 - [配置](#配置)
+- [架構](#架構)
 - [生態與分享](#生態與分享)
 - [路線圖](#路線圖)
 - [致謝](#致謝)
@@ -80,6 +84,23 @@
     </td>
   </tr>
 </table>
+
+## 功能亮點
+
+| 能力 | 描述 |
+|---|---|
+| **多 Agent 公司運行時** | 招募 AI 員工、分配角色、編排委派 DAG，支持並行執行、評審閘門與上報機制。 |
+| **工作項狀態機** | 階段驅動的看板工作流 — 規劃、執行、評審、集成、完成 — 帶依賴解析。 |
+| **預算感知模型路由** | 分層 LLM 調度（關鍵 / 推理 / 常規 / 摘要），預算壓力下自動降級。 |
+| **外部 Agent 集成** | 委派給 Qwen Code、Codex、Claude Code、Cursor 或 OpenCode，支持會話延續與審批控制。 |
+| **原生工具棧** | Shell、文件操作、瀏覽器（Playwright）、網頁搜索、Python 執行、Git 與協作工具 — 全部經風險分級。 |
+| **MCP 服務器支持** | 連接本地（stdio）或遠程（HTTP/SSE）Model Context Protocol 服務器；發現的工具自動註冊。 |
+| **組織記憶** | 每位員工的經驗檔案、共享作業手冊、會話壓縮與持久記憶提取。 |
+| **10+ 頻道提供方** | 飛書、Telegram、Slack、Discord、釘釘、郵件、Matrix、QQ、WhatsApp、Mochat — 默認拒絕的安全策略。 |
+| **Office UI** | React + Phaser 動畫辦公室：看板、執行進度、人才市場、組織編輯器、通訊與團隊駕駛艙。 |
+| **組織架構預設** | 內置模板（全棧應用、研究報告、深度研究、文章系列、快速任務）+ 自定義組織。 |
+| **Docker 部署** | 多階段鏡像（基礎 CLI / 開發版含 UI + Playwright），`docker compose up` 即可運行持久化 Office UI。 |
+| **有限自治與審批** | 風險分級的工具調用、會話級權限授予、Shell AST 驗證與人類上報。 |
 
 ## 演示
 
@@ -180,7 +201,7 @@ OpenOPC 圍繞複雜的真實任務組建一家 AI 公司 — 通過三個緊密
 
 OpenOPC 要求 Python `>=3.10`；下面的示例使用 Python `3.12`。
 
-對於直接的一次性工作，OpenOPC 還提供 Task 模式 — 一個類 LobeChat 的單 Agent 工作臺，可使用 OpenOPC Native、Codex、Claude Code、Cursor 或 OpenCode。
+對於直接的一次性工作，OpenOPC 還提供 Task 模式 — 一個類 LobeChat 的單 Agent 工作臺，可使用 OpenOPC Native、Qwen Code、Codex、Claude Code、Cursor 或 OpenCode。
 
 <details open>
 <summary><strong>推薦：uv 環境搭建</strong></summary>
@@ -259,7 +280,7 @@ uv run opc ui
 uv run opc chat -p demo
 
 # 一次性 Task 模式
-uv run opc chat -p demo --mode task --agent codex "Refactor this module and run focused tests"
+uv run opc chat -p demo --mode task --agent qwen_code "Refactor this module and run focused tests"
 
 # 使用內置 Corporate 架構的 Company 模式
 uv run opc chat -p demo --mode company --company-profile corporate "Plan, implement, review, and document this feature"
@@ -296,6 +317,45 @@ npm run build
 
 前端構建產物從 `opc/plugins/office_ui/frontend_dist/` 提供服務。
 </details>
+
+## Docker 部署
+
+OpenOPC 提供多階段 Dockerfile，包含兩個構建目標：
+
+| 目標 | 內容 |
+|---|---|
+| `base` | 最小生產鏡像，僅含 `opc` CLI。 |
+| `dev`（默認） | 完整鏡像：Office UI（aiohttp）、Playwright + Chromium、所有頻道擴充。 |
+
+**使用 Docker Compose 快速啟動：**
+
+```bash
+# 1. 複製並填入你的 API 密鑰
+cp .env.example .env
+
+# 2. 啟動完整棧（Office UI + 持久化 .opc 卷）
+docker compose up -d
+
+# 3. 打開 http://localhost:8765
+```
+
+**手動構建：**
+
+```bash
+# 完整開發鏡像（默認）
+docker build -t openopc .
+
+# 最小 CLI 鏡像
+docker build --target base -t openopc .
+
+# 運行 Office UI
+docker run -p 8765:8765 -v ./.opc:/app/.opc --env-file .env openopc
+
+# 運行 CLI 命令
+docker run --rm -v ./.opc:/app/.opc --env-file .env openopc chat -p demo --mode task --agent native "Hello"
+```
+
+`.opc/` 目錄以卷的形式掛載，配置、數據庫、記憶與日誌在容器重啟後保持持久。
 
 ## Office UI 指南
 
@@ -367,7 +427,7 @@ Workspace 頁面是默認界面。
 1. 在頂部項目選擇器中創建或選擇一個項目。
 2. 在 Workspace 中點擊 `New Chat`。
 3. 在輸入框中選擇 `Task` 或 `Company`。
-4. Task 模式下選擇 Agent：`OpenOPC Native`、`Codex`、`Claude Code`、`Cursor` 或 `OpenCode`。
+4. Task 模式下選擇 Agent：`OpenOPC Native`、`Qwen Code`、`Codex`、`Claude Code`、`Cursor` 或 `OpenCode`。
 5. Company 模式下選擇 `Corporate` 或一個已保存的組織架構。
 6. 發送任務簡報。
 
@@ -458,7 +518,7 @@ opc chat -p demo --mode task --agent native "Inspect the failing tests"
 opc chat -p demo --mode company --company-profile corporate "Ship this change with review"
 
 # 可腳本化執行
-opc exec -p demo --mode task --agent codex --stream-json "Run the migration check"
+opc exec -p demo --mode task --agent qwen_code --stream-json "Run the migration check"
 opc exec -p demo --mode company --company-profile corporate "Draft the research report"
 
 # 項目生命週期
@@ -493,7 +553,7 @@ opc talent hire <template_id> <role_id> -p demo
 /status
 /mode task
 /mode company corporate
-/agent codex
+/agent qwen_code
 /project switch demo
 /session list
 /runtime --full
@@ -539,12 +599,12 @@ opc session create "Research sprint" -p demo --mode org --org hku_research_lab
 在倉庫根目錄運行一次 `opc init`。它會創建 `.opc/`、從 `config/` 複製模板配置、創建記憶/技能/日誌目錄，並可選地創建第一個項目。
 
 <details>
-<summary><b>展開配置 — 配置文件、LLM 密鑰、外部 Agent、頻道、瀏覽器/MCP、故障排查</b></summary>
+<summary><b>展開配置 — 配置文件、LLM 密鑰、預算、外部 Agent、頻道、瀏覽器/MCP、故障排查</b></summary>
 
 | 文件 | 用途 |
 |---|---|
-| `.opc/config/llm_config.yaml` | 默認模型、兼容 LiteLLM/OpenRouter 的 API base、API key、環境變量間接引用、路由、回退、temperature、token 限制。 |
-| `.opc/config/system_config.yaml` | 運行時行爲、瀏覽器工具、原生運行時、壓縮、驗證、權限、沙箱與安全設置。 |
+| `.opc/config/llm_config.yaml` | 默認模型、兼容 LiteLLM/OpenRouter 的 API base、API key、環境變量間接引用、路由、回退、分層路由、temperature、token 限制。 |
+| `.opc/config/system_config.yaml` | 運行時行爲、預算、瀏覽器工具、原生運行時、壓縮、驗證、權限、沙箱、安全與數據管理設置。 |
 | `.opc/config/agent_config.yaml` | 外部 Agent 命令路徑、優先順序、模型參數、會話模式、超時、審批模式與原生子 Agent 配置。 |
 | `.opc/config/channel_config.yaml` | 外部消息提供方與憑據。入站發送者列表默認拒絕。 |
 | `.opc/config/company_corporate_config.yaml` | 內置 Corporate 公司架構模板。 |
@@ -559,9 +619,10 @@ opc session create "Research sprint" -p demo --mode org --org hku_research_lab
 
 ```yaml
 llm:
-  default_model: "openai/gpt-5.4"
-  api_base: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-..."   # 你的 OpenRouter（或其他提供方）API key
+  default_model: "deepseek/deepseek-chat"
+  api_base: "https://api.deepseek.com"
+  api_key: ""                    # 你的 API key（或使用下方的 api_key_env）
+  api_key_env: "DEEPSEEK_API_KEY"  # 持有密鑰的環境變量（推薦）
 
   max_tokens: 32768         # 每次請求的最大輸出 token；如果你的模型
                             # 輸出上限更小，請調低
@@ -573,6 +634,38 @@ llm:
 然後用 `opc status` 驗證。
 
 如果不想把密鑰存在文件裏，可以將 `api_key` 留空，並把 `api_key_env` 設置爲持有密鑰的環境變量名（例如 `api_key_env: "OPENROUTER_API_KEY"`）。
+
+任何兼容 LiteLLM 的提供方都可使用 — DeepSeek、OpenAI、Anthropic、Qwen（通義千問/DashScope）、Gemini、Mistral、Groq、Azure、OpenRouter 等。
+
+### 預算感知調度
+
+OpenOPC 支持基於任務重要性的分層模型路由：
+
+```yaml
+llm:
+  tier_routing:
+    critical: "deepseek/deepseek-reasoner"   # 關鍵決策、複雜代碼生成
+    reasoning: "deepseek/deepseek-reasoner"  # 多步驟規劃
+    routine: "deepseek/deepseek-chat"        # 日常對話、簡單任務
+    summary: "deepseek/deepseek-chat"        # 摘要、分類
+
+  degrade_chain:
+    critical: "deepseek/deepseek-chat"       # 預算壓力下的回退
+    reasoning: "deepseek/deepseek-chat"
+```
+
+預算限制在 `system_config.yaml` 中配置：
+
+```yaml
+system:
+  budget:
+    task_limit_usd: 2.0        # 單任務上限（0=不限制）
+    session_limit_usd: 10.0    # 單會話上限
+    monthly_limit_usd: 100.0   # 月度上限
+    warn_threshold: 0.8        # 80% 時預警
+    degrade_threshold: 0.9     # 90% 時切換到更便宜的模型
+    hard_stop: false           # 降級而非停止
+```
 
 ### 審批與 Agent 權限
 
@@ -598,12 +691,31 @@ autonomy:
 Task 模式可以顯式選擇執行 Agent：
 
 ```bash
-opc chat -p demo --mode task --agent codex "Implement the change"
+opc chat -p demo --mode task --agent qwen_code "Implement the change"
 ```
 
-可用值有 `native`、`codex`、`claude_code`、`cursor` 與 `opencode`。在 `.opc/config/agent_config.yaml` 中配置命令名、參數、超時、會話複用與審批行爲。
+可用值有 `native`、`qwen_code`、`codex`、`claude_code`、`cursor` 與 `opencode`。在 `.opc/config/agent_config.yaml` 中配置命令名、參數、超時、會話複用與審批行爲。
 
 在 Company 模式下，角色可以通過角色配置或 Org 角色檢查器指定偏好的外部 Agent。角色的執行策略可以是 `auto`、`native` 或 `external`，並可選地指定偏好的外部 Agent。
+
+### 組織架構模板
+
+OpenOPC 內置了常見場景的組織模板：
+
+| 模板 | 適用場景 |
+|---|---|
+| `dev/fullstack_app` | 全棧應用開發團隊 |
+| `finance/research_report` | 投資研究與報告撰寫 |
+| `general/deep_research` | 多步驟深度研究與綜合 |
+| `content/article_series` | 內容規劃與文章系列生產 |
+| `general/quick_task` | 輕量單角色快速執行 |
+
+從 Org → Architecture 頁面應用模板，或通過 CLI：
+
+```bash
+opc market presets
+opc market apply-preset <preset_id>
+```
 
 ### 飛書接入
 
@@ -724,7 +836,7 @@ python scripts/reset_stuck_task.py --all --apply
 opc status
 ```
 
-檢查 `.opc/config/agent_config.yaml` 中的命令名，例如 `codex`、`claude`、`cursor-agent` 與 `opencode`。禁用或調整你未安裝的 Agent 的優先級。
+檢查 `.opc/config/agent_config.yaml` 中的命令名，例如 `qwen-code`、`codex`、`claude`、`cursor-agent` 與 `opencode`。禁用或調整你未安裝的 Agent 的優先級。
 </details>
 
 <details>
@@ -739,6 +851,34 @@ opc status
 - `opc channels status` 顯示該提供方已配置且可用。
 </details>
 
+</details>
+
+## 架構
+
+OpenOPC 是一個協調運行時，而非僅僅是一個 Agent 啓動器 — 它將交互、組織、執行、工具、記憶與可觀測性分離爲七個層次。
+
+<details>
+<summary><b>七層架構</b></summary>
+
+| 層 | 名稱 | 職責 |
+|---|---|---|
+| 0 | 交互 | CLI、Office UI（WebSocket）、消息總線、外部頻道運行時。 |
+| 1 | 感知與上下文 | 上下文加載、路由元數據、上下文組裝、提示詞框架。 |
+| 2 | 組織 | 工作項規劃、公司運行時、通訊、上報、審批、階段機、招聘。 |
+| 3 | Agent 執行 | 原生運行時（v2）、子 Agent、外部 Agent 適配器、權限、工具規劃。 |
+| 4 | 工具 | Shell、文件操作、瀏覽器（Playwright）、網頁搜索、Python 執行、Git、協作工具。 |
+| 5 | 記憶與演化 | Markdown 記憶、會話壓縮、偏好、技能庫、人才導入、持久記憶。 |
+| 6 | 可觀測性 | 事件、成本追蹤、結構化日誌、UI/運行時快照。 |
+</details>
+
+<details>
+<summary><b>核心機制</b></summary>
+
+- **協作** — Company 模式把一份簡報編譯爲工作項圖；每個角色在自己的會話中運行，評審者與最終決策者是一等公民。角色在 `AWAITING_PEER` 時暫停、交接、開會、通過評審/交付閘門 — 全部映射到 UI（聊天、記錄、Agents、Comms、看板、Execution Progress）。
+- **通訊** — 基於文件的、角色作用域的 `.opc-comms/` 工作區（收件箱、會議記錄、共享記憶），可被審計、回放，並用於喚醒被阻塞的同伴。
+- **自演化** — 運行結果餵入員工經驗、評審者偏好、檢查清單與學到的技能到 `employee_evolution.json`，使組織在分配對象和角色上下文方面持續改進。
+- **預算守衛** — 單任務、單會話與月度成本上限，配合分層模型路由和接近限額時的自動降級。
+- **反應式壓縮** — 上下文窗口壓力觸發自動歷史摘要、產物壓縮與工具結果裁剪，使長會話保持在模型限制之內。
 </details>
 
 ## 生態與分享

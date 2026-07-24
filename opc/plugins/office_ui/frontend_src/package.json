@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -b",
+    "test": "node --import tsx ./tests/message-list-scroll.spec.ts && node --import tsx ./tests/exec-panel-scroll.spec.ts",
     "test:scroll": "node --import tsx ./tests/message-list-scroll.spec.ts",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,6 +28,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

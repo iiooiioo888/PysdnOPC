@@ -1,0 +1,170 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "项目后端拥有完善的测试与 CI 体系，但 GUI 层缺少设计契约、组件级 CI 验证和视觉回归测试，在执行大规模前端重构时缺乏可控的验收路径。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml",
+            ".github/workflows/full-test.yml"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "try-frontend-typecheck-ci",
+        "kind": "try-existing",
+        "title": "将已有的前端 typecheck 和 test 命令接入 CI 工作流",
+        "reason": "项目已配置 npm run typecheck 和前端测试，但 CI 仅运行 Python 测试，前端验证信号在合并前不可见。",
+        "confidence": "High",
+        "owner": "项目维护者",
+        "nextStep": "在 full-test.yml 中增加一个 frontend job，执行 npm ci、npm run typecheck 和 npm test。",
+        "validation": "提交一个前端改动后确认 CI 中 frontend job 通过并阻止类型错误的合并。"
+      },
+      {
+        "id": "try-component-test-coverage",
+        "kind": "try-existing",
+        "title": "利用现有 29 个前端测试文件建立组件级验证基线",
+        "reason": "frontend_src 下已有覆盖 chat、kanban、workspace、org 等模块的测试文件，可作为重构的回归安全网。",
+        "confidence": "Medium",
+        "owner": "前端维护者",
+        "nextStep": "在重构前先运行 npm test 确认现有测试全部通过，作为基线快照。",
+        "validation": "重构后同一测试套件仍全部通过，无回归。"
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 62,
+        "summary": "AGENTS.md 提供了清晰的目录路由和任务入口，但 GUI 重构缺少设计契约和组件边界文档，agent 无法确认重构目标与验收标准。",
+        "findingRefs": [
+          "frontend-design-contract-missing"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 58,
+        "summary": "Makefile 和 AGENTS.md 提供了 typecheck/build 命令，但前端重构缺少分步执行边界和预检机制。",
+        "findingRefs": [
+          "frontend-design-contract-missing",
+          "monolithic-frontend-decomposition"
+        ]
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 45,
+        "summary": "前端存在 29 个测试文件但未纳入 CI，无视觉回归测试，GUI 改动的验证信号不足。",
+        "findingRefs": [
+          "monolithic-frontend-decomposition",
+          "frontend-ci-gap",
+          "no-visual-regression-testing"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 50,
+        "summary": "后端 CI 分阶段执行且含 Docker 构建，但前端构建与测试未接入 CI，GUI 交付缺少自动化验收门。",
+        "findingRefs": [
+          "frontend-ci-gap"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 30,
+        "summary": "无可观察的 GUI 重构模式复用或设计决策记录，前端架构知识未被持久化。",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "frontend-design-contract-missing",
+      "title": "GUI 重构缺少前端设计契约",
+      "severity": "High",
+      "reason": "App.tsx 达 2860 行、chat.css 达 5341 行，但无 DESIGN.md 或等效设计契约定义目标架构、组件边界和视觉规范。agent 在执行重构时无法判断完成标准和拆分方向。",
+      "expectedOutput": [
+        "一份前端设计契约文档，定义组件边界、状态管理和视觉规范，作为 GUI 重构的验收基准。"
+      ],
+      "expectedArtifact": "DESIGN.md",
+      "aiFixPrompt": "/better-loop fix this issue\n\n为 Office UI 前端创建 DESIGN.md 设计契约，包含：目标组件架构、模块边界、命名规范、状态管理策略和视觉设计原则。以 App.tsx 现有结构为基础规划拆分方向。\n\n## Validation\n\n- 确认 DESIGN.md 涵盖组件层次、状态流和样式组织\n- 确认与 AGENTS.md 中 Modify Office UI 路径一致",
+      "dimensionRefs": [
+        "task-understanding",
+        "controlled-execution"
+      ]
+    },
+    {
+      "id": "monolithic-frontend-decomposition",
+      "title": "前端核心文件过度集中，重构风险高",
+      "severity": "High",
+      "reason": "App.tsx（2860 行）承载了路由、状态、WebSocket 事件处理和页面编排；chat.css（5341 行）和 index.css（1598 行）集中了全部样式。任何局部修改都可能产生全局副作用，agent 无法安全地约束改动范围。",
+      "expectedOutput": [
+        "App.tsx 拆分为路由壳、事件 hooks 和页面组件，单文件不超过 500 行。"
+      ],
+      "expectedArtifact": "重构后的模块化前端架构",
+      "aiFixPrompt": "/better-loop fix this issue\n\n制定 App.tsx 拆分计划：将路由、WebSocket 事件分发、页面级状态分别提取为独立模块。优先拆分事件处理逻辑到 hooks/ 目录，保持现有测试通过。\n\n## Validation\n\n- 拆分后 npm run typecheck 通过\n- 现有 29 个前端测试文件全部通过\n- App.tsx 行数降至 500 行以下",
+      "dimensionRefs": [
+        "controlled-execution",
+        "change-validation"
+      ]
+    },
+    {
+      "id": "frontend-ci-gap",
+      "title": "前端构建与测试未纳入 CI 流水线",
+      "severity": "Medium",
+      "reason": "full-test.yml 仅运行 Python 测试和 Docker 构建，前端的 typecheck、unit test 和 build 均未在 CI 中执行。GUI 改动在合并前无自动化验证门，重构期间的回归无法被 CI 拦截。",
+      "expectedOutput": [
+        "full-test.yml 包含独立的 frontend 验证 job，覆盖 typecheck、test 和 build。"
+      ],
+      "expectedArtifact": "CI frontend job",
+      "aiFixPrompt": "/better-loop fix this issue\n\n在 .github/workflows/full-test.yml 中增加 frontend job：安装 Node.js、执行 npm ci、npm run typecheck、npm test 和 npm run build。设置为 high-risk 的并行 job。\n\n## Validation\n\n- 确认 CI 中 frontend job 独立运行且失败时阻止合并\n- 确认 typecheck 和 test 输出可归因到具体文件",
+      "dimensionRefs": [
+        "change-validation",
+        "reliable-delivery"
+      ]
+    },
+    {
+      "id": "no-visual-regression-testing",
+      "title": "GUI 改动缺少视觉回归测试",
+      "severity": "Medium",
+      "reason": "项目使用 Phaser 渲染办公室场景并有复杂的 CSS 布局，但无截图对比或视觉回归测试。大规模 GUI 重构中，视觉破坏只能依赖人工发现，agent 无法自动验证渲染结果。",
+      "expectedOutput": [
+        "关键页面具备视觉快照测试，重构期间的视觉破坏可被自动检测。"
+      ],
+      "expectedArtifact": "视觉回归测试套件",
+      "aiFixPrompt": "/better-loop fix this issue\n\n引入 Playwright 或 Storybook + Chromatic 进行关键页面的视觉快照测试。至少覆盖 Dashboard、Chat、Kanban 和 Office 四个主视图。\n\n## Validation\n\n- 确认快照测试可在本地和 CI 中运行\n- 确认 GUI 改动后快照差异可被自动检测",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    }
+  ]
+}

@@ -71,10 +71,33 @@ jobs:
           tests/test_org_config_roundtrip.py
           tests/test_org_config_import_handler.py
 
+  frontend:
+    name: frontend / typecheck & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opc/plugins/office_ui/frontend_src
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: opc/plugins/office_ui/frontend_src/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test -- --reporter=verbose
+      - name: Build
+        run: npm run build
+
   full-suite:
     name: full-suite / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: high-risk
+    needs: [high-risk, frontend]
     strategy:
       fail-fast: false
       matrix:

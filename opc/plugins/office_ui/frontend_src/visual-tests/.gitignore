@@ -1,0 +1,3 @@
+# Playwright visual test outputs (keep snapshots, ignore results)
+test-results/
+playwright-report/

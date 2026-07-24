@@ -1,0 +1,47 @@
+name: Visual Snapshot Tests
+
+on:
+  pull_request:
+    paths:
+      - 'opc/plugins/office_ui/frontend_src/**'
+  workflow_dispatch:
+
+jobs:
+  visual-snapshots:
+    name: Visual Regression (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        working-directory: opc/plugins/office_ui/frontend_src
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: opc/plugins/office_ui/frontend_src/package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual snapshot tests
+        run: npx playwright test --config playwright.visual.config.ts
+
+      - name: Upload snapshot diff artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-snapshot-diffs-${{ matrix.os }}
+          path: |
+            opc/plugins/office_ui/frontend_src/visual-tests/test-results/
+          retention-days: 7
