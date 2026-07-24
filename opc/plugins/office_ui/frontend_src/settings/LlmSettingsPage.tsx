@@ -16,6 +16,8 @@ export function LlmSettingsPage({ wsClient }: LlmSettingsPageProps) {
   const [config, setConfig] = useState<LlmConfigPayload | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
 
   // Local editable state
@@ -120,6 +122,32 @@ export function LlmSettingsPage({ wsClient }: LlmSettingsPageProps) {
     wsClient?.llmConfigGet()
   }, [wsClient])
 
+  const handleTestApi = useCallback(async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const response = await fetch('/api/llm/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: defaultModel,
+          api_base: apiBase,
+          api_key: apiKey || undefined,
+        }),
+      })
+      const data = await response.json()
+      if (data.ok) {
+        setTestResult({ ok: true, message: `✅ API 連接成功！模型: ${data.model || defaultModel}` })
+      } else {
+        setTestResult({ ok: false, message: `❌ API 連接失敗: ${data.error || '未知錯誤'}` })
+      }
+    } catch (err) {
+      setTestResult({ ok: false, message: `❌ 請求失敗: ${err}` })
+    } finally {
+      setTesting(false)
+    }
+  }, [defaultModel, apiBase, apiKey])
+
   const updateTier = useCallback((key: string, value: string) => {
     setTierRouting(prev => ({ ...prev, [key]: value }))
     markDirty()
@@ -142,12 +170,21 @@ export function LlmSettingsPage({ wsClient }: LlmSettingsPageProps) {
       <div className="llm-settings-header">
         <h2>🤖 {t('llm.title', 'LLM 模型設定')}</h2>
         <div className="llm-settings-actions">
+          <button className="llm-btn" onClick={handleTestApi} disabled={testing}>
+            {testing ? '測試中...' : '🔗 測試 API'}
+          </button>
           <button className="llm-btn" onClick={handleRefresh}>{t('common.refresh', '重新整理')}</button>
           <button className="llm-btn primary" onClick={handleSave} disabled={!dirty || saving}>
             {saving ? t('common.loading', '儲存中...') : t('common.save', '儲存')}
           </button>
         </div>
       </div>
+
+      {testResult && (
+        <div className={`llm-test-result ${testResult.ok ? 'success' : 'error'}`}>
+          {testResult.message}
+        </div>
+      )}
 
       {toast && (
         <div className={`llm-toast ${toast.kind}`}>{toast.text}</div>
