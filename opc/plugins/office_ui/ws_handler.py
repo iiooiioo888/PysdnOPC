@@ -194,12 +194,14 @@ from opc.plugins.office_ui._ws_tasks import WsTaskMixin
 from opc.plugins.office_ui._ws_company import WsCompanyMixin
 from opc.plugins.office_ui._ws_chat import WsChatMixin
 from opc.plugins.office_ui._ws_config import WsConfigMixin
+from opc.plugins.office_ui._ws_role_profile import WsRoleProfileMixin
 
 class WSHandler(
     WsTaskMixin,
     WsCompanyMixin,
     WsChatMixin,
     WsConfigMixin,
+    WsRoleProfileMixin,
 ):
     """Routes all WebSocket messages between frontend and OPC."""
 
@@ -4520,3 +4522,5 @@ class WSHandler(
     _HANDLERS["llm_config_set"] = "_handle_llm_config_set"
     _HANDLERS["agent_config_get"] = "_handle_agent_config_get"
     _HANDLERS["agent_config_set"] = "_handle_agent_config_set"
+    _HANDLERS["get_role_profile"] = "_handle_get_role_profile"
+    _HANDLERS["get_role_profile_section"] = "_handle_get_role_profile_section"

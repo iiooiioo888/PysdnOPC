@@ -9,6 +9,7 @@ import { getOfficeDeskSeats } from './game/map/InteractionZones'
 import type { OrgCreateMemberInput, TaskPreferredAgent } from './types/visual'
 import { WorkspacePage } from './workspace/WorkspacePage'
 import { DashboardPage } from './dashboard/DashboardPage'
+import { RoleProfilePage } from './dashboard/RoleProfilePage'
 import { TemplatesPage } from './dashboard/TemplatesPage'
 import { LlmSettingsPage } from './settings/LlmSettingsPage'
 import { AgentSettingsPage } from './settings/AgentSettingsPage'
@@ -203,6 +204,7 @@ export default function App() {
               {(() => { const total = ws.chatStore.channels.reduce((sum, ch) => sum + ws.chatStore.getUnreadCount(ch.id), 0); return total > 0 ? <span className="nav-unread-badge">{total > 99 ? '99+' : total}</span> : null })()}
             </button>
             <button className={`page-nav-btn${activePage === 'dashboard' ? ' active' : ''}`} onClick={() => setActivePage('dashboard')}>📊 {t('nav.dashboard', '儀表盤')}</button>
+            <button className={`page-nav-btn${activePage === 'roleProfile' ? ' active' : ''}`} onClick={() => setActivePage('roleProfile')}>🪪 {t('nav.roleProfile', '角色画像')}</button>
             <button className={`page-nav-btn${activePage === 'office' ? ' active' : ''}`} onClick={() => setActivePage('office')}>{t('nav.game')}</button>
             <button className={`page-nav-btn${activePage === 'org' ? ' active' : ''}`} onClick={() => setActivePage('org')}>{t('nav.org')}</button>
             <button className={`page-nav-btn${activePage === 'templates' ? ' active' : ''}`} onClick={() => setActivePage('templates')}>🏗️ {t('nav.templates', '模板')}</button>
@@ -246,6 +248,7 @@ export default function App() {
           onCollabSync={() => ws.clientRef.current?.collabSync(ws.getActiveProjectId(), undefined, ws.projectViewGenerationRef.current)} />
       )}
       {activePage === 'dashboard' && (<DashboardPage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} sendRuntimeLogs={(pid, taskId) => ws.clientRef.current?.requestRuntimeLogs(pid, taskId)} onRuntimeLogsAck={(handler) => { ws.runtimeLogsAckHandlersRef.current.add(handler); return () => { ws.runtimeLogsAckHandlersRef.current.delete(handler) } }} />)}
+      {activePage === 'roleProfile' && (<RoleProfilePage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} sendRequest={(payload) => ws.clientRef.current?.send(payload)} onAck={(handler) => { ws.roleProfileAckHandlersRef.current.add(handler); return () => { ws.roleProfileAckHandlersRef.current.delete(handler) } }} />)}
       {activePage === 'templates' && (<TemplatesPage onApplyTemplate={(templateId) => { if (ws.clientRef.current) ws.clientRef.current.send(JSON.stringify({ action: 'apply_org_template', template_id: templateId })) }} />)}
       {activePage === 'settings' && (
         <div>

@@ -1667,10 +1667,139 @@ class RoleMemoryRecord:
     memory_id: str = field(default_factory=lambda: str(uuid.uuid4()))  # 記憶唯一 ID
     project_id: str = "default"  # 所屬專案 ID
     role_id: str = ""  # 角色 ID
-    scope: str = "project"  # 記憶範圍（"project"/"global"）
+    scope: str = "project"  # 記憶範圍（"project"/"global"/"ephemeral"）
     summary: str = ""  # 記憶摘要
     details: dict[str, Any] = field(default_factory=dict)  # 記憶詳情
     created_at: datetime = field(default_factory=_utcnow)  # 建立時間
+
+
+# ---------------------------------------------------------------------------
+# 角色画像資料模型（Role Profile）— 十大模塊數據結構
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RoleWorkRecord:
+    """角色工作記錄 — 追蹤角色執行的每項工作。"""
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    work_item_id: str = ""
+    title: str = ""
+    status: str = "in_progress"  # in_progress / completed / failed
+    collaborators: list[str] = field(default_factory=list)
+    started_at: datetime = field(default_factory=_utcnow)
+    completed_at: datetime | None = None
+    duration_seconds: float = 0.0
+    summary: str = ""
+
+
+@dataclass
+class RoleOrientation:
+    """角色取向 — 角色的目標、能力與價值觀。"""
+    orientation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    goals: list[dict[str, Any]] = field(default_factory=list)  # [{text, priority, progress}]
+    capabilities: list[str] = field(default_factory=list)
+    values: list[str] = field(default_factory=list)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RolePersonality:
+    """角色性格 — 角色的特質、交互風格與行為觀察。"""
+    personality_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    traits: dict[str, float] = field(default_factory=dict)  # {trait_name: 0.0-1.0}
+    interaction_style: str = ""
+    behavior_notes: list[str] = field(default_factory=list)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RoleCollaboration:
+    """角色協作網路 — 角色間的協作關係與頻率。"""
+    collab_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    partner_role_id: str = ""
+    interaction_count: int = 0
+    last_interaction_at: datetime | None = None
+    quality_score: float = 0.0
+    notes: str = ""
+
+
+@dataclass
+class RoleSkillProficiency:
+    """角色技能圖譜 — 技能熟練度與學習軌跡。"""
+    skill_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    category: str = "technical"  # technical / soft / domain
+    skill_name: str = ""
+    level: float = 0.0  # 0.0-1.0
+    learning_goals: list[str] = field(default_factory=list)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RoleOutputMetrics:
+    """角色產出分析 — 每週產出指標與品質趨勢。"""
+    metrics_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    week_label: str = ""  # e.g. "2026-W30"
+    tasks_completed: int = 0
+    quality_score: float = 0.0
+    avg_duration: float = 0.0
+    rework_count: int = 0
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RoleResourceUsage:
+    """角色資源消耗 — Token、時間與費用追蹤。"""
+    usage_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    period: str = ""  # e.g. "2026-W30"
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    duration_seconds: float = 0.0
+    model_breakdown: dict[str, int] = field(default_factory=dict)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RoleTaskAssignment:
+    """角色任務佇列 — 看板式的任務分配與狀態。"""
+    assignment_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    work_item_id: str = ""
+    title: str = ""
+    column: str = "upcoming"  # in_progress / upcoming / blocked / done
+    priority: int = 0
+    depends_on: list[str] = field(default_factory=list)
+    blocked_reason: str = ""
+    updated_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class RoleCommunicationRecord:
+    """角色通訊決策記錄 — 決策、討論、升級與行動項目。"""
+    comm_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str = "default"
+    role_id: str = ""
+    comm_type: str = "discussion"  # decision / discussion / escalation / action / info
+    title: str = ""
+    content: str = ""
+    participants: list[str] = field(default_factory=list)
+    outcome: str = ""
+    created_at: datetime = field(default_factory=_utcnow)
 
 
 @dataclass

@@ -59,7 +59,7 @@ interface LlmConversationPanelProps {
 
 /* ── Conversation message types ────────────────────────────────────────── */
 
-type ConversationRole = 'system' | 'user' | 'assistant' | 'thinking' | 'tool' | 'event'
+type ConversationRole = 'system' | 'user' | 'assistant' | 'thinking' | 'tool' | 'event' | 'cost' | 'iteration'
 
 interface ConversationMessage {
   id: string
@@ -73,18 +73,22 @@ interface ConversationMessage {
     tokensOut?: number
     iteration?: number
     eventType?: string
+    /** Sub-classification for finer display */
+    subType?: string
   }
 }
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
-const ROLE_CONFIG: Record<ConversationRole, { label: string; color: string; icon: string }> = {
-  system: { label: '系統提示', color: '#8b5cf6', icon: '⚙️' },
-  user: { label: '用戶輸入', color: '#3b82f6', icon: '👤' },
-  assistant: { label: 'LLM 回應', color: '#22c55e', icon: '🤖' },
-  thinking: { label: '思考過程', color: '#f59e0b', icon: '💭' },
-  tool: { label: '工具調用', color: '#06b6d4', icon: '🔧' },
-  event: { label: '系統事件', color: '#6b7280', icon: '📡' },
+const ROLE_CONFIG: Record<ConversationRole, { label: string; color: string; icon: string; description: string }> = {
+  system: { label: '系統提示', color: '#8b5cf6', icon: '⚙️', description: '系統級指令與設定' },
+  user: { label: '用戶輸入', color: '#3b82f6', icon: '👤', description: '使用者發送的訊息' },
+  assistant: { label: 'LLM 回應', color: '#22c55e', icon: '🤖', description: 'AI 模型生成的回覆內容' },
+  thinking: { label: '思考過程', color: '#f59e0b', icon: '💭', description: '模型內部推理與思考鏈' },
+  tool: { label: '工具調用', color: '#06b6d4', icon: '🔧', description: '工具執行請求與結果' },
+  event: { label: '系統事件', color: '#6b7280', icon: '📡', description: '執行狀態與系統通知' },
+  cost: { label: '費用統計', color: '#ec4899', icon: '💰', description: 'Token 用量與費用資訊' },
+  iteration: { label: '迭代節點', color: '#a78bfa', icon: '🔁', description: '執行迭代的開始與結束標記' },
 }
 
 function formatTimestamp(ts?: number | string): string {
@@ -198,7 +202,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
     } else if (eventType === 'cost_update') {
       messages.push({
         id: `event-cost-${seq++}`,
-        role: 'event',
+        role: 'cost',
         content: `Token 使用: 輸入=${payload.tokens_in ?? '?'} 輸出=${payload.tokens_out ?? '?'} | 模型: ${str(payload.model || '?')} | 費用: $${payload.estimated_cost_delta ?? '?'}`,
         timestamp: event.created_at ? new Date(str(event.created_at)).getTime() : undefined,
         meta: { eventType, model: str(payload.model || ''), tokensIn: num(payload.tokens_in), tokensOut: num(payload.tokens_out) },
@@ -206,7 +210,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
     } else if (eventType === 'turn_started') {
       messages.push({
         id: `event-turn-${seq++}`,
-        role: 'event',
+        role: 'iteration',
         content: `── 迭代 ${payload.iteration ?? '?'} 開始 ──`,
         timestamp: event.created_at ? new Date(str(event.created_at)).getTime() : undefined,
         meta: { eventType, iteration: num(payload.iteration) },
@@ -215,7 +219,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
       const isFailed = eventType === 'turn_failed'
       messages.push({
         id: `event-turn-end-${seq++}`,
-        role: 'event',
+        role: 'iteration',
         content: `── 迭代 ${payload.iteration ?? '?'} ${isFailed ? '失敗' : '完成'} ──${payload.error ? `\n錯誤: ${str(payload.error)}` : ''}`,
         timestamp: event.created_at ? new Date(str(event.created_at)).getTime() : undefined,
         meta: { eventType, iteration: num(payload.iteration) },
@@ -296,16 +300,18 @@ function MessageBubble({ msg, expanded, onToggle }: { msg: ConversationMessage; 
 
 /* ── Filter options ────────────────────────────────────────────────────── */
 
-type FilterType = 'all' | 'system' | 'user' | 'assistant' | 'thinking' | 'tool' | 'event'
+type FilterType = 'all' | ConversationRole
 
-const FILTER_OPTIONS: Array<{ value: FilterType; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'system', label: '系統提示' },
-  { value: 'user', label: '用戶輸入' },
-  { value: 'assistant', label: 'LLM 回應' },
-  { value: 'thinking', label: '思考過程' },
-  { value: 'tool', label: '工具調用' },
-  { value: 'event', label: '事件' },
+const FILTER_OPTIONS: Array<{ value: FilterType; label: string; icon: string }> = [
+  { value: 'all', label: '全部', icon: '📃' },
+  { value: 'system', label: '系統提示', icon: '⚙️' },
+  { value: 'user', label: '用戶輸入', icon: '👤' },
+  { value: 'assistant', label: 'LLM 回應', icon: '🤖' },
+  { value: 'thinking', label: '思考過程', icon: '💭' },
+  { value: 'tool', label: '工具調用', icon: '🔧' },
+  { value: 'event', label: '系統事件', icon: '📡' },
+  { value: 'cost', label: '費用統計', icon: '💰' },
+  { value: 'iteration', label: '迭代節點', icon: '🔁' },
 ]
 
 /* ── Main Component ────────────────────────────────────────────────────── */
@@ -379,6 +385,15 @@ export function LlmConversationPanel({
     return messages.filter(m => m.role === filter)
   }, [messages, filter])
 
+  // Count messages per category for filter badges
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: messages.length }
+    for (const m of messages) {
+      counts[m.role] = (counts[m.role] || 0) + 1
+    }
+    return counts
+  }, [messages])
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
   }, [onClose])
@@ -423,15 +438,22 @@ export function LlmConversationPanel({
 
         {/* Filter bar */}
         <div className="llm-panel-filters">
-          {FILTER_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              className={`llm-filter-btn${filter === opt.value ? ' active' : ''}`}
-              onClick={() => setFilter(opt.value)}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <span className="llm-filter-hint">篩選:</span>
+          {FILTER_OPTIONS.map(opt => {
+            const count = filterCounts[opt.value] ?? 0
+            if (opt.value !== 'all' && count === 0) return null
+            return (
+              <button
+                key={opt.value}
+                className={`llm-filter-btn${filter === opt.value ? ' active' : ''}`}
+                onClick={() => setFilter(opt.value)}
+                title={opt.value !== 'all' ? ROLE_CONFIG[opt.value as ConversationRole]?.description : '顯示所有訊息'}
+              >
+                {opt.icon} {opt.label}
+                {count > 0 && <span className="llm-filter-count">{count}</span>}
+              </button>
+            )
+          })}
         </div>
 
         {/* Body */}

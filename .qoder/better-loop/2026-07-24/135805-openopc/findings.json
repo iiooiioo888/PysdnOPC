@@ -1,0 +1,135 @@
+{
+  "summary": {
+    "projectName": "OpenOPC",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 24,
+    "overview": "OpenOPC 擁有完整的代理指引（AGENTS.md）、多階段 CI 管線與 pre-commit 品質閘門，靜態基礎設施成熟度高。然而，14 個工作階段中未觀測到任何編輯或驗證事件，學習擷取系統因缺少正規化事件而無法評估重複模式，導致經驗無法沉澱為可複用改進。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 3,
+          "paths": [
+            ".github/workflows/external-agent-smoke.yml",
+            ".github/workflows/full-test.yml",
+            ".github/workflows/visual-snapshots.yml"
+          ]
+        }
+      ]
+    },
+    "suggestions": [
+      {
+        "id": "try-normalized-event-generation",
+        "kind": "try-existing",
+        "title": "啟用正規化事件生成以解鎖學習擷取管線",
+        "reason": "分析器覆蓋邊界明確顯示 Capture=not-evaluable-missing-normalized-events，而 .opc/normalized_events.jsonl 檔案已存在於專案中，表明生成機制已配置但可能未啟用或未產生有效內容。",
+        "confidence": "Medium",
+        "owner": "Observability 維護者",
+        "nextStep": "檢查 .opc/normalized_events.jsonl 的生成條件，確認事件管線是否在正常工作階段中產生標準化事件。",
+        "validation": "執行一次包含代碼編輯的工作階段後，確認 normalized_events.jsonl 有新事件寫入，且學習覆蓋邊界從 not-evaluable 變為可評估狀態。"
+      },
+      {
+        "id": "try-post-edit-validation-skill",
+        "kind": "try-existing",
+        "title": "將 AGENTS.md 中的編輯後驗證規則提取為可觀測的自動化程序",
+        "reason": "AGENTS.md 已明確定義編輯後強制 pytest 驗證規則，但 14 個工作階段中未觀測到任何驗證命令執行，表明規則可能僅為文件約定而非機械化執行路徑。",
+        "confidence": "Medium",
+        "owner": "開發流程維護者",
+        "nextStep": "確認 pre-commit pytest-smoke hook 是否在實際提交時觸發，或考慮將驗證規則綁定至代理 Hook 以確保機械化執行。",
+        "validation": "在下次代碼編輯工作階段中觀測到 pytest 執行事件，且結果被記錄為可歸因的驗證證據。"
+      }
+    ],
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 68,
+        "summary": "AGENTS.md 提供清晰的專案定位、目錄職責表、高風險區域與任務路由，靜態指引完整；但工作階段中未觀測到範圍邊界的實際行使。",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 70,
+        "summary": "uv + Makefile + pyproject.toml 構成可重現的啟動路徑，CLI 與 Make 目標覆蓋主要操作；权限边界由 pre-commit 與 CI 配置守護，但未在會話中觀測到實際觸發。",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 55,
+        "summary": "165 個測試檔案與兩階段 CI 提供強大的驗證基礎設施，AGENTS.md 強制要求編輯後執行 pytest；但所有分析會話中未觀測到任何驗證命令執行，驗證行為無法確認。",
+        "findingRefs": [
+          "validation-execution-unobservable"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 52,
+        "summary": "CI 管線（lint → high-risk → frontend → full-suite → docker-build）與分支保護構成完整的交付路徑，但工作階段中無任何交付證據，交付驗收處於不可觀測狀態。",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "學習擷取覆蓋邊界顯示 Capture、Pattern Detection、Routing 等維度均因缺少正規化事件而無法評估，重複工作候選訊號存在但無法被路由至可複用改進路徑。",
+        "findingRefs": [
+          "learning-capture-missing-normalized-events"
+        ]
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "learning-capture-missing-normalized-events",
+      "title": "學習擷取機制因缺少正規化事件而無法運作",
+      "severity": "Medium",
+      "reason": "覆蓋邊界診斷顯示 Capture=not-evaluable-missing-normalized-events、Pattern Detection=insufficient-recurrence、Routing=not-evaluable-missing-invocation-events。工作流需求觀測已發現重複候選訊號，但系統無法將其路由至可複用改進路徑。這意味著專案的經驗積累停留在文件層面，無法自動檢測重複工作並沉澱為持久改進。",
+      "expectedOutput": [
+        "確認正規化事件在正常工作階段中生成",
+        "學習擷取覆蓋邊界從 not-evaluable 變為可評估"
+      ],
+      "expectedArtifact": "事件管線修復",
+      "aiFixPrompt": "/better-loop fix this issue\n\n檢查 .opc/normalized_events.jsonl 的生成管線，確認事件在工作階段中正確寫入。確保學習擷取覆蓋邊界從 not-evaluable 恢復為可評估。\n\n## Validation\n\n- 執行一次包含代碼編輯的工作階段\n- 確認 normalized_events.jsonl 有新事件\n- 重新執行 better-loop 分析確認覆蓋邊界狀態改善",
+      "dimensionRefs": [
+        "learning-capture"
+      ]
+    },
+    {
+      "id": "validation-execution-unobservable",
+      "title": "編輯後驗證行為在會話證據中不可觀測",
+      "severity": "Low",
+      "reason": "AGENTS.md 明確要求任何代碼編輯後必須執行 pytest 驗證，pre-commit 配置了 pytest-smoke hook，CI 提供多階段測試閘門。然而，14 個分析工作階段中觀測覆蓋為零（withChecks=0），pytest 被用戶提及但無匹配的命令執行觀測。驗證基礎設施完整但行為證據缺失，無法確認規則是否被機械化執行。",
+      "expectedOutput": [
+        "工作階段中觀測到驗證命令執行",
+        "驗證結果可歸因至最終變更"
+      ],
+      "expectedArtifact": "驗證觀測路徑",
+      "aiFixPrompt": "/better-loop fix this issue\n\n確認 pre-commit pytest-smoke hook 在實際提交時正確觸發。考慮將 AGENTS.md 的編輯後驗證規則綁定至代理 Hook 或自動化程序，確保驗證執行被觀測記錄。\n\n## Validation\n\n- 在代碼編輯後觀測到 pytest 執行事件\n- 確認驗證結果可歸因至對應的變更集",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    }
+  ]
+}

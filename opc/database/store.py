@@ -64,8 +64,17 @@ from opc.core.models import (  # 領域資料模型
     ReorgProposalStatus,
     ReorgRiskLevel,
     ReorgScope,
+    RoleCollaboration,
+    RoleCommunicationRecord,
     RoleMemoryRecord,
+    RoleOrientation,
+    RoleOutputMetrics,
+    RolePersonality,
+    RoleResourceUsage,
     RoleRuntimeSession,
+    RoleSkillProficiency,
+    RoleTaskAssignment,
+    RoleWorkRecord,
     SeatState,
     SessionCompactionRecord,
     SessionMemorySnapshotRecord,
@@ -672,6 +681,112 @@ class OPCStore(
                 scope TEXT DEFAULT 'project',
                 summary TEXT DEFAULT '',
                 details TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_work_records (
+                record_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                work_item_id TEXT DEFAULT '',
+                title TEXT DEFAULT '',
+                status TEXT DEFAULT 'in_progress',
+                collaborators TEXT DEFAULT '[]',
+                started_at TEXT NOT NULL,
+                completed_at TEXT,
+                duration_seconds REAL DEFAULT 0.0,
+                summary TEXT DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS role_orientations (
+                orientation_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                goals TEXT DEFAULT '[]',
+                capabilities TEXT DEFAULT '[]',
+                values_list TEXT DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_personalities (
+                personality_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                traits TEXT DEFAULT '{}',
+                interaction_style TEXT DEFAULT '',
+                behavior_notes TEXT DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_collaborations (
+                collab_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                partner_role_id TEXT NOT NULL,
+                interaction_count INTEGER DEFAULT 0,
+                last_interaction_at TEXT,
+                quality_score REAL DEFAULT 0.0,
+                notes TEXT DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS role_skills (
+                skill_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                category TEXT DEFAULT 'technical',
+                skill_name TEXT NOT NULL,
+                level REAL DEFAULT 0.0,
+                learning_goals TEXT DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_output_metrics (
+                metrics_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                week_label TEXT DEFAULT '',
+                tasks_completed INTEGER DEFAULT 0,
+                quality_score REAL DEFAULT 0.0,
+                avg_duration REAL DEFAULT 0.0,
+                rework_count INTEGER DEFAULT 0,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_resource_usage (
+                usage_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                period TEXT DEFAULT '',
+                tokens_in INTEGER DEFAULT 0,
+                tokens_out INTEGER DEFAULT 0,
+                cost_usd REAL DEFAULT 0.0,
+                duration_seconds REAL DEFAULT 0.0,
+                model_breakdown TEXT DEFAULT '{}',
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_task_assignments (
+                assignment_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                work_item_id TEXT DEFAULT '',
+                title TEXT DEFAULT '',
+                column_name TEXT DEFAULT 'upcoming',
+                priority INTEGER DEFAULT 0,
+                depends_on TEXT DEFAULT '[]',
+                blocked_reason TEXT DEFAULT '',
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS role_communications (
+                comm_id TEXT PRIMARY KEY,
+                project_id TEXT DEFAULT 'default',
+                role_id TEXT NOT NULL,
+                comm_type TEXT DEFAULT 'discussion',
+                title TEXT DEFAULT '',
+                content TEXT DEFAULT '',
+                participants TEXT DEFAULT '[]',
+                outcome TEXT DEFAULT '',
                 created_at TEXT NOT NULL
             );
 
@@ -1446,6 +1561,15 @@ class OPCStore(
             CREATE INDEX IF NOT EXISTS idx_decisions_project ON work_item_decisions(project_id, projection_id);
             CREATE INDEX IF NOT EXISTS idx_artifacts_project ON artifact_records(project_id, projection_id);
             CREATE INDEX IF NOT EXISTS idx_role_memory_project ON role_memory(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_work_records_project ON role_work_records(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_orientations_project ON role_orientations(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_personalities_project ON role_personalities(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_collaborations_project ON role_collaborations(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_skills_project ON role_skills(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_output_metrics_project ON role_output_metrics(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_resource_usage_project ON role_resource_usage(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_task_assignments_project ON role_task_assignments(project_id, role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_communications_project ON role_communications(project_id, role_id);
             CREATE INDEX IF NOT EXISTS idx_handoff_project ON handoff_records(project_id, target_projection_id);
             CREATE INDEX IF NOT EXISTS idx_handoff_status ON handoff_records(project_id, status, target_projection_id);
             CREATE INDEX IF NOT EXISTS idx_delegation_runs_session ON delegation_runs(session_id, updated_at);
@@ -1973,6 +2097,283 @@ class OPCStore(
                     created_at=datetime.fromisoformat(data["created_at"]),
                 )
                 for data in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    # ------------------------------------------------------------------
+    # Role Profile CRUD (十大模塊)
+    # ------------------------------------------------------------------
+
+    async def record_role_work_record(self, record: RoleWorkRecord) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_work_records
+            (record_id, project_id, role_id, work_item_id, title, status, collaborators, started_at, completed_at, duration_seconds, summary)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.record_id, record.project_id, record.role_id, record.work_item_id,
+             record.title, record.status, _json_dumps(record.collaborators),
+             record.started_at.isoformat(),
+             record.completed_at.isoformat() if record.completed_at else None,
+             record.duration_seconds, record.summary),
+        )
+        await self._db.commit()
+
+    async def get_role_work_records(self, project_id: str, role_id: str, limit: int = 50) -> list[RoleWorkRecord]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_work_records WHERE project_id = ? AND role_id = ? ORDER BY started_at DESC LIMIT ?""",
+            (project_id, role_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleWorkRecord(
+                    record_id=d["record_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    work_item_id=d["work_item_id"], title=d["title"], status=d["status"],
+                    collaborators=_json_loads(d["collaborators"], []),
+                    started_at=datetime.fromisoformat(d["started_at"]),
+                    completed_at=datetime.fromisoformat(d["completed_at"]) if d["completed_at"] else None,
+                    duration_seconds=d["duration_seconds"], summary=d["summary"],
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def save_role_orientation(self, record: RoleOrientation) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_orientations
+            (orientation_id, project_id, role_id, goals, capabilities, values_list, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (record.orientation_id, record.project_id, record.role_id,
+             _json_dumps(record.goals), _json_dumps(record.capabilities),
+             _json_dumps(record.values), record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_orientation(self, project_id: str, role_id: str) -> RoleOrientation | None:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_orientations WHERE project_id = ? AND role_id = ? ORDER BY updated_at DESC LIMIT 1""",
+            (project_id, role_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            cols = [d[0] for d in cursor.description]
+            d = dict(zip(cols, row))
+            return RoleOrientation(
+                orientation_id=d["orientation_id"], project_id=d["project_id"], role_id=d["role_id"],
+                goals=_json_loads(d["goals"], []), capabilities=_json_loads(d["capabilities"], []),
+                values=_json_loads(d["values_list"], []),
+                updated_at=datetime.fromisoformat(d["updated_at"]),
+            )
+
+    async def save_role_personality(self, record: RolePersonality) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_personalities
+            (personality_id, project_id, role_id, traits, interaction_style, behavior_notes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (record.personality_id, record.project_id, record.role_id,
+             _json_dumps(record.traits), record.interaction_style,
+             _json_dumps(record.behavior_notes), record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_personality(self, project_id: str, role_id: str) -> RolePersonality | None:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_personalities WHERE project_id = ? AND role_id = ? ORDER BY updated_at DESC LIMIT 1""",
+            (project_id, role_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            cols = [d[0] for d in cursor.description]
+            d = dict(zip(cols, row))
+            return RolePersonality(
+                personality_id=d["personality_id"], project_id=d["project_id"], role_id=d["role_id"],
+                traits=_json_loads(d["traits"], {}), interaction_style=d["interaction_style"],
+                behavior_notes=_json_loads(d["behavior_notes"], []),
+                updated_at=datetime.fromisoformat(d["updated_at"]),
+            )
+
+    async def record_role_collaboration(self, record: RoleCollaboration) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_collaborations
+            (collab_id, project_id, role_id, partner_role_id, interaction_count, last_interaction_at, quality_score, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.collab_id, record.project_id, record.role_id, record.partner_role_id,
+             record.interaction_count,
+             record.last_interaction_at.isoformat() if record.last_interaction_at else None,
+             record.quality_score, record.notes),
+        )
+        await self._db.commit()
+
+    async def get_role_collaborations(self, project_id: str, role_id: str) -> list[RoleCollaboration]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_collaborations WHERE project_id = ? AND role_id = ? ORDER BY interaction_count DESC""",
+            (project_id, role_id),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleCollaboration(
+                    collab_id=d["collab_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    partner_role_id=d["partner_role_id"], interaction_count=d["interaction_count"],
+                    last_interaction_at=datetime.fromisoformat(d["last_interaction_at"]) if d["last_interaction_at"] else None,
+                    quality_score=d["quality_score"], notes=d["notes"],
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def save_role_skill(self, record: RoleSkillProficiency) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_skills
+            (skill_id, project_id, role_id, category, skill_name, level, learning_goals, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.skill_id, record.project_id, record.role_id, record.category,
+             record.skill_name, record.level, _json_dumps(record.learning_goals),
+             record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_skills(self, project_id: str, role_id: str) -> list[RoleSkillProficiency]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_skills WHERE project_id = ? AND role_id = ? ORDER BY category, level DESC""",
+            (project_id, role_id),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleSkillProficiency(
+                    skill_id=d["skill_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    category=d["category"], skill_name=d["skill_name"], level=d["level"],
+                    learning_goals=_json_loads(d["learning_goals"], []),
+                    updated_at=datetime.fromisoformat(d["updated_at"]),
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def record_role_output_metrics(self, record: RoleOutputMetrics) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_output_metrics
+            (metrics_id, project_id, role_id, week_label, tasks_completed, quality_score, avg_duration, rework_count, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.metrics_id, record.project_id, record.role_id, record.week_label,
+             record.tasks_completed, record.quality_score, record.avg_duration,
+             record.rework_count, record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_output_metrics(self, project_id: str, role_id: str, limit: int = 12) -> list[RoleOutputMetrics]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_output_metrics WHERE project_id = ? AND role_id = ? ORDER BY week_label DESC LIMIT ?""",
+            (project_id, role_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleOutputMetrics(
+                    metrics_id=d["metrics_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    week_label=d["week_label"], tasks_completed=d["tasks_completed"],
+                    quality_score=d["quality_score"], avg_duration=d["avg_duration"],
+                    rework_count=d["rework_count"],
+                    updated_at=datetime.fromisoformat(d["updated_at"]),
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def record_role_resource_usage(self, record: RoleResourceUsage) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_resource_usage
+            (usage_id, project_id, role_id, period, tokens_in, tokens_out, cost_usd, duration_seconds, model_breakdown, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.usage_id, record.project_id, record.role_id, record.period,
+             record.tokens_in, record.tokens_out, record.cost_usd,
+             record.duration_seconds, _json_dumps(record.model_breakdown),
+             record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_resource_usage(self, project_id: str, role_id: str, limit: int = 12) -> list[RoleResourceUsage]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_resource_usage WHERE project_id = ? AND role_id = ? ORDER BY period DESC LIMIT ?""",
+            (project_id, role_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleResourceUsage(
+                    usage_id=d["usage_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    period=d["period"], tokens_in=d["tokens_in"], tokens_out=d["tokens_out"],
+                    cost_usd=d["cost_usd"], duration_seconds=d["duration_seconds"],
+                    model_breakdown=_json_loads(d["model_breakdown"], {}),
+                    updated_at=datetime.fromisoformat(d["updated_at"]),
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def save_role_task_assignment(self, record: RoleTaskAssignment) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_task_assignments
+            (assignment_id, project_id, role_id, work_item_id, title, column_name, priority, depends_on, blocked_reason, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.assignment_id, record.project_id, record.role_id, record.work_item_id,
+             record.title, record.column, record.priority,
+             _json_dumps(record.depends_on), record.blocked_reason,
+             record.updated_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_task_assignments(self, project_id: str, role_id: str) -> list[RoleTaskAssignment]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_task_assignments WHERE project_id = ? AND role_id = ? ORDER BY priority DESC, updated_at DESC""",
+            (project_id, role_id),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleTaskAssignment(
+                    assignment_id=d["assignment_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    work_item_id=d["work_item_id"], title=d["title"], column=d["column_name"],
+                    priority=d["priority"], depends_on=_json_loads(d["depends_on"], []),
+                    blocked_reason=d["blocked_reason"],
+                    updated_at=datetime.fromisoformat(d["updated_at"]),
+                ) for d in (dict(zip(cols, row)) for row in rows)
+            ]
+
+    async def record_role_communication(self, record: RoleCommunicationRecord) -> None:
+        assert self._db
+        await self._db.execute(
+            """INSERT OR REPLACE INTO role_communications
+            (comm_id, project_id, role_id, comm_type, title, content, participants, outcome, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (record.comm_id, record.project_id, record.role_id, record.comm_type,
+             record.title, record.content, _json_dumps(record.participants),
+             record.outcome, record.created_at.isoformat()),
+        )
+        await self._db.commit()
+
+    async def get_role_communications(self, project_id: str, role_id: str, limit: int = 50) -> list[RoleCommunicationRecord]:
+        assert self._db
+        async with self._db.execute(
+            """SELECT * FROM role_communications WHERE project_id = ? AND role_id = ? ORDER BY created_at DESC LIMIT ?""",
+            (project_id, role_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return [
+                RoleCommunicationRecord(
+                    comm_id=d["comm_id"], project_id=d["project_id"], role_id=d["role_id"],
+                    comm_type=d["comm_type"], title=d["title"], content=d["content"],
+                    participants=_json_loads(d["participants"], []), outcome=d["outcome"],
+                    created_at=datetime.fromisoformat(d["created_at"]),
+                ) for d in (dict(zip(cols, row)) for row in rows)
             ]
 
     async def save_handoff_record(self, record: HandoffRecord) -> None:

@@ -227,6 +227,7 @@ from opc.layer4_tools.todo import create_todo_tools  # 待辦事項工具
 from opc.layer4_tools.agent_runtime import create_agent_runtime_tools  # 代理運行時工具
 from opc.layer4_tools.shared_files import create_shared_file_tools  # 共用文件庫工具
 from opc.layer4_tools.company_data import create_company_data_tools  # 公司數據管理工具
+from opc.layer4_tools.role_profile import create_role_profile_tools  # 角色画像工具
 from opc.core.shared_file_store import SharedFileStore  # 共用文件庫儲存層
 from opc.layer2_organization.heartbeat import HeartbeatScheduler  # 心跳排程器
 from opc.mcp_client import MCPManager  # MCP 客戶端管理器
@@ -958,6 +959,8 @@ class OPCEngine(
             for tool in create_shared_file_tools(store=self.store, file_store=shared_file_store):
                 self.tool_registry.register(tool)
             for tool in create_company_data_tools(store=self.store, file_store=shared_file_store):
+                self.tool_registry.register(tool)
+            for tool in create_role_profile_tools(store=self.store):
                 self.tool_registry.register(tool)
         logger.debug(f"Registered {len(self.tool_registry.list_tools())} tools")
 

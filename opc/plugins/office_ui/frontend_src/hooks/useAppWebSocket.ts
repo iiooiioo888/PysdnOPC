@@ -84,6 +84,7 @@ export function useAppWebSocket(bridgeRef: React.MutableRefObject<GameBridge>) {
   const pendingSessionCreateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingSessionDetailRefreshRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const runtimeLogsAckHandlersRef = useRef<Set<(payload: Record<string, unknown>) => void>>(new Set())
+  const roleProfileAckHandlersRef = useRef<Set<(payload: Record<string, unknown>) => void>>(new Set())
   const pendingDeltaFlushRef = useRef<Map<string, { draftText: string; draftIteration?: number; draftTurnId?: string; sessionPatch: Partial<import('../types/kanban').Session>; kanbanPatch: Partial<KanbanTask> }>>(new Map())
   const deltaFlushTimerRef = useRef<number | null>(null)
   const uiTickTimerRef = useRef<number | null>(null)
@@ -373,6 +374,7 @@ export function useAppWebSocket(bridgeRef: React.MutableRefObject<GameBridge>) {
       onAck: (payload) => {
         try {
           if (payload.action === 'runtime_logs' || 'runtime_events' in payload) { for (const handler of runtimeLogsAckHandlersRef.current) handler(payload); return }
+          if (payload.action === 'get_role_profile' || payload.action === 'get_role_profile_section') { for (const handler of roleProfileAckHandlersRef.current) handler(payload); return }
           if (payload.ok === false) {
             if (payload.action === 'create_session') clearPendingSessionCreate()
             if (shouldSuppressTaskNotFound(payload)) return
@@ -792,7 +794,7 @@ export function useAppWebSocket(bridgeRef: React.MutableRefObject<GameBridge>) {
     projectViewGenerationRef, pendingProjectSwitchRef, pendingSessionCreateRef,
     sessionRecruitmentByRole, normalizeProjectId,
     handleSavedOrgsList, handleSavedOrgSaveAs, handleSavedOrgCreate, handleSavedOrgLoad, handleSavedOrgDelete,
-    handleSelectCorporateOrg, runtimeLogsAckHandlersRef, timersRef, bridgeRef,
+    handleSelectCorporateOrg, runtimeLogsAckHandlersRef, roleProfileAckHandlersRef, timersRef, bridgeRef,
   }
 }
 

@@ -1,5 +1,5 @@
 export type ThemeName = 'midnight' | 'neon' | 'paper' | 'retro' | 'terminal' | 'cozy' | 'openopc'
-export type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor' | 'dashboard' | 'templates' | 'settings'
+export type AppPage = 'office' | 'workspace' | 'org' | 'mapEditor' | 'dashboard' | 'templates' | 'settings' | 'roleProfile'
 export type AppExecMode = 'task' | 'company' | 'org'
 
 export const MAX_LOG_ITEMS = 80
