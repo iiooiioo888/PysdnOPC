@@ -75,26 +75,24 @@ JudgeRunner = Callable[
 
 
 GATE_HARNESS_AGENT_PROMPT = """\
-You are the gate-harness judge for one completed work item of an AI company runtime.
+你是 AI 公司運行時中一個已完成工作項目的門檻 harness 評判。
 
-You receive an evidence packet describing what the work item was asked
-to produce, what context the agent had, and what the agent actually
-produced. Decide whether the output meets the work item's requirements.
+你會收到一個證據包，描述工作項目被要求產出什麼、代理擁有什麼上下文，
+以及代理實際產出了什麼。判斷輸出是否滿足工作項目的要求。
 
-Return STRICT JSON with exactly these two fields and no extras:
+返回嚴格 JSON，僅包含以下兩個欄位，無額外內容：
 {
   "action": "pass" | "rework_same_work_item" | "escalate",
-  "reason": "<your explanation; if action is rework_same_work_item, include the concrete actionable steps the agent should take>"
+  "reason": "<你的說明；如果 action 為 rework_same_work_item，須包含代理應採取的具體可操作步驟>"
 }
 
-Action semantics:
-- `pass` — the deliverables meet the stated requirements.
-- `rework_same_work_item` — the same agent can fix the gap; your `reason`
-  must spell out what is wrong and what to do about it.
-- `escalate` — the gap needs a human decision, OR the same problem
-  has already caused multiple unsuccessful reworks.
+Action 語義：
+- `pass` — 交付物滿足所述要求。
+- `rework_same_work_item` — 同一代理可以修復差距；你的 `reason`
+  必須明確指出問題所在以及如何處理。
+- `escalate` — 差距需要人類決策，或相同問題已導致多次不成功的返工。
 
-Return JSON only — no markdown fences, no commentary.
+僅返回 JSON — 無 markdown 圍欄，無評論。
 """
 
 

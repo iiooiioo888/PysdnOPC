@@ -1141,7 +1141,7 @@ def init(
                     id="ceo",
                     name="CEO",
                     icon="leader",
-                    responsibility="Strategic intake, high-level routing, final aggregation and delivery to the owner",
+                    responsibility="策略性接收、高層級路由、最終彙整並交付給業主",
                     reports_to="owner",
                     can_spawn=["cto", "cmo", "coo"],
                     tools=planning_tools,
@@ -1150,7 +1150,7 @@ def init(
                     id="cto",
                     name="CTO",
                     icon="code",
-                    responsibility="Technical planning, architecture decisions, code review, and engineering oversight",
+                    responsibility="技術規劃、架構決策、程式碼審查與工程監督",
                     reports_to="ceo",
                     can_spawn=["senior_engineer", "devops_engineer"],
                     tools=[*planning_tools, "shell_exec", "web_search", "web_fetch"],
@@ -1159,7 +1159,7 @@ def init(
                     id="cmo",
                     name="CMO",
                     icon="marketing",
-                    responsibility="Marketing strategy, content planning, UX review, and brand oversight",
+                    responsibility="行銷策略、內容規劃、UX 審查與品牌監督",
                     reports_to="ceo",
                     can_spawn=["content_specialist", "designer"],
                     tools=[
@@ -1178,7 +1178,7 @@ def init(
                     id="coo",
                     name="COO",
                     icon="strategy",
-                    responsibility="Operations coordination, process management, cross-team alignment, and quality assurance",
+                    responsibility="營運協調、流程管理、跨團隊對齊與品質保證",
                     reports_to="ceo",
                     can_spawn=["qa_analyst"],
                     tools=[
@@ -1196,7 +1196,7 @@ def init(
                     id="senior_engineer",
                     name="Senior Engineer",
                     icon="terminal",
-                    responsibility="Code implementation, system development, and technical execution",
+                    responsibility="程式碼實作、系統開發與技術執行",
                     reports_to="cto",
                     preferred_external_agent="codex",
                     tools=engineering_tools,
@@ -1205,7 +1205,7 @@ def init(
                     id="devops_engineer",
                     name="DevOps Engineer",
                     icon="settings",
-                    responsibility="Infrastructure, deployment, CI/CD, monitoring, and operational hardening",
+                    responsibility="基礎設施、部署、CI/CD、監控與營運強化",
                     reports_to="cto",
                     preferred_external_agent="cursor",
                     tools=engineering_tools,
@@ -1214,7 +1214,7 @@ def init(
                     id="content_specialist",
                     name="Content Specialist",
                     icon="writing",
-                    responsibility="Documentation, copywriting, presentations, and user-facing writing",
+                    responsibility="文件撰寫、文案創作、簡報製作與面向使用者的寫作",
                     reports_to="cmo",
                     tools=[
                         "file_read",
@@ -1233,7 +1233,7 @@ def init(
                     id="designer",
                     name="Designer",
                     icon="design",
-                    responsibility="Visual design, UX artifacts, wireframes, and design system work",
+                    responsibility="視覺設計、UX 產出物、線框圖與設計系統工作",
                     reports_to="cmo",
                     tools=[
                         "file_read",
@@ -1252,16 +1252,16 @@ def init(
                     id="qa_analyst",
                     name="QA Analyst",
                     icon="bug",
-                    responsibility="Testing, security review, compliance checks, and acceptance validation",
+                    responsibility="測試、安全審查、合規檢查與驗收確認",
                     reports_to="coo",
                     tools=review_tools,
                 ),
             ]
             config.org.escalation_rules = [
-                EscalationRule(condition="3 consecutive failures with no progress", action="Escalate to owner with failure reason"),
-                EscalationRule(condition="External account or credentials required", action="Escalate to owner"),
-                EscalationRule(condition="Security vulnerability severity >= HIGH", action="Immediately halt and escalate"),
-                EscalationRule(condition="Budget exceeds 80% of limit", action="Alert owner and await instructions"),
+                EscalationRule(condition="連續 3 次失敗且無進展", action="向業主上報並附失敗原因"),
+                EscalationRule(condition="需要外部帳號或憑證", action="向業主上報"),
+                EscalationRule(condition="安全漏洞嚴重程度 >= HIGH", action="立即停止並上報"),
+                EscalationRule(condition="預算超過限制的 80%", action="警示業主並等待指示"),
             ]
         config.save(opc_home / "config")
 
@@ -1488,6 +1488,114 @@ def skills():
         console.print(f"  - [bold]{s.name}[/bold]{always}{level}")
         if s.description:
             console.print(f"    {s.description}")
+
+
+@app.command("skills-ecc-list")
+def skills_ecc_list(
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="ECC 倉庫本地路徑（不提供則自動 clone）"),
+    filter_pattern: Optional[str] = typer.Option(None, "--filter", "-f", help="技能名稱 glob 篩選（如 python*、*-tdd）"),
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="關鍵字篩選（搜尋名稱和描述）"),
+):
+    """列出 ECC 倉庫中可用的技能。"""
+    from opc.layer5_memory.ecc_bridge import EccSkillBridge, EccBridgeError
+
+    opc_home = get_opc_home()
+    ecc_path = Path(source) if source else None
+    bridge = EccSkillBridge(opc_home, ecc_repo_path=ecc_path)
+
+    if not ecc_path:
+        try:
+            asyncio.run(bridge.prepare_source())
+        except EccBridgeError as exc:
+            console.print(f"[error]ECC source error: {exc}[/error]")
+            raise typer.Exit(1)
+
+    try:
+        available = bridge.list_available(
+            pattern=filter_pattern or "",
+            category=category or "",
+        )
+    except EccBridgeError as exc:
+        console.print(f"[error]{exc}[/error]")
+        raise typer.Exit(1)
+
+    if not available:
+        console.print("[warning]No ECC skills found matching the criteria.[/warning]")
+        return
+
+    console.print(f"[bold]ECC Skills ({len(available)}):[/bold]")
+    for info in available:
+        console.print(f"  - [bold]{info.name}[/bold]")
+        if info.description:
+            console.print(f"    {info.description[:120]}")
+
+
+@app.command("skills-ecc-import")
+def skills_ecc_import(
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="ECC 倉庫本地路徑（不提供則自動 clone）"),
+    names: Optional[str] = typer.Option(None, "--names", "-n", help="要匯入的技能名稱（逗號分隔）"),
+    filter_pattern: Optional[str] = typer.Option(None, "--filter", "-f", help="技能名稱 glob 篩選（如 python*、*-tdd）"),
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="關鍵字篩選（搜尋名稱和描述）"),
+    always: bool = typer.Option(False, "--always", help="將匯入的技能標記為 always_on"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="覆蓋已存在的同名技能"),
+):
+    """從 ECC 倉庫匯入技能到 OpenOPC 系統技能庫。"""
+    from opc.layer5_memory.ecc_bridge import EccSkillBridge, EccBridgeError
+
+    opc_home = get_opc_home()
+    ecc_path = Path(source) if source else None
+    bridge = EccSkillBridge(opc_home, ecc_repo_path=ecc_path)
+
+    if not ecc_path:
+        try:
+            asyncio.run(bridge.prepare_source())
+        except EccBridgeError as exc:
+            console.print(f"[error]ECC source error: {exc}[/error]")
+            raise typer.Exit(1)
+
+    # Determine which skills to import
+    if names:
+        target_names = [n.strip() for n in names.split(",") if n.strip()]
+    elif filter_pattern or category:
+        try:
+            available = bridge.list_available(
+                pattern=filter_pattern or "",
+                category=category or "",
+            )
+        except EccBridgeError as exc:
+            console.print(f"[error]{exc}[/error]")
+            raise typer.Exit(1)
+        target_names = [info.name for info in available]
+    else:
+        console.print("[error]Please specify --names, --filter, or --category.[/error]")
+        raise typer.Exit(1)
+
+    if not target_names:
+        console.print("[warning]No skills matched the criteria.[/warning]")
+        return
+
+    console.print(f"[bold]Importing {len(target_names)} ECC skill(s)...[/bold]")
+    try:
+        results = bridge.import_skills(target_names, always=always, overwrite=overwrite)
+    except EccBridgeError as exc:
+        console.print(f"[error]{exc}[/error]")
+        raise typer.Exit(1)
+
+    imported = [r for r in results if r.success and not r.skipped]
+    skipped = [r for r in results if r.skipped]
+    failed = [r for r in results if not r.success]
+
+    for r in imported:
+        console.print(f"  [success]+ {r.skill_name}[/success]")
+    for r in skipped:
+        console.print(f"  [warning]= {r.skill_name} (skipped: {r.message})[/warning]")
+    for r in failed:
+        console.print(f"  [error]x {r.skill_name}: {r.message}[/error]")
+
+    console.print(
+        f"\n[bold]Done:[/bold] {len(imported)} imported, "
+        f"{len(skipped)} skipped, {len(failed)} failed."
+    )
 
 
 @app.command()

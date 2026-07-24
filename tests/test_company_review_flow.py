@@ -705,7 +705,7 @@ class ReviewPendingContractTests(unittest.TestCase):
                 self.assertNotIn("bash", contract)
 
         review_contract = build_company_work_item_contract(cases[2], audience="external")
-        self.assertIn("external agent", review_contract)
+        self.assertIn("外部代理", review_contract)
         self.assertIn('"review_verdict":"approve"', review_contract)
         self.assertIn('"review_verdict":"reject"', review_contract)
 
@@ -732,13 +732,13 @@ class ReviewPendingContractTests(unittest.TestCase):
         )
 
         contract = build_company_work_item_contract(task)
-        self.assertIn("Review Requirement", contract)
+        self.assertIn("審查要求", contract)
         self.assertIn("review_verdict", contract)
         self.assertIn("wi-1", contract)
         self.assertIn("engineer", contract)
         self.assertIn("Implemented rollback path", contract)
-        self.assertIn("only provide analysis/planning/search notes", contract)
-        self.assertIn("Previous review findings are only leads", contract)
+        self.assertIn("僅提供了分析/規劃/搜尋筆記", contract)
+        self.assertIn("先前的審查發現僅是線索", contract)
 
     def test_attention_review_wrapper_uses_pending_queue_contract(self) -> None:
         task = Task(
@@ -766,10 +766,10 @@ class ReviewPendingContractTests(unittest.TestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("Review Requirement", contract)
+        self.assertIn("審查要求", contract)
         self.assertIn("wi-1", contract)
         self.assertIn("Implemented Coral Magnet Maze", contract)
-        self.assertNotIn("Kanban Review Turn", contract)
+        self.assertNotIn("看板審查輪次", contract)
 
     def test_contract_without_pending_items_omits_review_block(self) -> None:
         task = Task(
@@ -785,7 +785,7 @@ class ReviewPendingContractTests(unittest.TestCase):
             },
         )
         contract = build_company_work_item_contract(task)
-        self.assertNotIn("Review Requirement", contract)
+        self.assertNotIn("審查要求", contract)
 
     def test_review_block_header_still_emitted_when_items_payload_missing(self) -> None:
         """Even if the runtime forgot to attach ``pending_review_items`` the
@@ -803,7 +803,7 @@ class ReviewPendingContractTests(unittest.TestCase):
             },
         )
         contract = build_company_work_item_contract(task)
-        self.assertIn("Review Requirement", contract)
+        self.assertIn("審查要求", contract)
         self.assertIn("review_verdict", contract)
 
     def test_dedicated_review_turn_renders_structured_review_evidence(self) -> None:
@@ -850,17 +850,17 @@ class ReviewPendingContractTests(unittest.TestCase):
             },
         )
         contract = build_company_work_item_contract(task)
-        self.assertIn("Kanban Review Turn", contract)
+        self.assertIn("看板審查輪次", contract)
         # The new prompt phrases this as "Treat the original brief as
         # the contract." rather than the previous "original child brief
         # as the contract." wording — both convey the same idea.
-        self.assertIn("original brief as the contract", contract)
+        self.assertIn("將原始簡報視為契約", contract)
         self.assertIn("This long target brief must remain visible in full.", contract)
         self.assertIn("Rollback implementation", contract)
         self.assertIn("Rollback test passes", contract)
         self.assertIn("Do not modify unrelated auth flows.", contract)
         self.assertNotIn("brief=`", contract)
-        self.assertIn("Current workspace evidence is the truth", contract)
+        self.assertIn("當前工作區證據是事實", contract)
         self.assertIn("Artifact Manifest", contract)
         self.assertIn("Verification", contract)
         self.assertIn("Output Paths", contract)
@@ -1462,11 +1462,11 @@ class MultiTeamOrgGuidelineDifferentiationTests(unittest.TestCase):
 
     def test_only_intent_side_tools_are_described(self) -> None:
         contract = self._contract()
-        self.assertIn("Manager Runtime Contract", contract)
-        self.assertIn("Use `delegate_work` only to CREATE child WorkItems", contract)
-        self.assertIn("Use `manager_board_read` only to READ child-board state", contract)
-        self.assertIn("direct reports", contract)
-        self.assertNotIn("Dispatch Planning Contract", contract)
+        self.assertIn("管理者運行時契約", contract)
+        self.assertIn("僅使用 `delegate_work` 為直屬下屬建立子工作項目", contract)
+        self.assertIn("僅使用 `manager_board_read` 讀取子看板狀態", contract)
+        self.assertIn("直屬下屬", contract)
+        self.assertNotIn("派遣規劃契約", contract)
         self.assertNotIn("Leader Delegation Planning Overlay", contract)
         # Write-side kanban tools were removed; runtime advances state.
         self.assertNotIn("manager_board_update", contract)
@@ -1489,11 +1489,11 @@ class MultiTeamOrgGuidelineDifferentiationTests(unittest.TestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("Organization Runtime Contract", contract)
-        self.assertIn("assigned WorkItem", contract)
-        self.assertNotIn("Manager Runtime Contract", contract)
+        self.assertIn("組織運行時契約", contract)
+        self.assertIn("分配的工作項目", contract)
+        self.assertNotIn("管理者運行時契約", contract)
         self.assertNotIn("Leader Delegation Planning Overlay", contract)
-        self.assertNotIn("Dispatch Planning Contract", contract)
+        self.assertNotIn("派遣規劃契約", contract)
         self.assertNotIn("`delegate_work`", contract)
         self.assertNotIn("`manager_board_read`", contract)
 
@@ -1522,10 +1522,10 @@ class MultiTeamOrgGuidelineDifferentiationTests(unittest.TestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("Organization Runtime Contract", contract)
-        self.assertIn("Manager Runtime Contract", contract)
+        self.assertIn("組織運行時契約", contract)
+        self.assertIn("管理者運行時契約", contract)
         self.assertNotIn("Leader Delegation Planning Overlay", contract)
-        self.assertNotIn("Dispatch Planning Contract", contract)
+        self.assertNotIn("派遣規劃契約", contract)
 
     def test_dispatch_required_contract_requires_production_briefs(self) -> None:
         task = Task(
@@ -1544,17 +1544,17 @@ class MultiTeamOrgGuidelineDifferentiationTests(unittest.TestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("Dispatch Planning Contract", contract)
-        self.assertIn("Manager Runtime Contract", contract)
+        self.assertIn("派遣規劃契約", contract)
+        self.assertIn("管理者運行時契約", contract)
         self.assertNotIn("Leader Delegation Planning Overlay", contract)
-        self.assertIn("Scope first", contract)
-        self.assertIn("upstream goal", contract)
-        self.assertIn("requested deliverable form", contract)
-        self.assertIn("hard dependencies", contract)
-        self.assertIn("startable preparation", contract)
-        self.assertIn("outcome-based child WorkItems", contract)
-        self.assertIn("must not replace requested production work", contract)
-        self.assertIn("dispatch or escalate the blocker", contract)
+        self.assertIn("範圍優先", contract)
+        self.assertIn("上游目標", contract)
+        self.assertIn("請求的交付物形式", contract)
+        self.assertIn("硬性依賴", contract)
+        self.assertIn("可開始的準備工作", contract)
+        self.assertIn("基於結果的子工作項目", contract)
+        self.assertIn("不得取代請求的產出工作", contract)
+        self.assertIn("派遣或上報阻斷因素", contract)
         self.assertNotIn("`task_brief`", contract)
         self.assertNotIn("concrete output/handoff paths", contract)
         self.assertNotIn("cmo-preproduction", contract)

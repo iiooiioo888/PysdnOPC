@@ -27,14 +27,14 @@ def _make_assembler() -> ContextAssembler:
 def _base_prompt(prompt: str) -> str:
     addendum_headers = [
         "\n\n## Task Tracking",
-        "\n\n## Company Work Item Contract",
-        "\n\n## Organization Runtime Contract",
-        "\n\n## Work Item Turn: Report Generation",
-        "\n\n## Kanban Review Turn",
-        "\n\n## Review Requirement",
-        "\n\n## Task-Mode Orchestration",
-        "\n\n## Role Operating Instructions",
-        "\n\n## Runtime Profile Override",
+        "\n\n## 公司工作項目契約",
+        "\n\n## 組織運行時契約",
+        "\n\n## 工作項目輪次：報告產出",
+        "\n\n## 看板審查輪次",
+        "\n\n## 審查要求",
+        "\n\n## 任務模式編排",
+        "\n\n## 角色操作指令",
+        "\n\n## 運行時設定檔覆寫",
     ]
     indexes = [prompt.find(header) for header in addendum_headers if prompt.find(header) >= 0]
     base = prompt[:min(indexes)] if indexes else prompt
@@ -43,7 +43,7 @@ def _base_prompt(prompt: str) -> str:
 
 def _base_prompt_contract(prompt: str) -> str:
     prompt = _base_prompt(prompt)
-    marker = "\n\n## Core Operating Principles"
+    marker = "\n\n## 核心運作原則"
     index = prompt.find(marker)
     return prompt[index:].strip() if index >= 0 else _base_prompt(prompt)
 
@@ -54,7 +54,7 @@ class RoleOperatingInstructionsSectionTest(unittest.TestCase):
         task = Task(title="Plan launch")
         _, prompt = pm.build_prompt(task)
         self.assertIn(
-            "## Role Operating Instructions\nOptimize for audience fit and brand consistency.",
+            "## 角色操作指令\nOptimize for audience fit and brand consistency.",
             prompt,
         )
 
@@ -63,14 +63,14 @@ class RoleOperatingInstructionsSectionTest(unittest.TestCase):
         task = Task(title="Plan launch")
         _, prompt = pm.build_prompt(task)
         self.assertIn(
-            "## Role Operating Instructions\nFirst directive.\n\nSecond directive.",
+            "## 角色操作指令\nFirst directive.\n\nSecond directive.",
             prompt,
         )
 
     def test_empty_role_prompts_omits_section(self) -> None:
         pm = _make_pm(role_prompts=[])
         task = Task(title="Plan launch")
-        self.assertNotIn("## Role Operating Instructions", pm.build_prompt(task)[1])
+        self.assertNotIn("## 角色操作指令", pm.build_prompt(task)[1])
 
 
 class UnifiedNativePromptTest(unittest.TestCase):
@@ -88,11 +88,11 @@ class UnifiedNativePromptTest(unittest.TestCase):
         for task in cases:
             profile, prompt = pm.build_prompt(task)
             self.assertEqual(profile, "unified")
-            self.assertIn("## Core Operating Principles", prompt)
+            self.assertIn("## 核心運作原則", prompt)
             self.assertNotIn("## Core Beliefs", prompt)
             self.assertNotIn("because it's worth it", prompt)
             self.assertNotIn("out of love for completeness", prompt)
-            self.assertIn("## Native Working Contract", prompt)
+            self.assertIn("## 原生工作契約", prompt)
             self.assertNotIn("## Plan Profile", prompt)
             self.assertNotIn("## Planning Principles", prompt)
             self.assertNotIn("## Review Principles", prompt)
@@ -120,9 +120,9 @@ class UnifiedNativePromptTest(unittest.TestCase):
 
         self.assertNotEqual(_base_prompt(task_prompt).split("\n\n", 1)[0], _base_prompt(company_prompt).split("\n\n", 1)[0])
         self.assertEqual(_base_prompt_contract(task_prompt), _base_prompt_contract(company_prompt))
-        self.assertIn("## Task-Mode Orchestration", task_prompt)
-        self.assertNotIn("## Task-Mode Orchestration", company_prompt)
-        self.assertIn("## Company Work Item Contract", company_prompt)
+        self.assertIn("## 任務模式編排", task_prompt)
+        self.assertNotIn("## 任務模式編排", company_prompt)
+        self.assertIn("## 公司工作項目契約", company_prompt)
 
     def test_task_generalist_role_prompt_refs_are_not_injected_as_persona(self) -> None:
         role = AgentInfo(
@@ -136,9 +136,9 @@ class UnifiedNativePromptTest(unittest.TestCase):
             Task(title="Task turn", metadata={"mode": "task", "execution_mode": "task_mode"})
         )
 
-        self.assertIn("## Task-Mode Orchestration", prompt)
-        self.assertIn("company organization, recruiting flow, employee persona", prompt)
-        self.assertNotIn("## Role Operating Instructions", prompt)
+        self.assertIn("## 任務模式編排", prompt)
+        self.assertIn("公司組織、招募流程、員工角色", prompt)
+        self.assertNotIn("## 角色操作指令", prompt)
         self.assertNotIn("Legacy task-mode persona text.", prompt)
 
 
@@ -256,7 +256,7 @@ class DualChannelCoexistenceTest(unittest.TestCase):
         self_block = ca._build_self_section(task)
 
         self.assertIn(
-            "## Role Operating Instructions\nOptimize for audience fit and brand consistency.",
+            "## 角色操作指令\nOptimize for audience fit and brand consistency.",
             role_prompt,
         )
         self.assertIn("### Employee Persona\nI focus on emotional engagement.", self_block)

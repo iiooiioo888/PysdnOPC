@@ -1190,11 +1190,11 @@ class MemoryManager:
                 ensure_ascii=False,
             ),
             system=(
-                "You maintain a rolling session memory for a coding agent.\n"
-                "Return strict JSON with keys `summary_text` and `memory_text`.\n"
-                "`memory_text` should be concise markdown with sections `## Primary Goal`, "
-                "`## Current State`, `## Active Constraints`, and `## Open Risks` when applicable.\n"
-                "Keep it durable for the next few turns; do not include verbose logs."
+                "你為編碼代理維護滾動式工作階段記憶。\n"
+                "返回嚴格 JSON，包含 `summary_text` 和 `memory_text` 鍵。\n"
+                "`memory_text` 應為簡潔的 markdown，包含 `## Primary Goal`、"
+                "`## Current State`、`## Active Constraints` 和 `## Open Risks` 區段（適用時）。\n"
+                "保持其對接下來幾輪的持久性；不要包含冗長的日誌。"
             ),
             task_type="quick_tasks",
         )

@@ -320,12 +320,13 @@ npm run build
 
 ## Docker 部署
 
-OpenOPC 提供多階段 Dockerfile，包含兩個構建目標：
+OpenOPC 提供多階段 Dockerfile，包含三個構建階段：
 
-| 目標 | 內容 |
+| 階段 | 內容 |
 |---|---|
-| `base` | 最小生產鏡像，僅含 `opc` CLI。 |
-| `dev`（默認） | 完整鏡像：Office UI（aiohttp）、Playwright + Chromium、所有頻道擴充。 |
+| `frontend` | Node.js 20 構建 Office UI React 前端（Vite）。 |
+| `base` | Python 3.11 生產鏡像，含 `opc` CLI + 新構建的前端資源，以非 root 用戶運行。 |
+| `dev`（默認） | 完整鏡像：Office UI 服務器（aiohttp）、Playwright + Chromium、所有系統依賴。 |
 
 **使用 Docker Compose 快速啟動：**
 
@@ -342,10 +343,10 @@ docker compose up -d
 **手動構建：**
 
 ```bash
-# 完整開發鏡像（默認）
+# 完整開發鏡像（默認）— 包含前端構建 + Playwright
 docker build -t openopc .
 
-# 最小 CLI 鏡像
+# 最小 CLI + 前端資源鏡像（無 Playwright/aiohttp）
 docker build --target base -t openopc .
 
 # 運行 Office UI

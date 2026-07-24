@@ -351,50 +351,49 @@ class ContextAssembler:
                 or ""
             ).strip()
             lines = [
-                "## Turn Mode",
-                "- Runtime state: `self_evolution`",
-                "- Required action: update employee experience only. Do not continue the user delivery, edit files, or produce a user-facing report.",
-                "- If direct reports should learn from this review, create child `self_evolution` WorkItems with `delegate_work`.",
-                "- Final response must be strict JSON only: `{ \"patches\": [...] }`.",
+                "## 輪次模式",
+                "- 運行時狀態：`self_evolution`",
+                "- 要求的操作：僅更新員工經驗。不要繼續使用者交付、編輯檔案或產出面向使用者的報告。",
+                "- 如果直屬下屬應從此審查中學習，用 `delegate_work` 建立子 `self_evolution` 工作項目。",
+                "- 最終回覆必須僅為嚴格 JSON：`{ \"patches\": [...] }`。",
             ]
             if retry_feedback:
-                lines.append(f"- Retry feedback: {retry_feedback}")
+                lines.append(f"- 重試回饋：{retry_feedback}")
             return "\n".join(lines)
         mode = await self._infer_turn_mode(task)
         raw_turn_mode = str(resolve_company_turn_mode(task) or "").strip()
         guidance = {
-            TurnMode.EXECUTE: "Produce this work item's deliverable yourself.",
+            TurnMode.EXECUTE: "自行產出此工作項目的交付物。",
             TurnMode.DELEGATE: (
-                "Delegate outcome-based child WorkItems with `delegate_work`; "
-                "execute locally only when no downstream seat fits."
+                "用 `delegate_work` 委派基於結果的子工作項目；"
+                "僅當沒有下游席位適合時才本地執行。"
             ),
             TurnMode.REVIEW: (
-                "A subordinate has handed back a deliverable. Inspect it, "
-                "decide approve / rework, and emit a structured verdict. "
-                "Do not restart the subtask yourself."
+                "下屬已交回交付物。檢查它，"
+                "決定批准/返工，並輸出結構化裁決。"
+                "不要自己重新開始子任務。"
             ),
             TurnMode.INTEGRATE: (
-                "Your team's subtasks are all approved. Integrate their "
-                "outputs into this work item's final deliverable. Do NOT "
-                "delegate again unless there is a remedial gap."
+                "你團隊的子任務都已批准。將它們的"
+                "輸出整合為此工作項目的最終交付物。不要"
+                "再次委派，除非有補救性差距。"
             ),
             TurnMode.REWORK: (
-                "Your previous turn was rejected by the reviewer. "
-                "Address each item in the Reviewer Feedback section and "
-                "resubmit. Do not restart from scratch unless the "
-                "feedback explicitly says so."
+                "你上一輪被審查者拒絕。"
+                "處理審查者回饋區段中的每個項目並"
+                "重新提交。除非回饋明確要求，否則不要從頭開始。"
             ),
             TurnMode.REPORT: (
-                "Your execution is complete. Produce a structured "
-                "handoff report on this turn — do NOT do new work."
+                "你的執行已完成。在本輪產出結構化"
+                "交接報告 — 不要做新工作。"
             ),
         }
         action = f"{mode.value} — {guidance.get(mode, guidance[TurnMode.EXECUTE])}"
         lines = []
         if raw_turn_mode:
-            lines.append(f"- Runtime state: `{raw_turn_mode}`")
-        lines.append(f"- Required action: {action}")
-        return "## Turn Mode\n" + "\n".join(lines)
+            lines.append(f"- 運行時狀態：`{raw_turn_mode}`")
+        lines.append(f"- 要求的操作：{action}")
+        return "## 輪次模式\n" + "\n".join(lines)
 
     async def build_rework_feedback_context(self, task: Task) -> str:
         """Inject the reviewer's reject reason when this is a rework
@@ -436,20 +435,19 @@ class ContextAssembler:
         )
         reviewer_role = str(work_metadata.get("review_owner_role_id", "") or "").strip()
         lines: list[str] = [
-            "## Reviewer Feedback (Rework Required)",
+            "## 審查者回饋（需要返工）",
             "",
-            "Your previous turn was REJECTED. Address each point below and",
-            "resubmit. Do not restart from scratch unless the feedback",
-            "explicitly says so.",
+            "你上一輪被拒絕。處理以下每個要點並",
+            "重新提交。除非回饋明確要求，否則不要從頭開始。",
             "",
         ]
         if reviewer_role:
-            lines.append(f"Reviewer: {reviewer_role}")
+            lines.append(f"審查者：{reviewer_role}")
         if rework_count > 0:
-            lines.append(f"Rework attempt: #{rework_count}")
+            lines.append(f"返工嘗試：#{rework_count}")
         if reviewer_role or rework_count > 0:
             lines.append("")
-        lines.append("### Reviewer's Reject Reason")
+        lines.append("### 審查者的拒絕原因")
         lines.append(feedback)
         blocking = [
             str(item).strip()
@@ -463,22 +461,22 @@ class ContextAssembler:
         ]
         if blocking:
             lines.append("")
-            lines.append("### Blocking Issues (must fix before approval)")
+            lines.append("### 阻斷問題（批准前必須修復）")
             for item in blocking[:12]:
                 lines.append(f"- {item}")
         if followups:
             lines.append("")
-            lines.append("### Follow-ups (nice-to-have, non-blocking)")
+            lines.append("### 後續事項（非必要，非阻斷）")
             for item in followups[:12]:
                 lines.append(f"- {item}")
         previous = self._previous_submission_excerpt(task)
         if previous:
             lines.append("")
-            lines.append("### Your Previous Submission (excerpt)")
+            lines.append("### 你先前的提交（摘錄）")
             lines.append(
-                "This is what you delivered last turn. The reviewer's reject "
-                "reason above refers to this output — do NOT repeat it; address "
-                "the gaps the reviewer named."
+                "這是你上一輪交付的內容。上方審查者的拒絕"
+                "原因指的是此輸出 — 不要重複它；處理"
+                "審查者指出的差距。"
             )
             lines.append("")
             lines.append(previous)
@@ -587,13 +585,13 @@ class ContextAssembler:
         parts: list[str] = []
         work_item_assignment = dict(task.metadata.get("work_item_assignment", {}) or {})
         if work_item_assignment and not multi_team_org:
-            parts.append(f"## Global Intent Summary\n{work_item_assignment.get('global_intent_summary', '')}")
-            parts.append(f"## Your Responsibility\n{work_item_assignment.get('your_responsibility', '')}")
+            parts.append(f"## 全域意圖摘要\n{work_item_assignment.get('global_intent_summary', '')}")
+            parts.append(f"## 你的職責\n{work_item_assignment.get('your_responsibility', '')}")
             for section, key in (
-                ("Out of Scope", "out_of_scope"),
-                ("Inputs", "inputs"),
-                ("Deliverables", "deliverables"),
-                ("Acceptance Criteria", "acceptance_criteria"),
+                ("超出範圍", "out_of_scope"),
+                ("輸入", "inputs"),
+                ("交付物", "deliverables"),
+                ("驗收標準", "acceptance_criteria"),
             ):
                 items = [str(item).strip() for item in work_item_assignment.get(key, []) if str(item).strip()]
                 if items:
@@ -606,27 +604,27 @@ class ContextAssembler:
                     marker="latest user directive truncated",
                 ).text
                 parts.append(
-                    "## Latest User Directive (AUTHORITATIVE)\n"
-                    "Use this as the current source of truth. It supersedes conflicting details from the original request.\n\n"
+                    "## 最新使用者指示（權威）\n"
+                    "使用此作為當前事實來源。它取代原始請求中衝突的細節。\n\n"
                     f"{latest_preview}"
                 )
                 rendered_latest_directive = True
-                parts.append(f"## Original User Request (background; superseded if conflicting)\n{original}")
-                parts.append(f"## Your Current Work Item: {task.title}\n{task.description}")
+                parts.append(f"## 原始使用者請求（背景；衝突時被取代）\n{original}")
+                parts.append(f"## 你當前的工作項目：{task.title}\n{task.description}")
             else:
-                parts.append(f"## Original User Request\n{original}")
-                parts.append(f"## Your Sub-task: {task.title}\n{task.description}")
+                parts.append(f"## 原始使用者請求\n{original}")
+                parts.append(f"## 你的子任務：{task.title}\n{task.description}")
         else:
-            parts.append(f"## Task\n{task.description or task.title}")
+            parts.append(f"## 任務\n{task.description or task.title}")
         # work_item_projection_title redundant label dropped; task.title is shown above.
         if multi_team_org:
-            lines = ["## Organization Runtime Turn", f"Current work item: {str(task.title or task.id).strip()}"]
+            lines = ["## 組織運行時輪次", f"當前工作項目：{str(task.title or task.id).strip()}"]
             current_team = str(task.metadata.get("delegation_team_id", "") or "").strip()
             if current_team:
-                lines.append(f"Current team: {current_team}")
+                lines.append(f"當前團隊：{current_team}")
             current_seat = str(task.metadata.get("delegation_seat_id", "") or "").strip()
             if current_seat:
-                lines.append(f"Current seat: {current_seat}")
+                lines.append(f"當前席位：{current_seat}")
             parts.append("\n".join(lines))
         # Member session state is rendered exclusively via the
         # ``build_sections`` path (Runtime State bucket). We do NOT
@@ -640,13 +638,13 @@ class ContextAssembler:
             assignment_lines = []
             manager_role = str(resident_assignment.get("manager_role_id", "") or "").strip()
             if manager_role:
-                assignment_lines.append(f"- Manager Mailroom: {manager_role}")
+                assignment_lines.append(f"- 管理者信箱：{manager_role}")
             assignment_id = str(resident_assignment.get("assignment_id", "") or "").strip()
             if assignment_id:
-                assignment_lines.append(f"- Assignment Id: {assignment_id}")
+                assignment_lines.append(f"- 分配 Id：{assignment_id}")
             if resident_assignment.get("dependency_snapshot"):
                 assignment_lines.append(
-                    "- Dependencies: "
+                    "- 依賴："
                     + ", ".join(
                         str(item).strip()
                         for item in list(resident_assignment.get("dependency_snapshot", []) or [])
@@ -655,30 +653,30 @@ class ContextAssembler:
                 )
             if assignment_lines:
                 parts.append(
-                    ("## Current Assignment" if multi_team_org else "## Resident Assignment")
+                    ("## 當前分配" if multi_team_org else "## 常駐分配")
                     + "\n"
                     + "\n".join(assignment_lines)
                 )
         work_item_turn_type = turn_type_for_task(task, fallback="")
         if work_item_turn_type and not multi_team_org:
-            parts.append(f"## Work Item Turn Type\n{work_item_turn_type}")
+            parts.append(f"## 工作項目輪次類型\n{work_item_turn_type}")
         work_item_assignment_status = str(task.metadata.get("work_item_assignment_status", "")).strip()
         if work_item_assignment_status and not multi_team_org:
-            parts.append(f"## Work Item Assignment Status\n{work_item_assignment_status}")
+            parts.append(f"## 工作項目分配狀態\n{work_item_assignment_status}")
         work_item_assignment_source_projection_id = str(task.metadata.get("work_item_assignment_source_projection_id", "")).strip()
         if work_item_assignment_source_projection_id and not multi_team_org:
-            parts.append(f"## Work Item Assignment Source\n{work_item_assignment_source_projection_id}")
+            parts.append(f"## 工作項目分配來源\n{work_item_assignment_source_projection_id}")
         work_item_runtime_plan = self._render_work_item_runtime_plan(task.metadata.get("work_item_runtime_plan"))
         if work_item_runtime_plan and (not multi_team_org or not managerish):
-            parts.append(f"## Work Item Runtime Plan\n{work_item_runtime_plan}")
+            parts.append(f"## 工作項目運行時計畫\n{work_item_runtime_plan}")
         work_item_artifact_index = self._render_work_item_artifact_index(task.metadata.get("work_item_artifact_index"))
         if work_item_artifact_index and (not multi_team_org or not managerish):
-            parts.append(f"## Work Item Artifact Index\n{work_item_artifact_index}")
+            parts.append(f"## 工作項目產出物索引\n{work_item_artifact_index}")
         # Ownership contract is rendered exclusively by
         # ``build_collaboration_context``; we do NOT re-render it
         # here because doing so would double-emit the topology.
         if task.assigned_to:
-            parts.append(f"## Current Role\n{task.assigned_to}")
+            parts.append(f"## 當前角色\n{task.assigned_to}")
         # Runtime role map is intentionally not rendered here — it
         # is superseded by the unified ``## Topology`` section,
         # which is produced by ``build_collaboration_context`` and
@@ -689,23 +687,23 @@ class ContextAssembler:
         if meeting_turn_context:
             round_no = meeting_turn_context.get("current_round")
             lines = [
-                "## Meeting Turn",
-                f"Room: {meeting_turn_context.get('room_id', '')}",
-                f"Topic: {meeting_turn_context.get('topic', '')}",
+                "## 會議輪次",
+                f"房間：{meeting_turn_context.get('room_id', '')}",
+                f"主題：{meeting_turn_context.get('topic', '')}",
             ]
             if round_no not in (None, ""):
-                lines.append(f"Round: {round_no}")
+                lines.append(f"輪次：{round_no}")
             agenda = [str(item).strip() for item in list(meeting_turn_context.get("agenda", []) or []) if str(item).strip()]
             if agenda:
-                lines.append("Agenda:")
+                lines.append("議程：")
                 lines.extend(f"- {item}" for item in agenda)
             unresolved = [str(item).strip() for item in list((meeting_turn_context.get("consensus", {}) or {}).get("blocking_conflicts", []) or []) if str(item).strip()]
             if unresolved:
-                lines.append("Current unresolved conflicts:")
+                lines.append("當前未解決衝突：")
                 lines.extend(f"- {item}" for item in unresolved[:6])
             transcript = [item for item in list(meeting_turn_context.get("recent_transcript", []) or []) if isinstance(item, dict)]
             if transcript:
-                lines.append("Recent meeting transcript:")
+                lines.append("近期會議紀錄：")
                 for item in transcript[-6:]:
                     lines.append(
                         f"- {str(item.get('agent', '')).strip()}: {str(item.get('content', '')).strip()}"
@@ -715,11 +713,11 @@ class ContextAssembler:
         user_reply = str(task.context_snapshot.get("user_supplied_input", "")).strip()
         if user_reply and not rendered_latest_directive:
             parts.append(
-                "## User's Latest Reply (AUTHORITATIVE)\n"
-                "Use this reply as the latest source of truth. "
-                "If it resolves the blocker, continue. "
-                "If not, ask only for the exact missing detail. "
-                "Do not repeat the same broad question.\n\n"
+                "## 使用者最新回覆（權威）\n"
+                "使用此回覆作為最新的事實來源。"
+                "如果它解決了阻斷因素，繼續執行。"
+                "如果沒有，只詢問確切的缺少細節。"
+                "不要重複相同的寬泛問題。\n\n"
                 f"{user_reply}"
             )
 

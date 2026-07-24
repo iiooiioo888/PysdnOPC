@@ -247,30 +247,30 @@ _REVIEW_VERDICT_PARSE_RETRY_HINT = (
 
 
 EXECUTIVE_PRE_DELIVERY_ASSESSMENT_PROMPT = """\
-You are the top-level company executive performing the final delivery readiness check.
+你是執行最終交付就緒度檢查的頂層公司高管。
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "deliverable": true,
-  "summary": "short explanation",
+  "summary": "簡短說明",
   "rework_targets": [
     {
-      "target_projection_id": "exact work item projection id",
-      "work_item_projection_id": "same exact work item projection id",
-      "role_id": "assigned role id",
-      "feedback": "specific rework instructions for that work item"
+      "target_projection_id": "精確的工作項目投影 id",
+      "work_item_projection_id": "相同的精確工作項目投影 id",
+      "role_id": "分配的角色 id",
+      "feedback": "該工作項目的具體返工指示"
     }
   ]
 }
 
-Rules:
-- The user should only receive owner-facing delivery when the runtime is genuinely ready.
-- If the delivery package contains unresolved open issues, failed/blocked work items, rejected reviews, or other blockers that make the work not ready, set `deliverable=false`.
-- Use the provided role/work-item assignment map so the executive clearly knows who owns each part.
-- Target the exact work item that should continue working inside its existing session history.
-- Use only projection ids that appear in the provided work_item_tasks data.
-- `summary` and each `feedback` must be concise and actionable.
-- Return JSON only.
+規則：
+- 只有在運行時確實就緒時，使用者才應收到面向業主的交付。
+- 如果交付套件包含未解決的開放問題、失敗/阻斷的工作項目、被拒絕的審查或其他使工作未就緒的阻斷因素，設定 `deliverable=false`。
+- 使用提供的角色/工作項目分配映射，使高管清楚知道誰負責每個部分。
+- 針對應在其現有工作階段歷史中繼續工作的精確工作項目。
+- 僅使用出現在提供的 work_item_tasks 數據中的投影 id。
+- `summary` 和每個 `feedback` 必須簡潔且可操作。
+- 僅返回 JSON。
 """
 
 # Backwards-compatible alias for existing tests, metadata, and checkpoints.

@@ -459,23 +459,23 @@ class SubagentManager:
 
     def _profile_prompt(self, profile: str, mode: str = "default") -> str:
         prompts = {
-            "general": "Complete the task directly and report only the essential outcome.",
-            "explore": "Read-only exploration only. Do not modify files or system state.",
-            "plan": "Read-only planning only. Produce a concise implementation plan with critical files.",
-            "implement": "Implement directly in the assigned workspace, then verify your changes with commands.",
+            "general": "直接完成任務並僅報告基本結果。",
+            "explore": "僅唯讀探索。不要修改檔案或系統狀態。",
+            "plan": "僅唯讀規劃。產出簡潔的實作計畫並列出關鍵檔案。",
+            "implement": "直接在指定的工作區中實作，然後用指令驗證你的變更。",
             "verify": (
-                "Try to break the implementation. Prefer executable checks over code reading. "
-                "For every check you actually ran, emit `Check:`, `Command:`, `Observed Output:`, and `Result:` lines. "
-                "End with exactly one line `VERDICT: PASS`, `VERDICT: FAIL`, or `VERDICT: PARTIAL`. "
-                "You may start the final summary with `VERIFIED:` if the work is acceptable, or `ISSUES:` if blocking problems remain."
+                "嘗試打破實作。優先使用可執行檢查而非程式碼閱讀。"
+                "對於你實際執行的每個檢查，輸出 `Check:`、`Command:`、`Observed Output:` 和 `Result:` 行。"
+                "以恰好一行 `VERDICT: PASS`、`VERDICT: FAIL` 或 `VERDICT: PARTIAL` 結尾。"
+                "如果工作可接受，你可以用 `VERIFIED:` 開始最終摘要；如果有阻斷性問題，用 `ISSUES:` 開始。"
             ),
         }
         base = prompts.get(profile, prompts["general"])
         normalized_mode = str(mode or "default").strip().lower()
         if normalized_mode == "plan":
-            return base + " Operate in plan mode: do not make filesystem or shell changes."
+            return base + " 以計畫模式運作：不要進行檔案系統或 shell 變更。"
         if normalized_mode in {"accept_edits", "bypass_permissions", "dont_ask", "acceptedits", "bypasspermissions", "dontask"}:
-            return base + f" Runtime spawn mode hint: {mode}."
+            return base + f" 運行時 spawn 模式提示：{mode}。"
         return base
 
     def _profile_config(self, profile: str) -> NativeSubagentProfileConfig:

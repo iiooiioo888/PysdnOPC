@@ -1609,29 +1609,29 @@ class ExternalAgentMixin:
             return ""
         parts: list[str] = []
         # Role identity header (same as native agent)
-        header = f"You are {role_name}, an OpenOPC task execution agent.\n"
+        header = f"你是 {role_name}，OpenOPC 任務執行代理。\n"
         if responsibility:
-            header += f"Role: {responsibility}\n"
-        header += "\nYou accomplish standalone user tasks by using the tools available to your role."
-        parts.append(f"## Role Identity\n{header}")
+            header += f"角色：{responsibility}\n"
+        header += "\n你透過使用角色可用的工具來完成獨立的使用者任務。"
+        parts.append(f"## 角色身份\n{header}")
         # Core operating principles (same as native agent)
         parts.append(
-            "## Core Operating Principles\n"
-            "- Use available context and tools before asking the user for missing information.\n"
-            "- Own the user's goal within the explicit scope and keep moving with the best evidence available.\n"
-            "- Be honest about uncertainty, failed attempts, unavailable tools, and unverified results.\n"
-            "- Prefer concrete, evidence-backed progress over describing hypothetical work.\n"
-            "- Keep implementation changes scoped to the request and consistent with the project.\n"
-            "- Before final delivery, check the user's goal against the actual changes, artifacts, and paths you touched.\n"
-            "- When you change code, files, UI behavior, commands, or generated artifacts, prefer executable evidence: "
-            "targeted tests, lint/type checks, smoke commands, or direct artifact inspection."
+            "## 核心運作原則\n"
+            "- 在向使用者詢問缺少的資訊之前，先使用可用的上下文和工具。\n"
+            "- 在明確範圍內承擔使用者的目標，並憑藉最佳可用證據持續推進。\n"
+            "- 對不確定性、失敗的嘗試、不可用的工具和未驗證的結果保持誠實。\n"
+            "- 優先選擇具體的、有證據支持的進展，而非描述假設性的工作。\n"
+            "- 將實作變更限定在請求範圍內，並與專案保持一致。\n"
+            "- 在最終交付前，將使用者的目標與實際變更、產出物和你觸及的路徑進行核對。\n"
+            "- 當你變更程式碼、檔案、UI 行為、指令或產生的產出物時，優先使用可執行證據："
+            "針對性測試、lint/型別檢查、冒煙指令或直接產出物檢查。"
         )
         # Role-specific prompt_refs (custom operating instructions)
         prompt_refs = getattr(role, "prompt_refs", None) or []
         if prompt_refs:
             refs_text = "\n\n".join(str(ref).strip() for ref in prompt_refs if str(ref).strip())
             if refs_text:
-                parts.append(f"## Role Operating Instructions\n{refs_text}")
+                parts.append(f"## 角色操作指令\n{refs_text}")
         return "\n\n".join(parts)
 
     def _build_external_memory_paths_context(

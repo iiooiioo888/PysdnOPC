@@ -2,13 +2,31 @@
 # OpenOPC Container Image
 # =============================================================================
 # Stages:
-#   base — minimal production image with `opc` CLI
-#   dev  — development image with Office UI (aiohttp) + Playwright browsers
+#   frontend — Node.js build of the Office UI React frontend
+#   base     — minimal production image with `opc` CLI + pre-built frontend
+#   dev      — development image with Office UI server (aiohttp) + Playwright
 #
 # Build:
-#   docker build -t openopc .              (production, default=dev)
-#   docker build --target base -t openopc .  (minimal CLI only)
+#   docker build -t openopc .                (default = dev)
+#   docker build --target base -t openopc .  (minimal CLI + frontend assets)
 # =============================================================================
+
+# ── Stage: frontend ─────────────────────────────────────────────────────────
+FROM node:20-slim AS frontend
+
+WORKDIR /build
+
+# Copy only what npm needs first (layer cache for dependencies)
+COPY opc/plugins/office_ui/frontend_src/package.json \
+     opc/plugins/office_ui/frontend_src/package-lock.json* \
+     ./
+
+RUN npm install --no-audit --no-fund 2>/dev/null || npm install --no-audit --no-fund --legacy-peer-deps
+
+# Copy the full frontend source and build
+COPY opc/plugins/office_ui/frontend_src/ ./
+
+RUN npm run build
 
 # ── Stage: base ──────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS base
@@ -31,6 +49,15 @@ COPY scripts/ scripts/
 
 RUN pip install --no-cache-dir .
 
+# Overlay the freshly-built frontend assets from the frontend stage
+# (vite outDir is '../frontend_dist' relative to /build, i.e. /frontend_dist)
+COPY --from=frontend /frontend_dist/ /app/opc/plugins/office_ui/frontend_dist/
+
+# Create non-root user
+RUN useradd --create-home --uid 1000 opc \
+    && chown -R opc:opc /app
+USER opc
+
 # Smoke-test: verify the CLI entrypoint resolves
 RUN opc --help > /dev/null
 
@@ -39,6 +66,8 @@ ENTRYPOINT ["opc"]
 # ── Stage: dev ───────────────────────────────────────────────────────────────
 # Adds aiohttp (Office UI server) and Playwright system dependencies.
 FROM base AS dev
+
+USER root
 
 # Install aiohttp for Office UI + system libs for Playwright/Chromium
 RUN pip install --no-cache-dir "aiohttp>=3.9.0" \
@@ -53,6 +82,8 @@ RUN pip install --no-cache-dir "aiohttp>=3.9.0" \
 
 # Install Playwright browsers (Chromium only for smaller image)
 RUN python -m playwright install chromium --with-deps 2>/dev/null || true
+
+USER opc
 
 # Default: launch Office UI
 EXPOSE 8765

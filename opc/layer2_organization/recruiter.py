@@ -18,98 +18,98 @@ from opc.core.models import (
 )
 
 RECRUITER_PROMPT = """\
-You are the staffing recruiter for a company before it starts execution.
+你是公司開始執行前的人員配置招聘者。
 
-Your job is to choose the best staffing option for a single company role. You must compare:
-- existing employees already hired for the role
-- new imported talent templates that could be hired now
+你的工作是為單一公司角色選擇最佳人員配置方案。你必須比較：
+- 已為該角色僱用的現有員工
+- 可立即僱用的新匯入人才範本
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "status": "existing_staff" | "proposed_hire" | "fallback_role_only",
-  "employee_id": "existing employee id or empty string",
-  "template_id": "candidate template id or empty string",
-  "proposed_employee_name": "short employee display name or empty string",
-  "rationale": "brief reason",
+  "employee_id": "現有員工 id 或空字串",
+  "template_id": "候選範本 id 或空字串",
+  "proposed_employee_name": "簡短員工顯示名稱或空字串",
+  "rationale": "簡短理由",
 }
 
-Rules:
-- If a strong existing employee already fits, prefer `existing_staff`.
-- If a new candidate is clearly better than existing staff or no existing staff exists, choose `proposed_hire`.
-- If none of the provided options are credible, return status `fallback_role_only`.
-- Respect user recruiter feedback if present.
-- Pick a single durable hire per role.
-- Judge new candidates mainly from their category context, name, and description.
-- Return JSON only.
+規則：
+- 如果強力的現有員工已經適合，優先選擇 `existing_staff`。
+- 如果新候選人明顯優於現有員工或沒有現有員工，選擇 `proposed_hire`。
+- 如果提供的選項都不可信，返回狀態 `fallback_role_only`。
+- 如果存在使用者招聘者回饋，尊重它。
+- 每個角色選擇一個持久僱用。
+- 主要根據類別上下文、名稱和描述來判斷新候選人。
+- 僅返回 JSON。
 """
 
 GLOBAL_RECRUITER_PROMPT = """\
-You are the staffing recruiter for a company before it starts execution.
+你是公司開始執行前的人員配置招聘者。
 
-Your job is to produce one global staffing plan for all roles at once. Compare:
-- each role's responsibility and the user's request
-- the shared top-level employee_pool of existing company employees with experience
-- the shared top-level candidate_pool of imported talent templates
-- org_graph, the reporting/delegation structure between roles
-- recruiter feedback from earlier revisions
+你的工作是為所有角色一次產出一份全域人員配置計畫。比較：
+- 每個角色的職責和使用者的請求
+- 共享的頂層 employee_pool（包含有經驗的現有公司員工）
+- 共享的頂層 candidate_pool（匯入的人才範本）
+- org_graph，角色間的匯報/委派結構
+- 來自先前修訂的招聘者回饋
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "proposals": [
     {
-      "role_id": "role id from the payload",
+      "role_id": "來自 payload 的角色 id",
       "status": "existing_staff" | "proposed_hire" | "fallback_role_only" | "direct_role_execution",
-      "employee_id": "existing employee id or empty string",
-      "template_id": "candidate template id or empty string",
-      "proposed_employee_name": "short employee display name or empty string",
-      "rationale": "brief reason"
+      "employee_id": "現有員工 id 或空字串",
+      "template_id": "候選範本 id 或空字串",
+      "proposed_employee_name": "簡短員工顯示名稱或空字串",
+      "rationale": "簡短理由"
     }
   ]
 }
 
-Rules:
-- Return exactly one proposal for every role in the payload and no extra roles.
-- Consider both the user's request and every role's role_responsibility.
-- Use org_graph as the reporting/delegation structure. Managers may coordinate or cover adjacent work; leaf roles usually represent dedicated execution/review specialties. Reuse the same employee/template across roles only when this structure and role responsibilities make shared coverage sensible; explain why.
-- If you repeat the same employee or template across roles, explain why it still fits each role in that role's rationale.
-- selected_categories are role-level hints from triage; employee_pool and candidate_pool are shared across all roles.
-- Only choose employee_id values from the top-level employee_pool and template_id values from the top-level candidate_pool.
-- Choosing employee_id means use the existing experienced employee. Choosing template_id means use the template-only version for this run.
-- Use `direct_role_execution` when ordinary role execution is enough and no staffing decision is useful.
-- Use `fallback_role_only` when the visible candidates and staff are not credible for the role.
-- Respect recruiter feedback if present.
-- Return JSON only.
+規則：
+- 為 payload 中的每個角色恰好返回一個提案，不多餘角色。
+- 同時考慮使用者的請求和每個角色的 role_responsibility。
+- 使用 org_graph 作為匯報/委派結構。管理者可協調或覆蓋相鄰工作；葉節點角色通常代表專門的執行/審查專長。僅當此結構和角色職責使共享覆蓋合理時，才跨角色重用相同員工/範本；解釋原因。
+- 如果跨角色重複相同員工或範本，在該角色的 rationale 中解釋為何仍適合每個角色。
+- selected_categories 是來自分診的角色級提示；employee_pool 和 candidate_pool 在所有角色間共享。
+- 僅從頂層 employee_pool 中選擇 employee_id 值，從頂層 candidate_pool 中選擇 template_id 值。
+- 選擇 employee_id 表示使用有經驗的現有員工。選擇 template_id 表示本次運行使用僅範本版本。
+- 當普通角色執行就足夠且人員配置決策無用時，使用 `direct_role_execution`。
+- 當可見的候選人和員工對該角色不可信時，使用 `fallback_role_only`。
+- 如果存在招聘者回饋，尊重它。
+- 僅返回 JSON。
 """
 
 STAFFING_TRIAGE_PROMPT = """\
-You are the staffing recruiter for a company before it starts execution.
+你是公司開始執行前的人員配置招聘者。
 
-First decide which roles need deliberate staffing and which talent categories should be considered.
+首先決定哪些角色需要刻意的人員配置，以及應考慮哪些人才類別。
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "roles": [
     {
-      "role_id": "role id from the payload",
+      "role_id": "來自 payload 的角色 id",
       "action": "direct_role_execution" | "category_screening",
       "categories": ["category-1", "category-2"],
-      "rationale": "brief reason"
+      "rationale": "簡短理由"
     }
   ]
 }
 
-Rules:
-- Return exactly one entry for every role in the payload and no extra roles.
-- Use the user's request as the primary signal, then map useful categories to roles with role responsibilities and org_graph.
-- Generic or short role responsibilities do not by themselves mean staffing is unnecessary.
-- Choose `direct_role_execution` only when no staffing comparison is useful for that role.
-- Choose `category_screening` when the role could benefit from a specialized employee/template for this request.
-- If action is `direct_role_execution`, return an empty categories list.
-- If action is `category_screening`, select 1 to 3 categories only.
-- Only choose categories from the provided category catalog.
-- Use org_graph as the reporting/delegation structure.
-- Respect recruiter feedback if present.
-- Return JSON only.
+規則：
+- 為 payload 中的每個角色恰好返回一個條目，不多餘角色。
+- 使用使用者的請求作為主要信號，然後根據角色職責和 org_graph 將有用的類別映射到角色。
+- 通用或簡短的角色職責本身並不意味著不需要人員配置。
+- 僅當該角色不需要人員配置比較時，選擇 `direct_role_execution`。
+- 當角色可能受益於專門的員工/範本來處理此請求時，選擇 `category_screening`。
+- 如果 action 為 `direct_role_execution`，返回空的 categories 列表。
+- 如果 action 為 `category_screening`，僅選擇 1 到 3 個類別。
+- 僅從提供的類別目錄中選擇類別。
+- 使用 org_graph 作為匯報/委派結構。
+- 如果存在招聘者回饋，尊重它。
+- 僅返回 JSON。
 """
 
 RECRUITMENT_AGENT_CHOICES = frozenset({

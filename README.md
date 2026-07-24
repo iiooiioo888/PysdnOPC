@@ -328,12 +328,13 @@ The frontend build output is served from `opc/plugins/office_ui/frontend_dist/`.
 
 ## Docker Deployment
 
-OpenOPC ships a multi-stage Dockerfile with two targets:
+OpenOPC ships a multi-stage Dockerfile with three stages:
 
-| Target | Contents |
+| Stage | Contents |
 |---|---|
-| `base` | Minimal production image with the `opc` CLI only. |
-| `dev` (default) | Full image: Office UI (aiohttp), Playwright + Chromium, all channel extras. |
+| `frontend` | Node.js 20 build of the Office UI React frontend (Vite). |
+| `base` | Python 3.11 production image with `opc` CLI + freshly-built frontend assets, runs as non-root user. |
+| `dev` (default) | Full image: Office UI server (aiohttp), Playwright + Chromium, all system dependencies. |
 
 **Quick start with Docker Compose:**
 
@@ -350,10 +351,10 @@ docker compose up -d
 **Manual build:**
 
 ```bash
-# Full dev image (default)
+# Full dev image (default) — includes frontend build + Playwright
 docker build -t openopc .
 
-# Minimal CLI-only image
+# Minimal CLI + frontend assets (no Playwright/aiohttp)
 docker build --target base -t openopc .
 
 # Run the Office UI

@@ -276,61 +276,61 @@ from opc.layer6_observability.opc_logger import setup_logging  # 日誌設定
 
 # 代理選擇 Prompt：用於 LLM 決定任務應由哪個執行代理處理
 AGENT_SELECTION_PROMPT = """\
-You are the task execution-agent selector for an AI orchestration system.
+你是 AI 編排系統的任務執行代理選擇器。
 
-Given a concrete task, its assigned role, execution metadata, and the currently available
-external agents, choose the best execution agent for THIS task only.
+給定一個具體任務、其分配的角色、執行元數據和當前可用的外部代理，
+僅為此任務選擇最佳執行代理。
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "selected_agent": "native" | "claude_code" | "cursor" | "codex" | "opencode",
-  "reasoning": "short explanation"
+  "reasoning": "簡短說明"
 }
 
-Rules:
-- Respect hard constraints:
-  - If execution_strategy is "native", return "native".
-  - If execution_strategy is "external", choose one available external agent.
-  - If no external agents are available, return "native".
-- For "auto" and "mixed", decide based on the task's real needs:
-  - role responsibility and work-item turn type
-  - subtask objective and expected artifacts
-  - whether the work is tool-heavy, coding-heavy, file/system-heavy, or better suited for direct native reasoning
-  - any preferred external agent from role or work-item metadata
-- Use "native" for lighter planning/review/approval/conversational tasks when external delegation is not clearly beneficial.
-- Use an external agent for substantial implementation, CLI-heavy, repo/file-editing, automation, or multi-step execution tasks when that is a better fit.
-- Choose only from the provided available agents. If a preferred external agent is unavailable, choose the best available alternative or "native".
-- If retry_feedback is present, fix the exact issue it describes and return a corrected answer.
-- Return JSON only. No markdown fences, no extra text.
+規則：
+- 尊重硬性限制：
+  - 如果 execution_strategy 為 "native"，返回 "native"。
+  - 如果 execution_strategy 為 "external"，選擇一個可用的外部代理。
+  - 如果沒有可用的外部代理，返回 "native"。
+- 對於 "auto" 和 "mixed"，根據任務的實際需求決定：
+  - 角色職責和工作項目輪次類型
+  - 子任務目標和預期產出物
+  - 工作是否為工具密集、程式碼密集、檔案/系統密集，或更適合直接原生推理
+  - 角色或工作項目元數據中的任何首選外部代理
+- 當外部委派沒有明確好處時，對較輕的規劃/審查/審批/對話任務使用 "native"。
+- 當外部代理更適合時，對大量實作、CLI 密集、倉庫/檔案編輯、自動化或多步驟執行任務使用外部代理。
+- 僅從提供的可用代理中選擇。如果首選外部代理不可用，選擇最佳可用替代方案或 "native"。
+- 如果存在 retry_feedback，修復其描述的確切問題並返回修正後的答案。
+- 僅返回 JSON。無 markdown 圍欄，無額外文字。
 """
 
 # 公司回饋歸因 Prompt：用於 LLM 評估使用者對公司工作項目的回饋
 COMPANY_FEEDBACK_ATTRIBUTION_PROMPT = """\
-You evaluate user feedback for a completed company work-item runtime.
+你評估已完成公司工作項目運行時的使用者回饋。
 
-Return strict JSON:
+返回嚴格 JSON：
 {
   "overall_outcome": "success" | "partial_success" | "failure",
-  "summary": "short summary grounded in the user's feedback",
+  "summary": "基於使用者回饋的簡短摘要",
   "strengths": ["..."],
   "weaknesses": ["..."],
   "employees": [
     {
-      "employee_id": "employee id",
+      "employee_id": "員工 id",
       "outcome": "success" | "partial_success" | "failure",
-      "reason": "why this employee received this outcome",
+      "reason": "此員工獲得此結果的原因",
       "strengths": ["..."],
       "weaknesses": ["..."]
     }
   ]
 }
 
-Rules:
-- User feedback is the source of truth. Do not upgrade a negative user judgment into success.
-- Use partial_success when the user gives mixed or qualified feedback.
-- Attribute strengths and weaknesses only to employees that actually appear in the runtime data.
-- Keep the result concise and actionable.
-- Return JSON only.
+規則：
+- 使用者回饋是事實來源。不要將負面使用者判斷升級為成功。
+- 當使用者給出混合或有保留的回饋時，使用 partial_success。
+- 僅將優勢和劣勢歸因於實際出現在運行時數據中的員工。
+- 保持結果簡潔且可操作。
+- 僅返回 JSON。
 """
 
 
