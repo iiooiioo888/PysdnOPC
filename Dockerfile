@@ -46,12 +46,30 @@ COPY opc/ opc/
 COPY config/ config/
 COPY skills/ skills/
 COPY scripts/ scripts/
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 RUN pip install --no-cache-dir .
 
 # Overlay the freshly-built frontend assets from the frontend stage
 # (vite outDir is '../frontend_dist' relative to /build, i.e. /frontend_dist)
 COPY --from=frontend /frontend_dist/ /app/opc/plugins/office_ui/frontend_dist/
+
+# ── Install Qwen Code (v0.20.1, wrapper script instead of symlink) ──────────
+RUN npm install -g @anthropic-ai/qwen-code@0.20.1 2>/dev/null || true \
+    && QWEN_BIN=$(which qwen-code 2>/dev/null || echo "") \
+    && if [ -n "$QWEN_BIN" ]; then \
+         WRAPPER="/usr/local/bin/qwen-code-wrapper"; \
+         printf '#!/bin/sh\nexec %s "$@"\n' "$QWEN_BIN" > "$WRAPPER"; \
+         chmod +x "$WRAPPER"; \
+       fi
+
+# ── Apply MiMo compat patch (max_tokens → max_completion_tokens) ────────────
+RUN python scripts/patch_mimo_compat.py
+
+# ── Skip runtime frontend rebuild (touch dist to future mtime) ──────────────
+RUN python scripts/patch_no_rebuild.py \
+    && find /app/opc/plugins/office_ui/frontend_dist -exec touch -t 203001010000 {} +
 
 # Create non-root user
 RUN useradd --create-home --uid 1000 opc \

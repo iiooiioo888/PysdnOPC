@@ -932,3 +932,83 @@ class WsConfigMixin:
             return
 
         await self._send_ack(ws, ok=True, action="llm_config_set")
+
+    # ── Agent Config ──────────────────────────────────────────────────────
+
+    async def _handle_agent_config_get(self, ws: Any, data: dict) -> None:
+        """Return current external agent configuration."""
+        config = self.engine.config
+        agents_cfg = config.agents
+        agents_payload: dict[str, Any] = {}
+        for agent_id, agent in agents_cfg.agents.items():
+            agents_payload[agent_id] = {
+                "enabled": agent.enabled,
+                "command": agent.command,
+                "model": agent.model,
+                "model_flag": agent.model_flag,
+                "auth_type": agent.auth_type,
+                "run_mode": agent.run_mode,
+                "approval_mode": agent.approval_mode,
+                "interactive_timeout_seconds": agent.interactive_timeout_seconds,
+                "show_thinking": agent.show_thinking,
+                "session_mode": agent.session_mode,
+                "extra_args": list(agent.extra_args),
+            }
+        await ws.send_json({"type": "agent_config", "payload": {
+            "preferred_order": list(agents_cfg.preferred_order),
+            "agents": agents_payload,
+        }})
+
+    async def _handle_agent_config_set(self, ws: Any, data: dict) -> None:
+        """Update external agent configuration."""
+        config = self.engine.config
+        agents_cfg = config.agents
+
+        # Update preferred order
+        if "preferred_order" in data and isinstance(data["preferred_order"], list):
+            agents_cfg.preferred_order = [str(x) for x in data["preferred_order"]]
+
+        # Update individual agents
+        agents_data = data.get("agents")
+        if isinstance(agents_data, dict):
+            for agent_id, agent_fields in agents_data.items():
+                if not isinstance(agent_fields, dict):
+                    continue
+                agent = agents_cfg.agents.get(agent_id)
+                if agent is None:
+                    continue
+                if "enabled" in agent_fields:
+                    agent.enabled = bool(agent_fields["enabled"])
+                if "command" in agent_fields:
+                    agent.command = str(agent_fields["command"]).strip()
+                if "model" in agent_fields:
+                    agent.model = str(agent_fields["model"]).strip()
+                if "model_flag" in agent_fields:
+                    agent.model_flag = str(agent_fields["model_flag"]).strip()
+                if "auth_type" in agent_fields:
+                    agent.auth_type = str(agent_fields["auth_type"]).strip()
+                if "run_mode" in agent_fields:
+                    agent.run_mode = str(agent_fields["run_mode"]).strip()
+                if "approval_mode" in agent_fields:
+                    agent.approval_mode = str(agent_fields["approval_mode"]).strip()
+                if "interactive_timeout_seconds" in agent_fields:
+                    try:
+                        agent.interactive_timeout_seconds = max(60, int(agent_fields["interactive_timeout_seconds"]))
+                    except (ValueError, TypeError):
+                        pass
+                if "show_thinking" in agent_fields:
+                    agent.show_thinking = bool(agent_fields["show_thinking"])
+                if "session_mode" in agent_fields:
+                    agent.session_mode = str(agent_fields["session_mode"]).strip()
+                if "extra_args" in agent_fields and isinstance(agent_fields["extra_args"], list):
+                    agent.extra_args = [str(x) for x in agent_fields["extra_args"]]
+
+        # Persist
+        try:
+            self._persist_runtime_config()
+        except Exception as exc:
+            logger.warning(f"Failed to persist agent config: {exc}")
+            await self._send_ack(ws, ok=False, error=str(exc), action="agent_config_set")
+            return
+
+        await self._send_ack(ws, ok=True, action="agent_config_set")

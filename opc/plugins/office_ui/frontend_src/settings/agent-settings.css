@@ -1,0 +1,289 @@
+/* ── Agent Settings Page ────────────────────────────────────────────────── */
+
+.agent-settings-page {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.agent-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.agent-settings-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.agent-settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.agent-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+  background: var(--bg-secondary, #2a2a2a);
+  color: var(--text-primary, #e0e0e0);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.agent-btn:hover {
+  background: var(--bg-hover, #3a3a3a);
+}
+
+.agent-btn.primary {
+  background: var(--accent, #4a9eff);
+  border-color: var(--accent, #4a9eff);
+  color: #fff;
+}
+
+.agent-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  z-index: 9999;
+  animation: fadeIn 0.2s;
+}
+
+.agent-toast.ok {
+  background: #1a4d2e;
+  border: 1px solid #2d8a4e;
+  color: #6ee7a0;
+}
+
+.agent-toast.error {
+  background: #4d1a1a;
+  border: 1px solid #8a2d2d;
+  color: #f87171;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.agent-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-card {
+  border: 1px solid var(--border-color, #333);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--bg-card, #1e1e1e);
+  transition: border-color 0.2s;
+}
+
+.agent-card.enabled {
+  border-color: var(--accent, #4a9eff);
+}
+
+.agent-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.agent-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.agent-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--bg-tertiary, #444);
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  padding: 0;
+}
+
+.agent-toggle.on {
+  background: var(--accent, #4a9eff);
+}
+
+.agent-toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.agent-toggle.on::after {
+  transform: translateX(20px);
+}
+
+.agent-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-field span {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agent-field input,
+.agent-field select {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+  background: var(--bg-input, #2a2a2a);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.85rem;
+}
+
+.agent-field input:focus,
+.agent-field select:focus {
+  outline: none;
+  border-color: var(--accent, #4a9eff);
+}
+
+.agent-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.agent-preferred-order {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 10px;
+  background: var(--bg-card, #1e1e1e);
+}
+
+.agent-preferred-order h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+}
+
+.agent-preferred-order p {
+  margin: 0 0 12px 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #999);
+}
+
+.agent-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-secondary, #2a2a2a);
+  font-size: 0.85rem;
+}
+
+.agent-order-item .order-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.agent-order-item .order-name {
+  flex: 1;
+}
+
+.agent-order-item .order-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.agent-order-item .order-btns button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary, #e0e0e0);
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-order-item .order-btns button:hover {
+  background: var(--bg-hover, #3a3a3a);
+}
+
+.agent-order-item .order-btns button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Settings tabs */
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.settings-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #999);
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.settings-tab:hover {
+  color: var(--text-primary, #e0e0e0);
+}
+
+.settings-tab.active {
+  color: var(--accent, #4a9eff);
+  border-bottom-color: var(--accent, #4a9eff);
+}

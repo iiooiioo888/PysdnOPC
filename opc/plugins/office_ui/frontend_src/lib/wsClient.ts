@@ -59,6 +59,7 @@ interface SocketHandlers {
   onCommsState?: (payload: CommsStatePayload) => void
   onCommsMessage?: (payload: CommsMessagePayload) => void
   onLlmConfig?: (payload: LlmConfigPayload) => void
+  onAgentConfig?: (payload: AgentConfigPayload) => void
 }
 
 export interface CommsMessageItem {
@@ -88,6 +89,25 @@ export interface LlmConfigPayload {
   tier_routing: Record<string, string>
   degrade_chain: Record<string, string>
   roles: LlmConfigRoleEntry[]
+}
+
+export interface AgentConfigEntry {
+  enabled: boolean
+  command: string
+  model: string
+  model_flag: string
+  auth_type: string
+  run_mode: string
+  approval_mode: string
+  interactive_timeout_seconds: number
+  show_thinking: boolean
+  session_mode: string
+  extra_args: string[]
+}
+
+export interface AgentConfigPayload {
+  preferred_order: string[]
+  agents: Record<string, AgentConfigEntry>
 }
 
 /** @deprecated Use CommsMessageItem instead */
@@ -557,6 +577,16 @@ export class VisualSocketClient {
     this.send({ type: 'llm_config_set', ...data })
   }
 
+  // ── Agent Config ───────────────────────────────────────────────────────
+
+  agentConfigGet(): void {
+    this.send({ type: 'agent_config_get' })
+  }
+
+  agentConfigSet(data: Record<string, unknown>): void {
+    this.send({ type: 'agent_config_set', ...data })
+  }
+
   // ── Phase 4: Talent Market, Employee Detail, Reorg ───────────────────
 
   talentImport(repoPath: string): void {
@@ -887,6 +917,9 @@ export class VisualSocketClient {
         break
       case 'llm_config':
         this.handlers.onLlmConfig?.(parsed.payload as unknown as LlmConfigPayload)
+        break
+      case 'agent_config':
+        this.handlers.onAgentConfig?.(parsed.payload as unknown as AgentConfigPayload)
         break
       case 'pong':
         this.handlePong()

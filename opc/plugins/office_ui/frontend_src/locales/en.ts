@@ -42,6 +42,8 @@ export const en: Record<string, string> = {
   'nav.dashboard': 'Dashboard',
   'nav.templates': 'Templates',
   'nav.settings': 'Settings',
+  'nav.llmSettings': 'LLM Model',
+  'nav.agentSettings': 'External Agents',
   'nav.game': 'Office',
 
   // ── Chat ──────────────────────────────────────────────────────────

@@ -42,6 +42,8 @@ export const zhTW: Record<string, string> = {
   'nav.dashboard': '儀表盤',
   'nav.templates': '模板',
   'nav.settings': '設定',
+  'nav.llmSettings': 'LLM 模型',
+  'nav.agentSettings': '外部代理',
   'nav.game': '辦公室',
 
   // ── 對話 ──────────────────────────────────────────────────────────

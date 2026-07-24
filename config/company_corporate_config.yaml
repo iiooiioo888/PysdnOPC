@@ -28,7 +28,7 @@ employees:
     talent_template_category: engineering
     talent_template_name: DevOps Automator
   name: DevOps Automator
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs:
   - prompts/talent/engineering-engineering-devops-automator.md
   role_id: devops_engineer
@@ -54,7 +54,7 @@ employees:
     talent_template_category: engineering
     talent_template_name: Technical Writer
   name: Technical Writer
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs:
   - prompts/talent/engineering-engineering-technical-writer.md
   role_id: content_specialist
@@ -80,7 +80,7 @@ employees:
     talent_template_category: design
     talent_template_name: UI Designer
   name: UI Designer
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs:
   - prompts/talent/design-design-ui-designer.md
   role_id: designer
@@ -105,7 +105,7 @@ employees:
     talent_template_category: engineering
     talent_template_name: Security Engineer
   name: Security Engineer
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs:
   - prompts/talent/engineering-engineering-security-engineer.md
   role_id: qa_analyst
@@ -183,7 +183,7 @@ employees:
     employee_origin: recruitment_fallback
     is_fallback_employee: true
   name: Acquisition Specialist Fallback Empty Employee
-  preferred_external_agent: claude_code
+  preferred_external_agent: null
   prompt_refs: []
   role_id: acquisition_specialist
   seniority: junior
@@ -201,7 +201,7 @@ employees:
     employee_origin: recruitment_fallback
     is_fallback_employee: true
   name: Senior Engineer Fallback Empty Employee
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs: []
   role_id: senior_engineer
   seniority: junior
@@ -240,7 +240,7 @@ employees:
     talent_template_category: design
     talent_template_name: UI Designer
   name: UI Designer
-  preferred_external_agent: codex
+  preferred_external_agent: null
   prompt_refs:
   - prompts/talent/design-design-ui-designer.md
   role_id: cmo

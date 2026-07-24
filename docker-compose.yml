@@ -33,8 +33,11 @@ services:
       - OPC_HOME=/app/.opc
       # Ensure logs are visible in docker logs
       - PYTHONUNBUFFERED=1
-    # Start Office UI server
-    command: ["ui", "--host", "0.0.0.0", "--port", "8765"]
+      # MiMo API key (passed from .env)
+      - MIMO_API_KEY=${MIMO_API_KEY:-}
+    # Start via start.sh (auto-patches config) then launch Office UI
+    entrypoint: ["/bin/bash", "/app/start.sh"]
+    command: ["opc", "ui", "--host", "0.0.0.0", "--port", "8765"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/')"]
       interval: 30s

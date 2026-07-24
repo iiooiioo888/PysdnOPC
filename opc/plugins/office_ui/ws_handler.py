@@ -4518,3 +4518,5 @@ class WSHandler(
     _HANDLERS["comms_read_message"] = "_handle_comms_read_message"
     _HANDLERS["llm_config_get"] = "_handle_llm_config_get"
     _HANDLERS["llm_config_set"] = "_handle_llm_config_set"
+    _HANDLERS["agent_config_get"] = "_handle_agent_config_get"
+    _HANDLERS["agent_config_set"] = "_handle_agent_config_set"

@@ -11,6 +11,7 @@ import { WorkspacePage } from './workspace/WorkspacePage'
 import { DashboardPage } from './dashboard/DashboardPage'
 import { TemplatesPage } from './dashboard/TemplatesPage'
 import { LlmSettingsPage } from './settings/LlmSettingsPage'
+import { AgentSettingsPage } from './settings/AgentSettingsPage'
 import './dashboard/dashboard.css'
 import './dashboard/templates.css'
 import { ExecutionPanel } from './kanban/ExecutionPanel'
@@ -47,6 +48,7 @@ export default function App() {
   const [outdoorOverride, setOutdoorOverride] = useState<'auto' | 'day' | 'night'>(() => readOutdoorOverrideUi())
   const [editingOfficeName, setEditingOfficeName] = useState<string | null>(null)
   const [officeNameDraft, setOfficeNameDraft] = useState('')
+  const [settingsTab, setSettingsTab] = useState<'llm' | 'agents'>('llm')
 
   // Listen for agent selection from Phaser
   useEffect(() => {
@@ -245,7 +247,16 @@ export default function App() {
       )}
       {activePage === 'dashboard' && (<DashboardPage sessions={ws.sessionStore.sessions} projectId={ws.getActiveProjectId()} sendRuntimeLogs={(pid, taskId) => ws.clientRef.current?.requestRuntimeLogs(pid, taskId)} onRuntimeLogsAck={(handler) => { ws.runtimeLogsAckHandlersRef.current.add(handler); return () => { ws.runtimeLogsAckHandlersRef.current.delete(handler) } }} />)}
       {activePage === 'templates' && (<TemplatesPage onApplyTemplate={(templateId) => { if (ws.clientRef.current) ws.clientRef.current.send(JSON.stringify({ action: 'apply_org_template', template_id: templateId })) }} />)}
-      {activePage === 'settings' && (<LlmSettingsPage wsClient={ws.clientRef.current} />)}
+      {activePage === 'settings' && (
+        <div>
+          <div className="settings-tabs">
+            <button className={`settings-tab${settingsTab === 'llm' ? ' active' : ''}`} onClick={() => setSettingsTab('llm')}>🤖 {t('nav.llmSettings', 'LLM 模型')}</button>
+            <button className={`settings-tab${settingsTab === 'agents' ? ' active' : ''}`} onClick={() => setSettingsTab('agents')}>🔧 {t('nav.agentSettings', '外部代理')}</button>
+          </div>
+          {settingsTab === 'llm' && <LlmSettingsPage wsClient={ws.clientRef.current} />}
+          {settingsTab === 'agents' && <AgentSettingsPage wsClient={ws.clientRef.current} />}
+        </div>
+      )}
       {activePage === 'org' && (
         <div className="org-page">
           <OrgTab data={ws.orgInfoData} sessionRecruitmentByRole={ws.sessionRecruitmentByRole} talents={ws.talentTemplates} employeeDetail={ws.employeeDetail} reorgProposals={ws.reorgProposals} isCustomMode={isOrgMode}

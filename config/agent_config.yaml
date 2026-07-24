@@ -17,7 +17,7 @@ external_agents:
 
   # Codex 代理設定
   codex:
-    enabled: true           # 啟用此代理
+    enabled: true           # 啟用此代理（可透過 GUI 設定頁面調整）
     command: codex          # CLI 命令名稱
     model: ""               # 模型（留空使用預設）
     model_flag: "--model"   # 模型旗標
