@@ -1093,7 +1093,7 @@ class MemoryManager:
             return transcript
         for idx, item in enumerate(transcript):
             msg = item["message"]
-            msg_id = msg.get("message_id", "") if isinstance(msg, dict) else getattr(msg, "message_id", "")
+            msg_id = getattr(msg, "message_id", "")
             if msg_id == boundary_message_id:
                 return transcript[idx + 1:]
         return transcript
@@ -1107,7 +1107,7 @@ class MemoryManager:
             return transcript
         for idx, item in enumerate(transcript):
             msg = item["message"]
-            msg_id = msg.get("message_id", "") if isinstance(msg, dict) else getattr(msg, "message_id", "")
+            msg_id = getattr(msg, "message_id", "")
             if msg_id == message_id:
                 return transcript[idx + 1:]
         return transcript
@@ -1203,7 +1203,7 @@ class MemoryManager:
         if not memory_text:
             return {}
         _msg = visible[-1]["message"]
-        latest_message_id = str(_msg.get("message_id", "") if isinstance(_msg, dict) else getattr(_msg, "message_id", ""))
+        latest_message_id = str(getattr(_msg, "message_id", ""))
         await self.store.save_session_memory_snapshot(
             SessionMemorySnapshotRecord(
                 project_id=self._resolve_project_id(project_id),
@@ -1414,12 +1414,8 @@ class MemoryManager:
     def _render_session_parts(self, parts: list[SessionPartRecord | dict[str, Any]]) -> str:
         rendered_parts: list[str] = []
         for part in parts:
-            if isinstance(part, dict):
-                part_type = str(part.get("part_type", "") or "")
-                payload = dict(part.get("payload", {}) or {})
-            else:
-                part_type = part.part_type
-                payload = dict(part.payload)
+            part_type = part.part_type
+            payload = dict(part.payload)
             if part_type == "text":
                 text = str(payload.get("text", "")).strip()
                 if text:
@@ -1483,14 +1479,9 @@ class MemoryManager:
         for idx in range(len(filtered) - 1, -1, -1):
             item = filtered[idx]
             message = item.get("message")
-            if isinstance(message, dict):
-                if message.get("summary_flag", False):
-                    continue
-                role = str(message.get("role", "") or "").strip().lower()
-            else:
-                if getattr(message, "summary_flag", False):
-                    continue
-                role = str(getattr(message, "role", "") or "").strip().lower()
+            if getattr(message, "summary_flag", False):
+                continue
+            role = str(getattr(message, "role", "") or "").strip().lower()
             if role == "user":
                 return [*filtered[:idx], *filtered[idx + 1 :]]
             break
@@ -1500,18 +1491,11 @@ class MemoryManager:
         message = item.get("message")
         if message is None:
             return False
-        if isinstance(message, dict):
-            if message.get("summary_flag", False):
-                return False
-            if str(message.get("role", "") or "").strip().lower() != "user":
-                return False
-            metadata = dict(message.get("metadata", {}) or {})
-        else:
-            if getattr(message, "summary_flag", False):
-                return False
-            if str(getattr(message, "role", "") or "").strip().lower() != "user":
-                return False
-            metadata = dict(getattr(message, "metadata", {}) or {})
+        if getattr(message, "summary_flag", False):
+            return False
+        if str(getattr(message, "role", "") or "").strip().lower() != "user":
+            return False
+        metadata = dict(getattr(message, "metadata", {}) or {})
         return str(metadata.get("kind", "") or "").strip().lower() == "child_session_seed"
 
     async def build_session_history_messages(
@@ -1531,7 +1515,7 @@ class MemoryManager:
             content = self._render_session_parts(item["parts"])
             if not content:
                 continue
-            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
+            role = "user" if message.role == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 
@@ -1590,7 +1574,7 @@ class MemoryManager:
         visible_items: list[dict[str, Any]] = []
         for item in transcript:
             msg = item["message"]
-            metadata = dict(msg.get("metadata", {}) or {}) if isinstance(msg, dict) else dict(getattr(msg, "metadata", {}) or {})
+            metadata = dict(getattr(msg, "metadata", {}) or {})
             if str(metadata.get("employee_id", "")).strip() == employee_id:
                 visible_items.append(item)
         return visible_items
@@ -1722,7 +1706,7 @@ class MemoryManager:
             content = self._render_session_parts(item["parts"])
             if not content:
                 continue
-            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
+            role = "user" if message.role == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 
@@ -1771,12 +1755,8 @@ class MemoryManager:
         rendered = self._render_session_parts(parts)
         if not rendered:
             return ""
-        if isinstance(message, dict):
-            role_val = str(message.get("role", "") or "")
-            summary_flag = bool(message.get("summary_flag", False))
-        else:
-            role_val = message.role
-            summary_flag = message.summary_flag
+        role_val = message.role
+        summary_flag = message.summary_flag
         role = "User" if role_val == "user" else ("Summary" if summary_flag else "Assistant")
         return f"{role}:\n{rendered}"
 

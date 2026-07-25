@@ -23,7 +23,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from opc.core.attachment_store import AttachmentRef, AttachmentStore
 from opc.core.models import DelegationRun, ExecutionCheckpoint, Task, TaskStatus
-from opc.database.store import _SQLiteConnectionAdapter
+import aiosqlite
 from opc.layer2_organization import comms as file_comms
 from opc.plugins.office_ui.event_adapter import EventAdapter
 from opc.plugins.office_ui.chat_store import ChatStore
@@ -207,7 +207,7 @@ def _make_engine(store: StubStore | None = None, memory: StubMemory | None = Non
 
 async def _make_chat_store() -> ChatStore:
     """Create an in-memory ChatStore for testing."""
-    db = _SQLiteConnectionAdapter(":memory:")
+    db = await aiosqlite.connect(":memory:")
     cs = ChatStore(db)  # type: ignore[arg-type]
     await cs.initialize()
     return cs

@@ -10,7 +10,8 @@ from types import SimpleNamespace
 
 from opc.core.models import SessionMessageRecord, SessionPartRecord, SessionRecord
 from opc.core.transcript_visibility import transcript_metadata_visible
-from opc.database.store import OPCStore, _SQLiteConnectionAdapter
+from opc.database.store import OPCStore
+import aiosqlite
 from opc.plugins.office_ui.chat_store import (
     ChatStore,
     _MessageMatchIndex,
@@ -630,7 +631,7 @@ class ChatStorePaginationTests(unittest.TestCase):
 
     async def _exercise_backfill_semantic_matches_one_to_one(self) -> None:
         tmpdir = tempfile.TemporaryDirectory()
-        db = _SQLiteConnectionAdapter(str(Path(tmpdir.name) / "ui-state.db"))
+        db = await aiosqlite.connect(str(Path(tmpdir.name) / "ui-state.db"))
         store = ChatStore(db)  # type: ignore[arg-type]
         await store.initialize()
         channel_id = "session:backfill-scale"
@@ -690,7 +691,7 @@ class ChatStorePaginationTests(unittest.TestCase):
 
     async def _exercise_backfill_same_id_repairs_content(self) -> None:
         tmpdir = tempfile.TemporaryDirectory()
-        db = _SQLiteConnectionAdapter(str(Path(tmpdir.name) / "ui-state.db"))
+        db = await aiosqlite.connect(str(Path(tmpdir.name) / "ui-state.db"))
         store = ChatStore(db)  # type: ignore[arg-type]
         await store.initialize()
         channel_id = "session:work-item-repair"
@@ -754,7 +755,7 @@ class ChatStorePaginationTests(unittest.TestCase):
 
     async def _exercise_backfill_semantic_duplicate_upgrade(self) -> None:
         tmpdir = tempfile.TemporaryDirectory()
-        db = _SQLiteConnectionAdapter(str(Path(tmpdir.name) / "ui-state.db"))
+        db = await aiosqlite.connect(str(Path(tmpdir.name) / "ui-state.db"))
         store = ChatStore(db)  # type: ignore[arg-type]
         await store.initialize()
         channel_id = "session:semantic-result-repair"
@@ -820,7 +821,7 @@ class ChatStorePaginationTests(unittest.TestCase):
 
     async def _exercise_summary_cache_page(self) -> None:
         tmpdir = tempfile.TemporaryDirectory()
-        db = _SQLiteConnectionAdapter(str(Path(tmpdir.name) / "ui-state.db"))
+        db = await aiosqlite.connect(str(Path(tmpdir.name) / "ui-state.db"))
         store = ChatStore(db)  # type: ignore[arg-type]
         await store.initialize()
         channel_id = "session:summary-cache-task"
@@ -889,7 +890,7 @@ class ChatStorePaginationTests(unittest.TestCase):
 
     async def _exercise_cache_page_with_ui_only_rows(self) -> None:
         tmpdir = tempfile.TemporaryDirectory()
-        db = _SQLiteConnectionAdapter(str(Path(tmpdir.name) / "ui-state.db"))
+        db = await aiosqlite.connect(str(Path(tmpdir.name) / "ui-state.db"))
         store = ChatStore(db)  # type: ignore[arg-type]
         await store.initialize()
         channel_id = "session:mixed-cache-task"

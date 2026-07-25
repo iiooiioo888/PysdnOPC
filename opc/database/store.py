@@ -24,7 +24,6 @@ from dataclasses import asdict, is_dataclass  # 標準庫：資料類別序列�
 from datetime import datetime, timedelta  # 標準庫：日期時間
 from enum import Enum  # 標準庫：列舉
 from pathlib import Path  # 標準庫：路徑操作
-import sqlite3  # 標準庫：SQLite 資料庫
 from typing import Any  # 標準庫：型別註解
 
 from loguru import logger  # 第三方庫：結構化日誌
@@ -129,99 +128,6 @@ from opc.layer2_organization.work_item_runtime_invariants import (  # 工作項�
 from opc.database._utils import _json_dumps, _json_loads
 
 
-class _SQLiteCursorAdapter:
-    """SQLite 游標的非同步適配器 — 包裝同步 sqlite3.Cursor 為 async 介面。"""
-    def __init__(self, cursor: sqlite3.Cursor) -> None:
-        self._cursor = cursor
-
-    async def __aenter__(self) -> "_SQLiteCursorAdapter":
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> bool:
-        self._cursor.close()
-        return False
-
-    async def fetchone(self) -> Any:
-        return self._cursor.fetchone()
-
-    async def fetchall(self) -> list[Any]:
-        return self._cursor.fetchall()
-
-    @property
-    def description(self) -> Any:
-        return self._cursor.description
-
-    @property
-    def rowcount(self) -> int:
-        return self._cursor.rowcount
-
-
-class _SQLiteExecuteResult:
-    """SQLite 執行結果的非同步適配器 — 支援 await 和 async with 兩種用法。"""
-    def __init__(self, connection: sqlite3.Connection, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> None:
-        self._connection = connection
-        self._sql = sql
-        self._params = tuple(params)
-        self._cursor: sqlite3.Cursor | None = None
-
-    def __await__(self):
-        async def _run() -> _SQLiteCursorAdapter:
-            cursor = self._connection.cursor()
-            cursor.execute(self._sql, self._params)
-            return _SQLiteCursorAdapter(cursor)
-
-        return _run().__await__()
-
-    async def __aenter__(self) -> _SQLiteCursorAdapter:
-        cursor = self._connection.cursor()
-        cursor.execute(self._sql, self._params)
-        self._cursor = cursor
-        return _SQLiteCursorAdapter(cursor)
-
-    async def __aexit__(self, exc_type, exc, tb) -> bool:
-        if self._cursor is not None:
-            self._cursor.close()
-        return False
-
-
-class _SQLiteConnectionAdapter:
-    """同步 sqlite3 的輕量非同步外觀。
-
-    注意：所有操作在呼叫執行緒上同步執行，會短暫阻塞事件循環。
-    對於 WAL 模式的本地 SQLite 資料庫，每次操作延遲通常 < 1ms，
-    對當前工作負載可接受。未來遷移到 aiosqlite 可完全消除阻塞。
-    """
-
-    def __init__(self, db_path: str) -> None:
-        self._conn = sqlite3.connect(db_path, check_same_thread=False, timeout=30.0)
-        self._conn.execute("PRAGMA foreign_keys=ON")
-        self._conn.execute("PRAGMA busy_timeout=30000")
-        # NORMAL synchronous mode is safe with WAL and avoids a full fsync on
-        # every commit, significantly reducing write latency.
-        self._conn.execute("PRAGMA synchronous=NORMAL")
-
-    def execute(self, sql: str, parameters: tuple[Any, ...] | list[Any] = ()) -> _SQLiteExecuteResult:
-        return _SQLiteExecuteResult(self._conn, sql, parameters)
-
-    async def executescript(self, script: str) -> None:
-        self._conn.executescript(script)
-
-    async def commit(self) -> None:
-        self._conn.commit()
-
-    async def rollback(self) -> None:
-        self._conn.rollback()
-
-    async def close(self) -> None:
-        try:
-            # Checkpoint WAL to main database file before closing to release
-            # all file handles on Windows (prevents PermissionError on temp cleanup).
-            self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        except Exception:
-            pass
-        self._conn.close()
-
-
 
 # --- Mixin 匯入（按功能分組的儲存層）---
 from opc.database._store_tasks import TaskStoreMixin  # 任務 CRUD
@@ -253,7 +159,7 @@ class OPCStore(
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)
         self.project_id = self._infer_project_id_from_db_path(db_path)
-        self._db: _SQLiteConnectionAdapter | None = None
+        self._db: aiosqlite.Connection | None = None
         # Fix 5 PR3 feature flag mirrored onto the store so phase hooks
         # (which receive ``store`` but not the top-level OPCConfig) can
         # consult it cheaply. Engine sets this during init from
@@ -321,7 +227,10 @@ class OPCStore(
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         elif not Path(self.db_path).exists():
             raise FileNotFoundError(f"OPCStore database does not exist: {self.db_path}")
-        self._db = _SQLiteConnectionAdapter(self.db_path)
+        self._db = await aiosqlite.connect(self.db_path, timeout=30.0)
+        await self._db.execute("PRAGMA foreign_keys=ON")
+        await self._db.execute("PRAGMA busy_timeout=30000")
+        await self._db.execute("PRAGMA synchronous=NORMAL")
         if not run_startup_maintenance:
             return
         await self._db.execute("PRAGMA journal_mode=WAL")
@@ -1702,6 +1611,10 @@ class OPCStore(
 
     async def close(self) -> None:
         if self._db:
+            try:
+                await self._db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except Exception:
+                pass
             await self._db.close()
             self._db = None
 

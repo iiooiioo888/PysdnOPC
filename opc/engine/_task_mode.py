@@ -217,7 +217,7 @@ class TaskModeMixin:
         parts = item.get("parts", []) if isinstance(item, dict) else []
         texts: list[str] = []
         for part in parts:
-            payload = part.get("payload", {}) if isinstance(part, dict) else getattr(part, "payload", {})
+            payload = getattr(part, "payload", {})
             if isinstance(payload, dict):
                 texts.append(str(payload.get("text", "") or ""))
         return "\n".join(texts).strip()

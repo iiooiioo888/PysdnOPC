@@ -1166,14 +1166,9 @@ class NativeRuntimeV2:
         for message_index, item in enumerate(transcript):
             message = item["message"]
             parts = item["parts"]
-            if isinstance(message, dict):
-                if message.get("summary_flag", False):
-                    continue
-                role = str(message.get("role", "") or "")
-            else:
-                if getattr(message, "summary_flag", False):
-                    continue
-                role = str(getattr(message, "role", "") or "")
+            if getattr(message, "summary_flag", False):
+                continue
+            role = str(getattr(message, "role", "") or "")
             if role == "user":
                 content = self._normalize_content_for_resume(parts)
                 if content:
@@ -1184,12 +1179,8 @@ class NativeRuntimeV2:
                 tool_calls: list[dict[str, Any]] = []
                 tool_results: list[dict[str, Any]] = []
                 for part_index, part in enumerate(parts):
-                    if isinstance(part, dict):
-                        payload = dict(part.get("payload", {}) or {})
-                        part_type = str(part.get("part_type", "") or "")
-                    else:
-                        payload = dict(part.payload or {})
-                        part_type = part.part_type
+                    payload = dict(part.payload or {})
+                    part_type = part.part_type
                     if part_type == "text":
                         text = str(payload.get("text", "") or "").strip()
                         if text:
@@ -1369,12 +1360,8 @@ class NativeRuntimeV2:
     def _normalize_content_for_resume(self, parts: list[Any]) -> str:
         snippets: list[str] = []
         for part in parts:
-            if isinstance(part, dict):
-                payload = dict(part.get("payload", {}) or {})
-                part_type = str(part.get("part_type", "") or "")
-            else:
-                payload = dict(part.payload or {})
-                part_type = part.part_type
+            payload = dict(part.payload or {})
+            part_type = part.part_type
             if part_type == "text":
                 text = str(payload.get("text", "") or "").strip()
                 if text:

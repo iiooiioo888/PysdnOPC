@@ -478,6 +478,23 @@ export function useAppWebSocket(bridgeRef: React.MutableRefObject<GameBridge>) {
         setStatus(next); setStatusDetail(detail ?? '')
         if (next === 'connected') { const projectId = getActiveProjectId(); client.listProjects(); client.orgInfo(); client.orgSavedList(); client.collabSync(projectId, undefined, projectViewGenerationRef.current) }
       },
+      onReconnect: (info) => {
+        // After reconnection, refresh current page data
+        console.info(`[WS] Reconnected after ${info.attempt} attempts, lastSnapshotVersion=${info.lastSnapshotVersion}`)
+        const projectId = getActiveProjectId()
+        // Refresh project index and collab sync
+        client.collabSync(projectId, undefined, projectViewGenerationRef.current)
+        // Refresh active session detail if any
+        const activeSessionId = sessionStoreRef.current?.activeSessionId
+        if (activeSessionId) {
+          scheduleSessionDetailRefresh(activeSessionId, 'full', true)
+        }
+        // Show a brief toast to inform the user
+        setToastMessage(t('ws.reconnected', 'Reconnected to server'))
+        setToastType('success')
+        const timer = setTimeout(() => setToastMessage(null), 3000)
+        timersRef.current.add(timer)
+      },
       onCollabMessage: (type, payload) => {
         try {
           if (type === 'project_index_push') { if (!payloadMatchesCurrentSwitch(payload)) return } else if (!payloadMatchesActiveProject(payload, false)) return

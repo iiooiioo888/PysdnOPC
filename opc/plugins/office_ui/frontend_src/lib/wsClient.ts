@@ -24,6 +24,8 @@ interface SocketHandlers {
   onEvent?: (event: VisualEvent) => void
   onAck?: (payload: Record<string, unknown>) => void
   onStatus?: (status: SocketStatus, detail?: string) => void
+  /** Called after a successful reconnection (not the initial connect). */
+  onReconnect?: (info: { attempt: number; lastSnapshotVersion: number | null }) => void
   onChannelCreated?: (payload: { channel_id: string; name: string; channel_type: string; participants: string[] }) => void
   onBoardEvent?: (payload: Record<string, unknown>) => void
   onCrossOfficeCollab?: (payload: { agent_ids: string[]; task_id: string; action: string }) => void
@@ -222,6 +224,10 @@ export class VisualSocketClient {
   private pendingQueue: string[] = []
   private heartbeatTimer: number | null = null
   private pongTimer: number | null = null
+  /** True once the first successful connection has been established. */
+  private hasConnectedBefore = false
+  /** Last snapshot version received from the server (for reconnect sync). */
+  private lastSnapshotVersion: number | null = null
   private pendingSessionDetailRequests: Array<{
     projectId: string
     taskId: string
@@ -250,10 +256,18 @@ export class VisualSocketClient {
 
     this.ws = new WebSocket(this.url)
     this.ws.onopen = () => {
+      const isReconnect = this.hasConnectedBefore
+      const attempt = this.reconnectAttempt
       this.reconnectAttempt = 0
+      this.hasConnectedBefore = true
       this.handlers.onStatus?.('connected')
       this.flushPendingQueue()
       this.startHeartbeat()
+      if (isReconnect) {
+        // Notify upper layers and request state sync after reconnection
+        this.handlers.onReconnect?.({ attempt, lastSnapshotVersion: this.lastSnapshotVersion })
+        this.sendReconnectSync()
+      }
     }
     this.ws.onmessage = (evt) => {
       this.handleMessage(evt.data)
@@ -778,6 +792,10 @@ export class VisualSocketClient {
     }
     try { switch (parsed.type) {
       case 'snapshot':
+        // Track snapshot version for reconnect sync
+        if (parsed.payload && typeof (parsed.payload as Record<string, unknown>).view_generation === 'number') {
+          this.lastSnapshotVersion = (parsed.payload as Record<string, unknown>).view_generation as number
+        }
         this.handlers.onSnapshot?.(parsed.payload)
         break
       case 'event':
@@ -1077,9 +1095,20 @@ export class VisualSocketClient {
       RECONNECT_MAX_MS,
     )
     this.reconnectAttempt++
+    // Notify status with reconnect attempt info for UI display
+    this.handlers.onStatus?.('connecting', `reconnecting (attempt ${this.reconnectAttempt}/${RECONNECT_MAX_ATTEMPTS})`)
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
       this.connect()
     }, delay)
+  }
+
+  /** Send reconnect_sync message to request state refresh after reconnection. */
+  private sendReconnectSync(): void {
+    this.send({
+      type: 'reconnect_sync',
+      last_snapshot_version: this.lastSnapshotVersion,
+      reconnect_attempt: this.reconnectAttempt,
+    })
   }
 }

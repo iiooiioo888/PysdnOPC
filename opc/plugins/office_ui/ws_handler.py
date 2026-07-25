@@ -2847,6 +2847,31 @@ class WSHandler(
     async def _handle_ping(self, ws: Any, data: dict) -> None:
         await ws.send_json({"type": "pong"})
 
+    async def _handle_reconnect_sync(self, ws: Any, data: dict) -> None:
+        """Handle client reconnect_sync request.
+
+        The client sends this after a WebSocket reconnection to request
+        a state refresh. We respond with a full project index and collab
+        sync to ensure the client has up-to-date state.
+        """
+        project_id = self._client_active_project_id(ws)
+        if not project_id:
+            await self._send_ack(ws, ok=True, action="reconnect_sync", note="no_active_project")
+            return
+        engine = self._engine_for_ws(ws)
+        if engine is None:
+            await self._send_ack(ws, ok=False, error="engine_not_ready", action="reconnect_sync")
+            return
+        # Send full state refresh (same as initial connection)
+        await self._send_initial_project_state_for_client(ws, engine, project_id)
+        await self._send_ack(
+            ws,
+            ok=True,
+            action="reconnect_sync",
+            project_id=project_id,
+            last_snapshot_version=data.get("last_snapshot_version"),
+        )
+
     async def _send_project_index_for_client(
         self,
         ws: Any,
@@ -4536,3 +4561,4 @@ class WSHandler(
     _HANDLERS["agent_config_set"] = "_handle_agent_config_set"
     _HANDLERS["get_role_profile"] = "_handle_get_role_profile"
     _HANDLERS["get_role_profile_section"] = "_handle_get_role_profile_section"
+    _HANDLERS["reconnect_sync"] = "_handle_reconnect_sync"

@@ -4089,9 +4089,6 @@ def _render_transcript_parts(parts: list[Any]) -> str:
     for part in parts:
         part_type = getattr(part, "part_type", "")
         payload = getattr(part, "payload", {})
-        if isinstance(part, dict):
-            part_type = str(part.get("part_type", part_type) or "")
-            payload = part.get("payload", payload)
         if not isinstance(payload, dict):
             payload = {}
         if part_type == "text":
@@ -6823,7 +6820,7 @@ async def _handle_attachments_slash(state: _InteractiveChatState, args: list[str
                 message = item.get("message")
                 _collect_attachment_refs(getattr(message, "metadata", {}) or {}, f"message:{idx}", refs)
                 for part in item.get("parts", []) or []:
-                    payload = part.get("payload", {}) if isinstance(part, dict) else getattr(part, "payload", {})
+                    payload = getattr(part, "payload", {})
                     _collect_attachment_refs(payload, f"message:{idx}", refs)
     if hasattr(store, "get_tasks"):
         for task in await store.get_tasks(project_id=_current_project_id(state.engine)):

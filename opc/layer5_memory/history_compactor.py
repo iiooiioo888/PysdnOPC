@@ -428,7 +428,7 @@ class HistoryCompactor:
                     budget=per_message_budget,
                     marker=self._COMPACTION_TRUNCATION_MARKER,
                 )
-            role = "user" if (message.get("role", "") if isinstance(message, dict) else message.role) == "user" else "assistant"
+            role = "user" if message.role == "user" else "assistant"
             messages.append({"role": role, "content": content})
         return messages
 
