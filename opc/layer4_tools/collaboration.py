@@ -139,12 +139,8 @@ def _normalize_message_urgency(value: str) -> MessageUrgency:
 
 
 def _active_role(task: Task | None) -> str:
-    if not task:
-        return ""
-    # TODO(role-identity): route through a single work-item role accessor.
-    # for tasks where Task.assigned_to is empty (e.g. environment-provisioning
-    # subtasks). Drop once those producers always set assigned_to.
-    return str(task.assigned_to or task.metadata.get("work_item_role_id", "") or "").strip()
+    from opc.layer2_organization.work_item_identity import work_item_role_id
+    return work_item_role_id(task)
 
 
 def _active_seat(task: Task | None) -> str:

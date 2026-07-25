@@ -45,15 +45,8 @@ def task_projection_id(task: Any | None) -> str:
 
 
 def task_role_id(task: Any | None) -> str:
-    if task is None:
-        return ""
-    metadata = getattr(task, "metadata", {}) or {}
-    assigned = str(getattr(task, "assigned_to", "") or "").strip().lower()
-    if assigned:
-        return assigned
-    # TODO(role-identity): route through a central work-item role accessor
-    # when assigned_to is empty (e.g. provisioning subtasks).
-    return str(metadata.get("work_item_role_id", "") or "").strip().lower()
+    from opc.layer2_organization.work_item_identity import work_item_role_id
+    return work_item_role_id(task, lower=True)
 
 
 def is_acquisition_specialist_projection(

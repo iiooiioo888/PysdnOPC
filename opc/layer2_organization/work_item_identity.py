@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 WORK_ITEM_PROJECTION_ID_KEY = "work_item_projection_id"
 WORK_ITEM_TURN_TYPE_KEY = "work_item_turn_type"
+WORK_ITEM_ROLE_ID_KEY = "work_item_role_id"
 RESULT_DELIVERY_ID_KEY = "result_delivery_id"
 SOURCE_TASK_ID_KEY = "source_task_id"
 GATE_REWORK_PROJECTION_ID_KEY = "rework_projection_id"
@@ -45,6 +46,30 @@ _TURN_TYPE_ALIASES: dict[str, str] = {
 
 def _clean(value: Any) -> str:
     return str(value or "").strip()
+
+
+def work_item_role_id(task: Any | None, *, lower: bool = False) -> str:
+    """Canonical accessor for the role ID associated with a work-item task.
+
+    Resolution order:
+    1. ``task.assigned_to`` (primary source)
+    2. ``task.metadata["work_item_role_id"]`` (fallback for provisioning subtasks)
+
+    Args:
+        task: A Task-like object with ``assigned_to`` and ``metadata`` attributes.
+        lower: If True, return the lowercased role ID (for case-insensitive matching).
+
+    Returns:
+        The resolved role ID string, or empty string if not found.
+    """
+    if task is None:
+        return ""
+    assigned = _clean(getattr(task, "assigned_to", ""))
+    if assigned:
+        return assigned.lower() if lower else assigned
+    metadata = getattr(task, "metadata", None) or {}
+    role = _clean(metadata.get(WORK_ITEM_ROLE_ID_KEY, ""))
+    return role.lower() if lower else role
 
 
 def normalize_work_item_turn_type(value: Any, *, fallback: str = "") -> str:

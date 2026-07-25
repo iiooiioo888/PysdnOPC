@@ -267,9 +267,9 @@ class MetadataOwnershipMatrixTests(unittest.TestCase):
         self.assertIn("Missing docs", package["open_issues"][0])
 
     def test_materialization_uses_central_execution_copy_helper(self) -> None:
-        from opc.layer2_organization import company_mode
+        from opc.layer2_organization import _company_executor_dispatch
 
-        source = Path(company_mode.__file__).read_text(encoding="utf-8")
+        source = Path(_company_executor_dispatch.__file__).read_text(encoding="utf-8")
 
         self.assertIn("copy_work_item_execution_metadata(work_item)", source)
         self.assertIn("build_work_item_owner_execution_copy(work_item)", source)

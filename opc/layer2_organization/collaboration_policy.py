@@ -157,8 +157,8 @@ def ownership_guard_violation(
                     f"Out-of-scope target(s): {', '.join(out_of_scope[:4])}."
                 )
     if tool_name in _COLLABORATION_TOOLS:
-        # TODO(role-identity): route through a central work-item role accessor.
-        from_role = str(getattr(task, "assigned_to", "") or metadata.get("work_item_role_id", "") or "").strip()
+        from opc.layer2_organization.work_item_identity import work_item_role_id
+        from_role = work_item_role_id(task)
         allowed = set(effective_contact_roles(from_role, task=task, org_engine=org_engine))
         recipients: list[str] = []
         if tool_name == "broadcast_issue":

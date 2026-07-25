@@ -174,6 +174,8 @@ from opc.layer2_organization._company_executor_review import (  # noqa: E402
 )
 from opc.layer2_organization._company_mode_shared import (  # noqa: E402,F401
     CEO_PRE_DELIVERY_ASSESSMENT_PROMPT,
+    CompanyExecutorDriverOwnership,
+    CompanyExecutorRunState,
     DEFAULT_MAX_PRE_DELIVERY_REWORKS,
     DEFAULT_MAX_REVIEW_REWORKS,
     EXECUTIVE_PRE_DELIVERY_ASSESSMENT_PROMPT,
@@ -201,6 +203,7 @@ from opc.layer2_organization._company_mode_shared import (  # noqa: E402,F401
     review_work_item_id_for_attempt,
     serialize_company_work_item_runtime_plan,
     serialized_company_plan_from_metadata,
+    WorkItemOutputBundle,
 )
 
 
@@ -215,35 +218,6 @@ class CompanyRuntimeSpec:
     staffing_overrides: dict[str, str] = field(default_factory=dict)
     role_agent_overrides: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class WorkItemOutputBundle:
-    """Separated runtime audit and WorkItem-owned output metadata."""
-
-    work_item_updates: dict[str, Any] = field(default_factory=dict)
-    runtime_audit_updates: dict[str, Any] = field(default_factory=dict)
-    summary: str = ""
-
-
-@dataclass(frozen=True)
-class CompanyExecutorDriverOwnership:
-    """One registry attempt covering a complete company scheduler run."""
-
-    registry: ActiveTaskRunRegistry
-    project_id: str
-    task_id: str
-    attempt_token: str
-
-    def bind(self):
-        return self.registry.bind_driver_attempt(self.attempt_token)
-
-    def release(self) -> bool:
-        return self.registry.unregister(
-            self.project_id,
-            self.task_id,
-            self.attempt_token,
-        )
 
 
 def serialize_company_runtime_spec(spec: CompanyRuntimeSpec | None) -> dict[str, Any]:
@@ -1103,18 +1077,6 @@ class CompanyRuntimeSpecBuilder(CompanyRuntimeWorkItemHelper):
             work_item_driven=True,
             metadata=metadata,
         )
-
-
-@dataclass
-class CompanyExecutorRunState:
-    """Mutable executor state for one top-level company run."""
-
-    active_plan: CompanyWorkItemRuntimePlan | None = None
-    active_tasks: list[Task] = field(default_factory=list)
-    dispatcher_wake: asyncio.Event = field(default_factory=asyncio.Event)
-    kanban_dirty: bool = False
-    kanban_broadcast_task: asyncio.Task[None] | None = None
-    runtime_invariant_issue_keys: set[tuple[str, str, str, str]] = field(default_factory=set)
 
 
 class CompanyWorkItemExecutor(

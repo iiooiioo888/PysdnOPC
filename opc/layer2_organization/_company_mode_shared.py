@@ -6,10 +6,13 @@ extracted mixin modules (_company_executor_dispatch.py, etc.).
 
 from __future__ import annotations
 
+import asyncio
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from opc.core.active_task_runs import ActiveTaskRunRegistry
 from opc.core.models import TaskStatus
 from opc.layer2_organization.data_acquisition_policy import (
     DEFAULT_ACQUISITION_EXECUTION_RECORD_RELATIVE_PATH,
@@ -21,6 +24,96 @@ from opc.layer2_organization.org_work_item_planner import (
     deserialize_company_work_item_plan,
     serialize_company_work_item_plan,
 )
+
+if TYPE_CHECKING:
+    from opc.core.models import Task
+
+
+# ---------------------------------------------------------------------------
+# Shared dataclasses
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CompanyExecutorRunState:
+    """Mutable executor state for one top-level company run."""
+
+    active_plan: CompanyWorkItemRuntimePlan | None = None
+    active_tasks: list["Task"] = field(default_factory=list)
+    dispatcher_wake: asyncio.Event = field(default_factory=asyncio.Event)
+    kanban_dirty: bool = False
+    kanban_broadcast_task: asyncio.Task[None] | None = None
+    runtime_invariant_issue_keys: set[tuple[str, str, str, str]] = field(default_factory=set)
+
+
+@dataclass(frozen=True)
+class WorkItemOutputBundle:
+    """Separated runtime audit and WorkItem-owned output metadata."""
+
+    work_item_updates: dict[str, Any] = field(default_factory=dict)
+    runtime_audit_updates: dict[str, Any] = field(default_factory=dict)
+    summary: str = ""
+
+
+@dataclass(frozen=True)
+class CompanyExecutorDriverOwnership:
+    """One registry attempt covering a complete company scheduler run."""
+
+    registry: ActiveTaskRunRegistry
+    project_id: str
+    task_id: str
+    attempt_token: str
+
+    def bind(self):
+        return self.registry.bind_driver_attempt(self.attempt_token)
+
+    def release(self) -> bool:
+        return self.registry.unregister(
+            self.project_id,
+            self.task_id,
+            self.attempt_token,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Utility helpers for defensive coding patterns
+# ---------------------------------------------------------------------------
+
+def task_meta(task: "Task", key: str, default: Any = "") -> Any:
+    """Safely access task.metadata[key] with a default.
+
+    Replaces the verbose pattern: ``(task.metadata or {}).get(key, default)``
+    """
+    return (task.metadata or {}).get(key, default)
+
+
+def safe_str(value: Any, default: str = "") -> str:
+    """Convert value to stripped string, returning default if falsy.
+
+    Replaces the verbose pattern: ``str(value or "").strip()``
+    """
+    return str(value or default).strip()
+
+
+def meta_str(metadata: dict[str, Any] | None, key: str, default: str = "") -> str:
+    """Safely get a string value from metadata dict.
+
+    Combines metadata access and string conversion:
+    ``str((metadata or {}).get(key, "") or "").strip()``
+    """
+    return str((metadata or {}).get(key, default) or default).strip()
+
+
+def meta_bool(metadata: dict[str, Any] | None, key: str) -> bool:
+    """Safely get a boolean value from metadata dict."""
+    return bool((metadata or {}).get(key, False))
+
+
+def meta_int(metadata: dict[str, Any] | None, key: str, default: int = 0) -> int:
+    """Safely get an integer value from metadata dict."""
+    try:
+        return int((metadata or {}).get(key, default) or default)
+    except (TypeError, ValueError):
+        return default
 
 # Maximum consecutive idle dispatcher ticks (5s each) tolerated while every
 # active task waits on a human but at least one waiter has no pending

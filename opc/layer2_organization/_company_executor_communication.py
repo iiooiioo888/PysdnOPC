@@ -17,31 +17,14 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Mapping
 
 from loguru import logger
 
-from opc.core.active_task_runs import (
-    ActiveTaskRunAdmissionClosed,
-    ActiveTaskRunRegistry,
-)
 from opc.core.config import DEFAULT_EXTERNAL_AGENT_STARTUP_TIMEOUT_SECONDS, DEFAULT_ORGANIZATION_ID
 from opc.core.models import (
-    AdaptiveRoleProfile,
-    AdaptiveSignalSpec,
-    AdaptiveWorkItemProfile,
-    ApprovalAction,
-    ArtifactContract,
     CompanyMemberSession,
-    CoordinationSpec,
-    DataAcquisitionReport,
-    DelegationEvent,
     DelegationWorkItem,
-    EnvironmentManifest,
     Phase,
-    RouterDecision,
-    StructuredReviewVerdict,
     Task,
     TaskResult,
     TaskStatus,
-    WorkItemExecutionStrategy,
-    WorkspaceManifest,
     normalize_role_runtime_status,
 )
 from opc.core.worker_envelope import classify_worker_message, worker_message_is_actionable
@@ -49,16 +32,8 @@ from opc.layer2_organization.company_runtime import CompanyRuntime, canonical_ro
 from opc.layer2_organization.phase import (
     DONE_PHASES,
     IN_PROGRESS_PHASES,
-    IN_REVIEW_PHASES,
     TODO_PHASES,
-    is_dispatchable,
-    is_orphaned,
-    is_report_execution_work_item_metadata,
-    is_review_execution_work_item_metadata,
-    is_runtime_auxiliary_work_item,
-    is_runnable,
     kanban_column,
-    phase_for_task_status,
     should_hide_work_item_from_company_kanban,
     task_status_for_phase,
 )
@@ -66,85 +41,26 @@ from opc.layer2_organization.collaboration_service import CollaborationContext
 from opc.layer2_organization.phase_hooks import reconcile_role_serial_queues
 from opc.layer2_organization.session_scoping import task_session_scope_id
 from opc.layer2_organization.turn_mode import reset_manager_dispatch_turn_metadata
-from opc.layer2_organization.data_acquisition_policy import (
-    DEFAULT_ACQUISITION_EXECUTION_RECORD_RELATIVE_PATH,
-    default_download_manifest_path,
-    default_execution_record_path,
-    default_source_candidates_path,
-    has_downloaded_binary_asset,
-    requires_binary_asset_acquisition,
-)
 from opc.layer2_organization.gate_harness import GateHarness, GateHarnessDecision
-from opc.layer2_organization.metadata_ownership import (
-    append_work_item_progress,
-    build_work_item_owner_execution_copy,
-    copy_work_item_execution_metadata,
-    strip_disallowed_work_item_metadata_from_runtime_task,
-    update_runtime_task_owned_metadata,
-    update_work_item_owned_metadata,
-)
 from opc.layer2_organization.org_engine import OrgEngine
 from opc.layer2_organization.prompt_contract import (
     has_prompt_contract,
     make_prompt_contract,
-    prompt_contract_from_work_item,
-)
-from opc.layer2_organization.org_work_item_planner import (
-    CompanyWorkItemRuntimePlan,
-    WorkItemGatePolicy,
-    WorkItemProjectionSpec,
-    deserialize_company_work_item_plan,
-    serialize_company_work_item_plan,
-)
-from opc.layer2_organization.recruiter import (
-    normalize_recruitment_agent_choice,
-    resolve_effective_execution_agent,
 )
 from opc.layer2_organization.seat_executor import SeatExecutor
 from opc.layer2_organization.work_item_transition import (
-    DEPENDENCY_CLASS_DEFAULT,
-    compute_doomed_work_item_ids,
-    has_pending_settlement_release,
-    normalize_dependency_work_item_ids,
-    refresh_dependents_for_run,
-    settled_failure_dependency_ids,
     transition_work_item_from_task,
 )
 from opc.layer2_organization.work_item_identity import (
-    WORK_ITEM_TURN_TYPE_KEY,
     canonical_work_item_turn_type_for_kind,
-    gate_rework_payload,
-    is_delivery_turn,
-    is_manager_reviewable_turn,
-    mark_projected_work_item_task,
-    mark_gate_rework_projection,
     mark_work_item_projection,
-    projection_id_for_task,
-    projection_id_for_work_item,
-    rework_projection_id_for_gate,
-    target_projection_id_for_decision,
-    target_projection_ids_for_decision,
-    turn_type_for_task,
-    turn_type_for_work_item,
-    work_item_identity_payload,
-    work_item_identity_payload_for_task,
-    work_item_turn_type_from_metadata,
 )
 from opc.layer2_organization.work_item_links import (
     linked_work_item_id_for_task,
-    set_linked_work_item_id,
-    task_by_linked_work_item_id,
 )
 from opc.layer2_organization.work_item_runtime import (
-    is_work_item_runtime_metadata,
     mark_work_item_runtime,
     work_item_runtime_version,
-)
-from opc.layer2_organization.work_item_runtime_invariants import (
-    WORK_ITEM_RUNTIME_INVARIANT_EVENT_TYPE,
-    WorkItemRuntimeInvariantIssue,
-    diagnose_work_item_runtime_projections,
-    validate_work_item_runtime_projection,
 )
 from opc.layer4_tools.output_budget import clip_text
 from opc.llm.retry import LLMRetryError, call_llm_json_with_retry
