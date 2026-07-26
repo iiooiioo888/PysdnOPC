@@ -87,6 +87,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Cross-platform path accidents (Windows drive letters on macOS/Linux)
+[A-Z]:/
+
 .opc-comms/
 .claude
 .tmp/

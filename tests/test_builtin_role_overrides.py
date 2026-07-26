@@ -55,7 +55,7 @@ class BuiltinRoleOverrideTests(unittest.TestCase):
             assert qa is not None
             assert env is not None
 
-            self.assertEqual(len(engine.list_agents()), 11)
+            self.assertEqual(len(engine.list_agents()), 14)
             self.assertIn("file_read", ceo.tools)
             self.assertIn("todo_write", ceo.tools)
             self.assertNotIn("request_user_input", ceo.tools)

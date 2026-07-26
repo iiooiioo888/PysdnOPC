@@ -184,12 +184,12 @@ class WorkItemIdentityDeduplicationTests(unittest.TestCase):
         brief = assembler.build_task_brief(task)
 
         # Work-item identity headers appear exactly once.
-        self.assertEqual(brief.count("## Global Intent Summary"), 1)
-        self.assertEqual(brief.count("## Your Responsibility"), 1)
-        self.assertEqual(brief.count("## Inputs"), 1)
-        self.assertEqual(brief.count("## Deliverables"), 1)
-        self.assertEqual(brief.count("## Acceptance Criteria"), 1)
-        self.assertEqual(brief.count("## Out of Scope"), 1)
+        self.assertEqual(brief.count("## 全域意圖摘要"), 1)
+        self.assertEqual(brief.count("## 你的職責"), 1)
+        self.assertEqual(brief.count("## 輸入"), 1)
+        self.assertEqual(brief.count("## 交付物"), 1)
+        self.assertEqual(brief.count("## 驗收標準"), 1)
+        self.assertEqual(brief.count("## 超出範圍"), 1)
         # The literal responsibility text from work_item_assignment also
         # appears exactly once across the entire brief.
         self.assertEqual(

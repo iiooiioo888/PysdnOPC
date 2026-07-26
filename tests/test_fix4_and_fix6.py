@@ -137,7 +137,7 @@ class ReviewPromptSchemaTests(unittest.TestCase):
         # report-generation prompt block the runtime can inject when
         # the worker is spawned for the post-execute report turn.
         text = company_runtime_contract._COMPANY_REPORT_GENERATION_HEADER
-        self.assertIn("Report Generation", text)
+        self.assertIn("報告產出", text)
         self.assertIn("deliverables", text)
         self.assertIn("acceptance_status", text)
 

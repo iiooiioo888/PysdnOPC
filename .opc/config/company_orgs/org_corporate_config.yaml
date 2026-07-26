@@ -24,6 +24,7 @@ roles:
   - coo
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Route tasks to the appropriate C-suite executive. Aggregate final results.
   skill_refs: []
@@ -55,6 +56,7 @@ roles:
   - devops_engineer
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Focus on technical feasibility, architecture quality, and engineering best practices.
   skill_refs: []
@@ -85,6 +87,7 @@ roles:
   - designer
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Optimize for audience fit, brand consistency, and content quality.
   skill_refs: []
@@ -116,8 +119,141 @@ roles:
   - qa_analyst
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Ensure operational efficiency, process compliance, and delivery quality.
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_manager
+  name: HR Manager
+  responsibility: 自主人力資源架構師：獨立設計並建構組織的完整人員結構。負責分析任務需求、規劃團隊組成、建立與配置角色、驅動招募流程、管理員工生命週期（到職、評估、晉升、離職）、識別技能缺口、提出組織重組方案，並維護人才庫。主動運作，無需等待指令。
+  reports_to: ceo
+  icon: people
+  can_spawn:
+  - hr_recruiter
+  - hr_training_specialist
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - shell_exec
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 自主分析傳入的任務並決定最佳團隊結構。
+  - 主動設計角色定義、匯報關係與人員配置計畫。
+  - 驅動完整招募流程：尋找候選人、評估契合度、錄取並進行到職引導。
+  - 監控員工績效與技能成長；提出晉升或角色調整建議。
+  - 識別組織缺口並主動重組團隊，無需等待指示。
+  - 維護動態人才庫及每個關鍵角色的繼任計畫。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_recruiter
+  name: HR Recruiter
+  responsibility: 人才搜尋與招募執行：掃描人才範本、根據角色需求評估候選人契合度、進行結構化評估，並產出附帶理由的錄取/不錄取建議。
+  reports_to: hr_manager
+  icon: search
+  can_spawn: []
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - browser_navigate
+  - browser_navigate_back
+  - browser_snapshot
+  - browser_wait_for
+  - browser_scroll
+  - browser_take_screenshot
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 從人才範本與外部人才庫中搜尋候選人。
+  - 根據角色專屬能力矩陣評估候選人。
+  - 產出附帶評分理由的結構化錄取/不錄取建議。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_training_specialist
+  name: HR Training Specialist
+  responsibility: 員工發展與技能培養：設計到職培訓計畫、建立技能發展方案、追蹤學習進度，並確保員工勝任其角色。
+  reports_to: hr_manager
+  icon: book
+  can_spawn: []
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 為新進員工設計結構化的到職培訓計畫。
+  - 根據角色需求與技能缺口建立個人化技能發展方案。
+  - 追蹤學習進度並據此調整培訓策略。
   skill_refs: []
   handoff_template_ref: null
   memory_policy_ref: null
@@ -145,6 +281,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: claude_code
+  model: ''
   prompt_refs:
   - 'Run data acquisition in four phases: Discover, Verify, Prepare, Report.'
   - For media tasks, HTML snapshots and URL lists never count as acquired binary assets.
@@ -176,6 +313,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: codex
+  model: ''
   prompt_refs:
   - Write clean, tested code. Leave clear documentation for reviewers.
   skill_refs: []
@@ -204,6 +342,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: cursor
+  model: ''
   prompt_refs:
   - Prioritize operational safety, observability, and deployment readiness.
   skill_refs: []
@@ -232,6 +371,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Write clearly for the target audience. Polish deliverables.
   skill_refs: []
@@ -260,6 +400,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Focus on usability, visual consistency, and design quality.
   skill_refs: []
@@ -288,6 +429,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Test rigorously. Reject unclear or unsafe outputs.
   skill_refs: []
@@ -322,6 +464,7 @@ roles:
   can_spawn: []
   tools: []
   preferred_external_agent: null
+  model: ''
   prompt_refs:
   - Always probe what is already installed before attempting installation.
   - Prepare the assigned target_output_dir before downstream work items run, including

@@ -93,6 +93,31 @@ async def create_app(
 
     app = aiohttp.web.Application()
 
+    # ── Request logging middleware ────────────────────────────────────
+    import time
+
+    @aiohttp.web.middleware
+    async def request_logging_middleware(
+        request: aiohttp.web.Request,
+        handler: Any,
+    ) -> aiohttp.web.StreamResponse:
+        start_time = time.time()
+        try:
+            response = await handler(request)
+            duration_ms = (time.time() - start_time) * 1000
+            logger.debug(
+                f"{request.method} {request.path} - {response.status} ({duration_ms:.1f}ms)"
+            )
+            return response
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            logger.error(
+                f"{request.method} {request.path} - ERROR: {e} ({duration_ms:.1f}ms)"
+            )
+            raise
+
+    app.middlewares.append(request_logging_middleware)
+
     # ── Load config from standard location if not provided ─────────
     if config is None:
         config_dir = get_opc_home() / "config"
@@ -171,6 +196,25 @@ async def create_app(
 
     # Org Templates API
     app.router.add_get("/api/org_templates", _make_org_templates_handler())
+
+    # Health check endpoint
+    async def _health_check(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        import time
+        start_time = time.time()
+        health = {
+            "status": "ok",
+            "timestamp": time.time(),
+            "uptime_seconds": time.time() - getattr(app, "_start_time", time.time()),
+            "engine_initialized": engine is not None,
+            "project_id": engine.project_id if engine else None,
+            "roles_count": len(engine.org_engine.roles) if engine and engine.org_engine else 0,
+        }
+        duration_ms = (time.time() - start_time) * 1000
+        health["response_time_ms"] = round(duration_ms, 2)
+        return aiohttp.web.json_response(health)
+
+    app.router.add_get("/api/health", _health_check)
+    app._start_time = time.time()
 
     # SPA: serve static files, fallback to index.html
     if _STATIC_DIR.is_dir():

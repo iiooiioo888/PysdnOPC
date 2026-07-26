@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from './lib/i18n'
 import { PhaserGame } from './game/PhaserGame'
 import { GameBridge } from './game/GameBridge'
@@ -7,22 +7,35 @@ import { registerTestRunner } from './game/test/eventTestRunner'
 import { getOffices } from './game/map/OfficeStore'
 import { getOfficeDeskSeats } from './game/map/InteractionZones'
 import type { OrgCreateMemberInput, TaskPreferredAgent } from './types/visual'
-import { WorkspacePage } from './workspace/WorkspacePage'
-import { DashboardPage } from './dashboard/DashboardPage'
-import { RoleProfilePage } from './dashboard/RoleProfilePage'
-import { TemplatesPage } from './dashboard/TemplatesPage'
-import { LlmSettingsPage } from './settings/LlmSettingsPage'
-import { AgentSettingsPage } from './settings/AgentSettingsPage'
+
+// Lazy load page components for better initial load performance
+const WorkspacePage = lazy(() => import('./workspace/WorkspacePage').then(m => ({ default: m.WorkspacePage })))
+const DashboardPage = lazy(() => import('./dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const RoleProfilePage = lazy(() => import('./dashboard/RoleProfilePage').then(m => ({ default: m.RoleProfilePage })))
+const TemplatesPage = lazy(() => import('./dashboard/TemplatesPage').then(m => ({ default: m.TemplatesPage })))
+const LlmSettingsPage = lazy(() => import('./settings/LlmSettingsPage').then(m => ({ default: m.LlmSettingsPage })))
+const AgentSettingsPage = lazy(() => import('./settings/AgentSettingsPage').then(m => ({ default: m.AgentSettingsPage })))
+const OrgTab = lazy(() => import('./org/OrgTab').then(m => ({ default: m.OrgTab })))
+
 import './dashboard/dashboard.css'
 import './dashboard/templates.css'
 import { ExecutionPanel } from './kanban/ExecutionPanel'
 import { ProjectSelector } from './components/ProjectSelector'
-import { OrgTab } from './org/OrgTab'
 import { MaybeExecutionPanel } from './components/MaybeExecutionPanel'
 import { notifyTaskAssigned } from './lib/taskChatBridge'
 import { useAppWebSocket } from './hooks/useAppWebSocket'
 import { readOutdoorOverrideUi, statusClass, truncateJson, normalizeExecMode, normalizeCompanyProfile, companyProfileForExecMode, orgIdForExecMode, normalizeTaskPreferredAgent } from './lib/appUtils'
 import type { ThemeName, AppPage } from './types/app'
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="page-loader">
+      <div className="page-loader-spinner" />
+      <span>載入中...</span>
+    </div>
+  )
+}
 
 export default function App() {
   const { t } = useI18n()

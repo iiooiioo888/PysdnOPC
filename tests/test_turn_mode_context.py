@@ -194,22 +194,22 @@ class BuildReworkFeedbackContextTests(unittest.IsolatedAsyncioTestCase):
         task = _link_task(task, "wi-1")
         rendered = await self.assembler.build_rework_feedback_context(task)
         # Header present
-        self.assertIn("## Reviewer Feedback (Rework Required)", rendered)
+        self.assertIn("## 審查者回饋（需要返工）", rendered)
         # Reviewer attribution
-        self.assertIn("Reviewer: cmo", rendered)
+        self.assertIn("審查者：cmo", rendered)
         # Rework attempt counter
-        self.assertIn("Rework attempt: #1", rendered)
+        self.assertIn("返工嘗試：#1", rendered)
         # The reviewer's actual reject text verbatim
         self.assertIn(
             "The video concept is missing two required features",
             rendered,
         )
         # Blocking issues rendered as bullets
-        self.assertIn("### Blocking Issues", rendered)
+        self.assertIn("### 阻斷問題（批准前必須修復）", rendered)
         self.assertIn("Video concept omits real-time subtitle rendering.", rendered)
         self.assertIn("No coverage claim", rendered)
         # Follow-ups rendered separately
-        self.assertIn("### Follow-ups", rendered)
+        self.assertIn("### 後續事項（非必要，非阻斷）", rendered)
         self.assertIn("Consider a 10-second 'global reach' intro.", rendered)
 
     async def test_non_rework_work_item_produces_no_feedback_section(self) -> None:
@@ -311,8 +311,8 @@ class BuildTurnModeContextTests(unittest.IsolatedAsyncioTestCase):
         )
         task = _link_task(task, "wi-ex")
         rendered = await self.assembler.build_turn_mode_context(task)
-        self.assertTrue(rendered.startswith("## Turn Mode"))
-        self.assertIn("- Required action:", rendered)
+        self.assertTrue(rendered.startswith("## 輪次模式"))
+        self.assertIn("- 要求的操作：", rendered)
         self.assertIn("execute", rendered)
 
     async def test_delegate_mode_renders_runtime_state_and_required_action(self) -> None:
@@ -337,11 +337,11 @@ class BuildTurnModeContextTests(unittest.IsolatedAsyncioTestCase):
         )
         task = _link_task(task, "wi-delegate")
         rendered = await self.assembler.build_turn_mode_context(task)
-        self.assertTrue(rendered.startswith("## Turn Mode"))
-        self.assertIn("- Runtime state: `dispatch_required`", rendered)
-        self.assertIn("- Required action:", rendered)
+        self.assertTrue(rendered.startswith("## 輪次模式"))
+        self.assertIn("- 運行時狀態：`dispatch_required`", rendered)
+        self.assertIn("- 要求的操作：", rendered)
         self.assertIn("delegate", rendered)
-        self.assertIn("outcome-based child WorkItems", rendered)
+        self.assertIn("基於結果的子工作項目", rendered)
 
     async def test_work_item_assignment_context_renders_manager_planning_packet(self) -> None:
         wi = _build_wi(
@@ -663,8 +663,8 @@ class ReworkE2EPromptTests(unittest.IsolatedAsyncioTestCase):
         # Joined system context includes both blocks.
         joined = "\n\n".join(part for part in sections.values() if part)
         self.assertIn(REJECT_TEXT, joined)
-        self.assertIn("## Reviewer Feedback (Rework Required)", joined)
-        self.assertIn("## Turn Mode", joined)
+        self.assertIn("## 審查者回饋（需要返工）", joined)
+        self.assertIn("## 輪次模式", joined)
 
 
 class ReworkAfterDispatcherClaimTests(unittest.IsolatedAsyncioTestCase):
@@ -766,11 +766,11 @@ class ReworkAfterDispatcherClaimTests(unittest.IsolatedAsyncioTestCase):
         )
         task = _link_task(task, "wi-running-rework")
         rendered = await self.assembler.build_rework_feedback_context(task)
-        self.assertIn("## Reviewer Feedback (Rework Required)", rendered)
-        self.assertIn("Reviewer: ceo", rendered)
-        self.assertIn("Rework attempt: #3", rendered)
+        self.assertIn("## 審查者回饋（需要返工）", rendered)
+        self.assertIn("審查者：ceo", rendered)
+        self.assertIn("返工嘗試：#3", rendered)
         self.assertIn("cto_app_architecture.md", rendered)
-        self.assertIn("### Blocking Issues", rendered)
+        self.assertIn("### 阻斷問題（批准前必須修復）", rendered)
 
     async def test_full_e2e_running_phase_still_yields_rework_sections(self) -> None:
         # build_sections is what the prompt assembler actually calls.
@@ -839,7 +839,7 @@ class ReworkAfterDispatcherClaimTests(unittest.IsolatedAsyncioTestCase):
         )
         task = _link_task(task, "wi-prev")
         rendered = await self.assembler.build_rework_feedback_context(task)
-        self.assertIn("### Your Previous Submission", rendered)
+        self.assertIn("### 你先前的提交（摘錄）", rendered)
         self.assertIn("已交付", rendered)
 
     async def test_previous_submission_truncated_when_huge(self) -> None:
@@ -865,7 +865,7 @@ class ReworkAfterDispatcherClaimTests(unittest.IsolatedAsyncioTestCase):
         )
         task = _link_task(task, "wi-huge")
         rendered = await self.assembler.build_rework_feedback_context(task)
-        self.assertIn("### Your Previous Submission", rendered)
+        self.assertIn("### 你先前的提交（摘錄）", rendered)
         self.assertIn("… (truncated)", rendered)
 
     async def test_feedback_falls_back_to_task_metadata_when_store_misses(
@@ -891,7 +891,7 @@ class ReworkAfterDispatcherClaimTests(unittest.IsolatedAsyncioTestCase):
         )
         rendered = await self.assembler.build_rework_feedback_context(task)
         self.assertIn("TASK_META_FEEDBACK", rendered)
-        self.assertIn("Rework attempt: #1", rendered)
+        self.assertIn("返工嘗試：#1", rendered)
 
 
 if __name__ == "__main__":

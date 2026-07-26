@@ -224,6 +224,9 @@ class WSHandler(
         self._client_switch_seq: dict[Any, str] = {}
         self._client_project_index_tasks: dict[Any, asyncio.Task[Any]] = {}
         self._client_initial_state_tasks: dict[Any, asyncio.Task[Any]] = {}
+        # Connection pool management
+        self._max_connections: int = 10
+        self._connection_times: dict[Any, float] = {}  # Track connection start times
         self._exec_mode: str = "task"  # restored from DB in restore_persisted_mode()
         self._company_profile: str = "corporate"
         self._task_preferred_agent: str = "native"
@@ -2858,7 +2861,7 @@ class WSHandler(
         if not project_id:
             await self._send_ack(ws, ok=True, action="reconnect_sync", note="no_active_project")
             return
-        engine = self._engine_for_ws(ws)
+        engine = self.engine
         if engine is None:
             await self._send_ack(ws, ok=False, error="engine_not_ready", action="reconnect_sync")
             return

@@ -29,6 +29,20 @@ interface TranscriptEntry {
   }>
 }
 
+interface RuntimeTranscriptEntry {
+  entry_id?: string
+  runtime_session_id?: string
+  task_id?: string
+  session_id?: string
+  message_id?: string
+  role?: string
+  entry_type?: string
+  content?: string
+  metadata?: Record<string, unknown>
+  created_at?: string
+  [key: string]: unknown
+}
+
 interface RuntimeLogsResponse {
   project_id: string
   task_id: string
@@ -44,6 +58,7 @@ interface RuntimeLogsResponse {
   transcript: TranscriptEntry[]
   runtime_sessions: Array<Record<string, unknown>>
   runtime_events: RuntimeEvent[]
+  runtime_transcript_entries: RuntimeTranscriptEntry[]
 }
 
 interface LlmConversationPanelProps {
@@ -152,6 +167,49 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
           meta: { toolName: str(payload.name) },
         })
       }
+    }
+  }
+
+  // Process runtime transcript entries (LLM conversation records)
+  for (const entry of data.runtime_transcript_entries ?? []) {
+    const content = str(entry.content || '')
+    if (!content.trim()) continue
+    const entryType = str(entry.entry_type || 'message')
+    const role = str(entry.role || 'assistant').toLowerCase()
+    const meta = (entry.metadata || {}) as Record<string, unknown>
+
+    if (entryType === 'compaction_boundary') {
+      messages.push({
+        id: `rt-entry-${seq++}`,
+        role: 'event',
+        content: `📦 上下文壓縮摘要:\n${truncateText(content, 500)}`,
+        timestamp: entry.created_at ? new Date(str(entry.created_at)).getTime() : undefined,
+        meta: { eventType: 'compaction_boundary' },
+      })
+    } else if (entryType === 'tool_result') {
+      messages.push({
+        id: `rt-entry-${seq++}`,
+        role: 'tool',
+        content: truncateText(content, 1000),
+        timestamp: entry.created_at ? new Date(str(entry.created_at)).getTime() : undefined,
+        meta: { toolName: str(meta.tool_name || ''), eventType: 'tool_result' },
+      })
+    } else {
+      // message / stream
+      let convRole: ConversationRole = 'event'
+      if (role === 'user' || role === 'human') convRole = 'user'
+      else if (role === 'assistant' || role === 'ai') convRole = 'assistant'
+      else if (role === 'system') convRole = 'system'
+      messages.push({
+        id: `rt-entry-${seq++}`,
+        role: convRole,
+        content: truncateText(content),
+        timestamp: entry.created_at ? new Date(str(entry.created_at)).getTime() : undefined,
+        meta: {
+          model: str(meta.model || ''),
+          eventType: entryType,
+        },
+      })
     }
   }
 
@@ -363,6 +421,7 @@ export function LlmConversationPanel({
         transcript: (payload.transcript || []) as TranscriptEntry[],
         runtime_sessions: (payload.runtime_sessions || []) as Array<Record<string, unknown>>,
         runtime_events: (payload.runtime_events || []) as RuntimeEvent[],
+        runtime_transcript_entries: (payload.runtime_transcript_entries || []) as RuntimeTranscriptEntry[],
       }
       setTargetInfo(data.target ?? null)
       setMessages(buildConversation(data))

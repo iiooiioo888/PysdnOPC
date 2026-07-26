@@ -111,7 +111,7 @@ class DummyRecruiterLLM:
                 preferred.append("testing")
             if any(
                 token in role_text
-                for token in ("backend", "api", "code", "implementation", "implement", "technical")
+                for token in ("backend", "api", "code", "implementation", "implement", "technical", "程式碼", "實作", "系統開發", "技術執行")
             ) and "engineering" in categories:
                 preferred.append("engineering")
             if any(
@@ -271,12 +271,12 @@ class DummyRecruiterLLM:
             preferred.append("testing")
         if any(
             token in role_text
-            for token in ("backend", "api", "code", "implementation", "implement", "technical")
+            for token in ("backend", "api", "code", "implementation", "implement", "technical", "程式碼", "實作", "系統開發", "技術執行")
         ) and "engineering" in categories:
             preferred.append("engineering")
         if any(
             token in f"{role_text} {request_text}"
-            for token in ("finance", "financial", "investment", "portfolio", "valuation")
+            for token in ("finance", "financial", "investment", "portfolio", "valuation", "財務", "投資")
         ) and "finance" in categories:
             preferred.append("finance")
         if any(token in role_text for token in ("test", "qa", "validation")) and "testing" in categories:
@@ -2213,14 +2213,15 @@ class CompanyRecruiterFlowTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 payload["org_graph"],
                 {
-                    "ceo": ["cto", "cmo", "coo"],
+                    "ceo": ["cto", "cmo", "coo", "hr_manager"],
                     "cto": ["env_engineer", "senior_engineer", "devops_engineer"],
                     "cmo": ["content_specialist", "designer"],
                     "coo": ["acquisition_specialist", "qa_analyst"],
+                    "hr_manager": ["hr_recruiter", "hr_training_specialist"],
                 },
             )
             system_prompt = str(global_call["system"] or "")
-            self.assertIn("Use org_graph as the reporting/delegation structure.", system_prompt)
+            self.assertIn("使用 org_graph 作為匯報/委派結構", system_prompt)
             self.assertNotIn(
                 "It is allowed to choose the same existing employee or template for multiple roles",
                 system_prompt,

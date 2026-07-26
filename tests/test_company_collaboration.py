@@ -375,7 +375,7 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([item.work_item_id for item in work_items], [root_work_item.work_item_id])
             self.assertEqual(root_work_item.role_id, "ceo")
             self.assertEqual(root_work_item.kind, "intake")
-            self.assertEqual(root_work_item.metadata["allowed_delegate_role_ids"], ["cto", "cmo", "coo"])
+            self.assertEqual(root_work_item.metadata["allowed_delegate_role_ids"], ["cto", "cmo", "coo", "hr_manager"])
             run = await store.get_delegation_run(run_id)
             assert run is not None
             self.assertEqual(run.metadata["company_work_item_plan"]["root_projection_id"], plan.root_projection_id)
@@ -663,9 +663,9 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
         brief = assembler.build_task_brief(task)
         recovery = assembler.build_recovery_context(task)
 
-        self.assertIn("If it resolves the blocker, continue.", brief)
-        self.assertIn("exact missing detail", brief)
-        self.assertIn("Do not repeat the same broad question.", brief)
+        self.assertIn("如果它解決了阻斷因素，繼續執行。", brief)
+        self.assertIn("確切的缺少細節", brief)
+        self.assertIn("不要重複相同的寬泛問題", brief)
         self.assertIn("If it is enough, continue.", recovery)
         self.assertIn("narrower follow-up", recovery)
         self.assertIn("Previous User-Input Request", recovery)
@@ -838,7 +838,7 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
 
         brief = assembler.build_task_brief(task)
 
-        self.assertIn("## Work Item Runtime Plan", brief)
+        self.assertIn("## 工作項目運行時計畫", brief)
         self.assertIn("Execution Sequence:", brief)
         self.assertIn("Media Mode Rules:", brief)
         self.assertIn("Download Priority:", brief)
@@ -5675,10 +5675,10 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
                 task.metadata["prompt_contract"]["task_brief"],
             )
             brief = ContextAssembler(memory=SimpleNamespace()).build_task_brief(task)
-            self.assertIn("## Latest User Directive (AUTHORITATIVE)", brief)
+            self.assertIn("## 最新使用者指示（權威）", brief)
             self.assertLess(
-                brief.index("Latest User Directive"),
-                brief.index("Original User Request"),
+                brief.index("最新使用者指示"),
+                brief.index("原始使用者請求"),
             )
             await store.close()
 
@@ -5700,17 +5700,17 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
 
         brief = assembler.build_task_brief(task)
 
-        self.assertIn("## Latest User Directive (AUTHORITATIVE)", brief)
-        self.assertIn("supersedes conflicting details from the original request", brief)
-        self.assertIn("## Original User Request (background; superseded if conflicting)", brief)
-        self.assertIn("## Your Current Work Item", brief)
+        self.assertIn("## 最新使用者指示（權威）", brief)
+        self.assertIn("使用此作為當前事實來源。它取代原始請求中衝突的細節", brief)
+        self.assertIn("## 原始使用者請求（背景；衝突時被取代）", brief)
+        self.assertIn("## 你當前的工作項目", brief)
         self.assertLess(
-            brief.index("Latest User Directive"),
-            brief.index("Original User Request"),
+            brief.index("最新使用者指示"),
+            brief.index("原始使用者請求"),
         )
         self.assertLess(
-            brief.index("Original User Request"),
-            brief.index("Your Current Work Item"),
+            brief.index("原始使用者請求"),
+            brief.index("你當前的工作項目"),
         )
 
     async def test_attention_work_item_inherits_parent_latest_directive_and_contract(self) -> None:
@@ -5828,10 +5828,10 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
                 "Stop Amber Gear Orchard and build Sapphire Tide Runner instead.",
             )
             brief = ContextAssembler(memory=SimpleNamespace()).build_task_brief(attention_task)
-            self.assertIn("## Latest User Directive (AUTHORITATIVE)", brief)
+            self.assertIn("## 最新使用者指示（權威）", brief)
             self.assertLess(
-                brief.index("Latest User Directive"),
-                brief.index("Original User Request"),
+                brief.index("最新使用者指示"),
+                brief.index("原始使用者請求"),
             )
             await store.close()
 
@@ -6657,17 +6657,17 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
 
         brief = assembler.build_task_brief(task)
 
-        self.assertIn("## Global Intent Summary", brief)
+        self.assertIn("## 全域意圖摘要", brief)
         self.assertIn("Implement the API portion only.", brief)
-        self.assertIn("## Work Item Assignment Status", brief)
+        self.assertIn("## 工作項目分配狀態", brief)
         self.assertIn("resolved_from_manager_handoff", brief)
-        self.assertIn("## Work Item Assignment Source", brief)
+        self.assertIn("## 工作項目分配來源", brief)
         self.assertIn("cto_planning", brief)
-        self.assertIn("## Work Item Runtime Plan", brief)
+        self.assertIn("## 工作項目運行時計畫", brief)
         self.assertIn("Leave reviewer-friendly artifacts for QA.", brief)
-        self.assertIn("## Work Item Artifact Index", brief)
+        self.assertIn("## 工作項目產出物索引", brief)
         self.assertIn("api_module: src/api.py", brief)
-        self.assertNotIn("## Original User Request", brief)
+        self.assertNotIn("## 原始使用者請求", brief)
 
     async def test_external_prompt_context_contains_collaboration_sections(self) -> None:
         with _workspace_tempdir() as tmpdir:
@@ -6849,7 +6849,7 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("ceo (CEO) [manager]", enriched)
                 self.assertIn("cmo (CMO) [peer]", enriched)
                 self.assertIn("senior_engineer (Senior Engineer) [downstream]", enriched)
-                self.assertIn("Code implementation, system development, and technical execution.", enriched)
+                self.assertIn("程式碼實作、系統開發與技術執行。", enriched)
             finally:
                 await store.close()
 
@@ -6936,10 +6936,10 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("## Topology", enriched)
                 self.assertIn("### Direct Manager", enriched)
                 self.assertIn("ceo (CEO)", enriched)
-                self.assertIn("Strategic intake, high-level routing, final aggregation and delivery to the owner.", enriched)
+                self.assertIn("策略性接收、高層級路由、最終彙整並交付給業主。", enriched)
                 self.assertIn("### Direct Reports", enriched)
                 self.assertIn("senior_engineer (Senior Engineer)", enriched)
-                self.assertIn("Code implementation, system development, and technical execution.", enriched)
+                self.assertIn("程式碼實作、系統開發與技術執行。", enriched)
                 self.assertIn("employee=Senior Engineer Default Employee", enriched)
                 self.assertIn("agent=codex", enriched)
                 self.assertIn("status=idle", enriched)
@@ -9040,10 +9040,10 @@ class CompanyCollaborationTests(unittest.IsolatedAsyncioTestCase):
         brief = assembler.build_task_brief(task)
         member_state = assembler.build_member_session_context(task)
 
-        self.assertIn("## Current Assignment", brief)
-        self.assertNotIn("## Resident Assignment", brief)
-        self.assertNotIn("## Work Item Runtime Plan", brief)
-        self.assertNotIn("## Work Item Artifact Index", brief)
+        self.assertIn("## 當前分配", brief)
+        self.assertNotIn("## 常駐分配", brief)
+        self.assertNotIn("## 工作項目運行時計畫", brief)
+        self.assertNotIn("## 工作項目產出物索引", brief)
         self.assertNotIn("Current turn mode: dispatch_required", member_state)
         self.assertIn("Mailbox is runtime-owned", member_state)
 

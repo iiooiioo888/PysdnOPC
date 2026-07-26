@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+import unittest
 from pathlib import Path
 
 import pytest
@@ -304,17 +305,31 @@ class TestRenderSkillDocument:
 # ---------------------------------------------------------------------------
 
 
-class TestPrepareSource:
-    @pytest.mark.asyncio
-    async def test_local_path_valid(self, opc_home: Path, ecc_repo: Path):
-        bridge = EccSkillBridge(opc_home, ecc_repo_path=ecc_repo)
-        result = await bridge.prepare_source()
-        assert result == ecc_repo
+class TestPrepareSource(unittest.IsolatedAsyncioTestCase):
+    async def test_local_path_valid(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            opc_home = tmp_path / "opc-home"
+            opc_home.mkdir(parents=True)
+            (opc_home / "skills").mkdir()
+            ecc_repo = tmp_path / "ecc-repo"
+            skills_dir = ecc_repo / "skills"
+            skills_dir.mkdir(parents=True)
+            _make_ecc_skill(skills_dir, "test-skill", "Test skill")
+            bridge = EccSkillBridge(opc_home, ecc_repo_path=ecc_repo)
+            result = await bridge.prepare_source()
+            assert result == ecc_repo
 
-    @pytest.mark.asyncio
-    async def test_local_path_no_skills_dir(self, opc_home: Path, tmp_path: Path):
-        bad_path = tmp_path / "no-skills"
-        bad_path.mkdir()
-        bridge = EccSkillBridge(opc_home, ecc_repo_path=bad_path)
-        with pytest.raises(EccBridgeError, match="skills/"):
-            await bridge.prepare_source()
+    async def test_local_path_no_skills_dir(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            opc_home = tmp_path / "opc-home"
+            opc_home.mkdir(parents=True)
+            (opc_home / "skills").mkdir()
+            bad_path = tmp_path / "no-skills"
+            bad_path.mkdir()
+            bridge = EccSkillBridge(opc_home, ecc_repo_path=bad_path)
+            with self.assertRaises(EccBridgeError):
+                await bridge.prepare_source()

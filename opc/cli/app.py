@@ -4087,8 +4087,12 @@ def _start_new_chat_session(state: _InteractiveChatState) -> None:
 def _render_transcript_parts(parts: list[Any]) -> str:
     lines: list[str] = []
     for part in parts:
-        part_type = getattr(part, "part_type", "")
-        payload = getattr(part, "payload", {})
+        if isinstance(part, dict):
+            part_type = part.get("part_type", "")
+            payload = part.get("payload", {})
+        else:
+            part_type = getattr(part, "part_type", "")
+            payload = getattr(part, "payload", {})
         if not isinstance(payload, dict):
             payload = {}
         if part_type == "text":

@@ -1888,10 +1888,10 @@ class CompanyRuntimeSuspendResumeTests(unittest.IsolatedAsyncioTestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("User Follow-up Board Reconciliation", contract)
+        self.assertIn("使用者後續看板對帳", contract)
         self.assertIn("manager_board_read", contract)
-        self.assertIn("resuming this same role session with a fresh owner directive", contract)
-        self.assertIn("answer directly, close review when appropriate, inspect or revise the board", contract)
+        self.assertIn("你正在以新的業主指令恢復此相同角色工作階段", contract)
+        self.assertIn("直接回答、適當時關閉審查、檢查或修改看板", contract)
         self.assertIn("modify_work_item", contract)
         self.assertIn("delete_work_item", contract)
         self.assertNotIn("classify each existing child WorkItem", contract)
@@ -1917,12 +1917,12 @@ class CompanyRuntimeSuspendResumeTests(unittest.IsolatedAsyncioTestCase):
 
         contract = build_company_work_item_contract(task)
 
-        self.assertIn("Upstream Work Item Mutation Reconciliation", contract)
+        self.assertIn("上游工作項目變更對帳", contract)
         self.assertIn("Replace the old cooking game with Neon Rails", contract)
         self.assertIn("manager_board_read", contract)
         self.assertIn("modify_work_item", contract)
         self.assertIn("delete_work_item", contract)
-        self.assertIn("suspended/running children left over from before Stop", contract)
+        self.assertIn("Stop 之前遺留的暫停/運行中子項", contract)
 
     async def test_continue_resets_stale_in_memory_runtime_sessions_before_execute(self) -> None:
         store = await self._store()

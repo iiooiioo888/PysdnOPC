@@ -74,3 +74,17 @@ try {
   root.innerHTML = `<h1 style="color:red">React Error: ${err}</h1>`
 }
 
+// Register Service Worker for offline caching
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./sw.js')
+      .then((registration) => {
+        console.log('[SW] Registered:', registration.scope)
+      })
+      .catch((error) => {
+        console.log('[SW] Registration failed:', error)
+      })
+  })
+}
+

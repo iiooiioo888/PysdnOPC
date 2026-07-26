@@ -1665,7 +1665,7 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
                 external_task = await engine._build_external_agent_task(task)
 
                 self.assertIn("## External Resume Delta", external_task.description)
-                self.assertEqual(external_task.description.count("## Reviewer Feedback (Rework Required)"), 1)
+                self.assertEqual(external_task.description.count("## 審查者回饋（需要返工）"), 1)
                 self.assertIn("Fix the missing asset manifest.", external_task.description)
                 self.assertIn("## Task Brief\nFix the worker slice.", external_task.description)
                 self.assertNotIn("legacy task body must not own company Task Brief", external_task.description)
@@ -1739,15 +1739,15 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
         external_task = await engine._build_external_agent_task(task)
 
         self.assertTrue(external_task.description.startswith("## Runtime Contract (MANDATORY)"))
-        self.assertIn("## Organization Runtime Contract", external_task.description)
-        self.assertIn("## Manager Runtime Contract", external_task.description)
-        self.assertIn("## Dispatch Planning Contract", external_task.description)
+        self.assertIn("## 組織運行時契約", external_task.description)
+        self.assertIn("## 管理者運行時契約", external_task.description)
+        self.assertIn("## 派遣規劃契約", external_task.description)
         self.assertNotIn("## Leader Delegation Planning Overlay", external_task.description)
-        self.assertIn("Scope first", external_task.description)
-        self.assertIn("requested deliverable form", external_task.description)
-        self.assertIn("outcome-based child WorkItems", external_task.description)
-        self.assertIn("startable preparation", external_task.description)
-        self.assertIn("must not replace requested production work", external_task.description)
+        self.assertIn("範圍優先", external_task.description)
+        self.assertIn("請求的交付物形式", external_task.description)
+        self.assertIn("基於結果的子工作項目", external_task.description)
+        self.assertIn("可開始的準備工作", external_task.description)
+        self.assertIn("不得取代請求的產出工作", external_task.description)
         self.assertIn("NO_DELEGATION_JUSTIFICATION", external_task.description)
         self.assertIn("## Task Brief", external_task.description)
         self.assertIn("## Company Runtime Context", external_task.description)
@@ -1789,10 +1789,10 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
 
         external_task = await engine._build_external_agent_task(task)
 
-        self.assertIn("## Dispatch Planning Contract", external_task.description)
-        self.assertIn("## Manager Runtime Contract", external_task.description)
+        self.assertIn("## 派遣規劃契約", external_task.description)
+        self.assertIn("## 管理者運行時契約", external_task.description)
         self.assertNotIn("Leader Delegation Planning Overlay", external_task.description)
-        self.assertIn("hard dependencies", external_task.description)
+        self.assertIn("硬性依賴", external_task.description)
         self.assertIn("NO_DELEGATION_JUSTIFICATION", external_task.description)
 
     async def test_engine_resume_company_task_still_gets_runtime_contract_and_assignment_context(self) -> None:
@@ -1833,8 +1833,8 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
         external_task = await engine._build_external_agent_task(task)
 
         self.assertTrue(external_task.description.startswith("## Runtime Contract (MANDATORY)"))
-        self.assertIn("Manager Runtime Contract", external_task.description)
-        self.assertIn("Dispatch Planning Contract", external_task.description)
+        self.assertIn("管理者運行時契約", external_task.description)
+        self.assertIn("派遣規劃契約", external_task.description)
         self.assertNotIn("Leader Delegation Planning Overlay", external_task.description)
         self.assertIn("## Task Brief", external_task.description)
         self.assertIn("CTO must decompose the implementation work for direct reports.", external_task.description)
@@ -1985,7 +1985,7 @@ class ExternalAgentMonitoringTests(unittest.IsolatedAsyncioTestCase):
 
                 external_task = await engine._build_external_agent_task(task)
 
-                self.assertIn("## Work Item Turn: Report Generation", external_task.description)
+                self.assertIn("## 工作項目輪次：報告產出", external_task.description)
                 self.assertIn("## Task Brief\nWrite a structured handoff report.", external_task.description)
                 self.assertIn("### Work Item Contract To Report Against", external_task.description)
                 self.assertIn("Produce the render script and manifest.", external_task.description)

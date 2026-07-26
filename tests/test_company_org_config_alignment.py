@@ -8,7 +8,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ORG_DIR = REPO_ROOT / ".opc" / "config" / "company_orgs"
 EXPECTED_ROLE_COUNTS = {
-    "corporate": 11,
+    "corporate": 14,
     "game-development-studio": 5,
     "research-report-studio": 3,
     "vc-investment-firm": 21,
@@ -64,13 +64,14 @@ def test_corporate_org_config_materializes_builtin_runtime() -> None:
     org = OrgEngine(cfg, REPO_ROOT / ".opc")
     agents = org.list_agents()
 
-    assert len(agents) == 11
+    assert len(agents) == 14
     assert org.get_final_decider_role_id(strict=True) == "ceo"
     assert _org_graph_from_agents(agents) == {
-        "ceo": ["cmo", "coo", "cto"],
+        "ceo": ["cmo", "coo", "cto", "hr_manager"],
         "cmo": ["content_specialist", "designer"],
         "coo": ["acquisition_specialist", "qa_analyst"],
         "cto": ["devops_engineer", "env_engineer", "senior_engineer"],
+        "hr_manager": ["hr_recruiter", "hr_training_specialist"],
     }
 
 

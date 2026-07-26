@@ -7,10 +7,12 @@ export default defineConfig({
   build: {
     outDir: '../frontend_dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
           phaser: ['phaser'],
+          'react-vendor': ['react', 'react-dom'],
         },
       },
     },
