@@ -303,7 +303,7 @@ class HookEngine:
     def _match_hooks(self, event: OPCEvent) -> list[HookDefinition]:
         """找出與事件匹配的啟用鉤子。"""
         event_type = getattr(event, "event_type", "") or ""
-        data = getattr(event, "data", {}) or {}
+        data = getattr(event, "payload", {}) or {}
         profile_level = _PROFILE_LEVELS.get(self._profile, 1)
         matched: list[HookDefinition] = []
 
@@ -375,9 +375,9 @@ class HookEngine:
                         error=f"No builtin handler registered for '{hook.hook_id}'",
                         skipped=True,
                     )
-                data = getattr(event, "data", {}) or {}
+                payload = getattr(event, "payload", {}) or {}
                 result = await asyncio.wait_for(
-                    handler(event, data), timeout=hook.timeout_seconds
+                    handler(event, payload), timeout=hook.timeout_seconds
                 )
                 elapsed = (time.perf_counter() - start) * 1000
                 return HookResult(
@@ -417,8 +417,8 @@ class HookEngine:
         if not command:
             return ""
 
-        # Simple variable substitution from event data
-        data = getattr(event, "data", {}) or {}
+        # Simple variable substitution from event payload
+        data = getattr(event, "payload", {}) or {}
         for key, value in data.items():
             command = command.replace(f"${{{key}}}", str(value))
             command = command.replace(f"${key}", str(value))
