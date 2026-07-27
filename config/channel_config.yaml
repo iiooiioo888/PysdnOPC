@@ -10,6 +10,11 @@
 channels:
   send_progress: true       # 發送進度訊息
   send_tool_hints: false    # 發送工具提示
+  # 支援的環境變數注入（Docker / CI 場景用，對應 .env.example）：
+  # TELEGRAM_BOT_TOKEN, DISCORD_BOT_TOKEN,
+  # SLACK_BOT_TOKEN, SLACK_APP_TOKEN,
+  # FEISHU_APP_ID, FEISHU_APP_SECRET,
+  # DINGTALK_CLIENT_ID, DINGTALK_CLIENT_SECRET
   # Telegram 頻道設定
   telegram:
     enabled: false

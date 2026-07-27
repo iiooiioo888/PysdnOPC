@@ -22,6 +22,8 @@ jobs:
         run: ruff check opc/
       - name: Mypy type check
         run: mypy opc/ --ignore-missing-imports
+      - name: Config consistency check
+        run: python scripts/check_config_consistency.py
 
   high-risk:
     name: high-risk / ${{ matrix.os }}

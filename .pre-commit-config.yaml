@@ -16,6 +16,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: config-consistency
+        name: config consistency check
+        entry: python scripts/check_config_consistency.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
       - id: pytest-smoke
         name: pytest smoke test
         entry: python -m pytest tests/ -q --tb=short -x

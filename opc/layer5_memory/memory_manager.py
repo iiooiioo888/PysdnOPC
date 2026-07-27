@@ -21,6 +21,7 @@ from opc.core.models import (
 )
 from opc.layer5_memory.employee_evolution import EmployeeEvolutionManager
 from opc.layer5_memory.markdown_memory import MarkdownMemoryStore
+from opc.layer5_memory.memory_vault import MemoryVault
 from opc.layer2_organization.work_item_identity import projection_id_for_task, work_item_identity_payload_for_task
 from opc.layer4_tools.output_budget import clip_text
 
@@ -64,6 +65,13 @@ class MemoryManager:
 
     def set_history_compactor(self, compactor: Any | None) -> None:
         self.history_compactor = compactor
+
+    @property
+    def vault(self) -> MemoryVault:
+        """Lazy-initialized Memory Vault for cross-harness portable memory."""
+        if not hasattr(self, "_vault") or self._vault is None:
+            self._vault = MemoryVault(self.opc_home)
+        return self._vault
 
     def _resolve_project_id(self, project_id: str | None = None) -> str:
         return str(project_id or self.project_id or "default")

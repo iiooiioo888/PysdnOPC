@@ -1,4 +1,4 @@
-"""Tests for opc.layer5_memory.ecc_bridge — ECC skill bridge."""
+"""Tests for opc.layer5_memory.ecc_bridge — ECC skill/agent/rules bridge."""
 
 from __future__ import annotations
 
@@ -10,8 +10,14 @@ import pytest
 import yaml
 
 from opc.layer5_memory.ecc_bridge import (
+    EccAgentBridge,
+    EccAgentImportResult,
+    EccAgentInfo,
     EccBridgeError,
     EccImportResult,
+    EccRuleImportResult,
+    EccRuleInfo,
+    EccRulesBridge,
     EccSkillBridge,
     EccSkillInfo,
     _render_skill_document,
@@ -333,3 +339,199 @@ class TestPrepareSource(unittest.IsolatedAsyncioTestCase):
             bridge = EccSkillBridge(opc_home, ecc_repo_path=bad_path)
             with self.assertRaises(EccBridgeError):
                 await bridge.prepare_source()
+
+
+# ---------------------------------------------------------------------------
+# EccAgentBridge fixtures and tests
+# ---------------------------------------------------------------------------
+
+
+def _make_ecc_agent(agents_dir: Path, name: str, description: str = "", tools: str = "", model: str = "", body: str = "") -> Path:
+    """Create a fake ECC agent .md file."""
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    fm: dict = {"name": name, "description": description or f"ECC agent: {name}"}
+    if tools:
+        fm["tools"] = tools
+    if model:
+        fm["model"] = model
+    if not body:
+        body = f"You are a specialized {name} agent.\n"
+    content = f"---\n{yaml.dump(fm, default_flow_style=False)}---\n\n{body}"
+    path = agents_dir / f"{name}.md"
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+@pytest.fixture()
+def ecc_repo_with_agents(tmp_path: Path) -> Path:
+    """Create a mock ECC repository with agents/ and rules/ directories."""
+    repo = tmp_path / "ecc-repo-full"
+    # skills dir (required for source validation)
+    (repo / "skills").mkdir(parents=True)
+    # agents
+    agents_dir = repo / "agents"
+    _make_ecc_agent(agents_dir, "code-reviewer", "Reviews code for quality", "Read, Grep, Bash", "opus")
+    _make_ecc_agent(agents_dir, "planner", "Feature implementation planning", "Read, Grep", "sonnet")
+    _make_ecc_agent(agents_dir, "security-reviewer", "Vulnerability analysis", "Read, Grep, Glob", "opus")
+    _make_ecc_agent(agents_dir, "doc-updater", "Documentation sync", "Read, Write", "")
+    # rules
+    rules_dir = repo / "rules"
+    common_dir = rules_dir / "common"
+    common_dir.mkdir(parents=True)
+    (common_dir / "coding-style.md").write_text("# Coding Style\n\nUse immutability.\n", encoding="utf-8")
+    (common_dir / "testing.md").write_text("# Testing Rules\n\nTDD always.\n", encoding="utf-8")
+    (common_dir / "README.md").write_text("# Rules README\n", encoding="utf-8")
+    python_dir = rules_dir / "python"
+    python_dir.mkdir(parents=True)
+    (python_dir / "patterns.md").write_text("# Python Patterns\n\nUse dataclasses.\n", encoding="utf-8")
+    ts_dir = rules_dir / "typescript"
+    ts_dir.mkdir(parents=True)
+    (ts_dir / "strict-mode.md").write_text("# Strict Mode\n\nAlways strict.\n", encoding="utf-8")
+    return repo
+
+
+@pytest.fixture()
+def agent_bridge(opc_home: Path, ecc_repo_with_agents: Path) -> EccAgentBridge:
+    return EccAgentBridge(opc_home, ecc_repo_path=ecc_repo_with_agents)
+
+
+@pytest.fixture()
+def rules_bridge(opc_home: Path, ecc_repo_with_agents: Path) -> EccRulesBridge:
+    return EccRulesBridge(opc_home, ecc_repo_path=ecc_repo_with_agents)
+
+
+class TestEccAgentBridge:
+    def test_list_all(self, agent_bridge: EccAgentBridge):
+        agents = agent_bridge.list_available()
+        names = [a.name for a in agents]
+        assert "code-reviewer" in names
+        assert "planner" in names
+        assert "security-reviewer" in names
+        assert "doc-updater" in names
+        assert len(agents) == 4
+
+    def test_list_with_pattern(self, agent_bridge: EccAgentBridge):
+        agents = agent_bridge.list_available(pattern="*reviewer")
+        names = [a.name for a in agents]
+        assert "code-reviewer" in names
+        assert "security-reviewer" in names
+        assert "planner" not in names
+
+    def test_agent_info_fields(self, agent_bridge: EccAgentBridge):
+        agents = agent_bridge.list_available(pattern="code-reviewer")
+        assert len(agents) == 1
+        agent = agents[0]
+        assert agent.description == "Reviews code for quality"
+        assert agent.tools == ["Read", "Grep", "Bash"]
+        assert agent.model == "opus"
+
+    def test_import_single_agent(self, agent_bridge: EccAgentBridge, opc_home: Path):
+        results = agent_bridge.import_agents(["code-reviewer"])
+        assert len(results) == 1
+        assert results[0].success
+        assert not results[0].skipped
+        target = opc_home / "prompts" / "talent" / "ecc-code-reviewer.md"
+        assert target.exists()
+        content = target.read_text(encoding="utf-8")
+        assert "code-reviewer" in content
+        assert "specialized" in content
+
+    def test_import_multiple_agents(self, agent_bridge: EccAgentBridge, opc_home: Path):
+        results = agent_bridge.import_agents(["planner", "doc-updater"])
+        assert all(r.success for r in results)
+        assert (opc_home / "prompts" / "talent" / "ecc-planner.md").exists()
+        assert (opc_home / "prompts" / "talent" / "ecc-doc-updater.md").exists()
+
+    def test_import_nonexistent_agent(self, agent_bridge: EccAgentBridge):
+        results = agent_bridge.import_agents(["does-not-exist"])
+        assert len(results) == 1
+        assert not results[0].success
+        assert "not found" in results[0].message.lower()
+
+    def test_skip_existing(self, agent_bridge: EccAgentBridge):
+        agent_bridge.import_agents(["planner"])
+        results = agent_bridge.import_agents(["planner"])
+        assert results[0].skipped
+
+    def test_overwrite_existing(self, agent_bridge: EccAgentBridge):
+        agent_bridge.import_agents(["planner"])
+        results = agent_bridge.import_agents(["planner"], overwrite=True)
+        assert results[0].success
+        assert not results[0].skipped
+
+    def test_employee_entry_structure(self, agent_bridge: EccAgentBridge):
+        results = agent_bridge.import_agents(["security-reviewer"])
+        entry = results[0].employee_entry
+        assert entry["employee_id"] == "ecc-security-reviewer"
+        assert entry["category"] == "quality"
+        assert entry["metadata"]["source"] == "ecc"
+        assert "prompts/talent/ecc-security-reviewer.md" in entry["prompt_refs"]
+
+    def test_no_source_raises(self, opc_home: Path):
+        bridge = EccAgentBridge(opc_home)
+        with pytest.raises(EccBridgeError, match="not prepared"):
+            bridge.list_available()
+
+
+class TestEccRulesBridge:
+    def test_list_all(self, rules_bridge: EccRulesBridge):
+        rules = rules_bridge.list_available()
+        names = [r.name for r in rules]
+        assert "common-coding-style" in names
+        assert "common-testing" in names
+        assert "python-patterns" in names
+        assert "typescript-strict-mode" in names
+        # README.md should be excluded
+        assert not any("readme" in n for n in names)
+
+    def test_filter_by_language(self, rules_bridge: EccRulesBridge):
+        rules = rules_bridge.list_available(languages=["common"])
+        assert all(r.language == "common" for r in rules)
+        assert len(rules) == 2
+
+    def test_filter_multiple_languages(self, rules_bridge: EccRulesBridge):
+        rules = rules_bridge.list_available(languages=["common", "python"])
+        langs = {r.language for r in rules}
+        assert langs == {"common", "python"}
+        assert len(rules) == 3
+
+    def test_import_rules_common(self, rules_bridge: EccRulesBridge, opc_home: Path):
+        results = rules_bridge.import_rules(languages=["common"])
+        assert all(r.success for r in results)
+        assert len(results) == 2
+        # Verify skill files created
+        skill_dir = opc_home / "skills" / "ecc-rule-common-coding-style"
+        assert (skill_dir / "SKILL.md").exists()
+        # Verify always: true
+        text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        fm = yaml.safe_load(text.split("---")[1])
+        assert fm["always"] is True
+        assert fm["metadata"]["imported_from"]["source"] == "ecc-rules"
+
+    def test_import_all_rules(self, rules_bridge: EccRulesBridge, opc_home: Path):
+        results = rules_bridge.import_rules()
+        assert all(r.success for r in results)
+        assert len(results) == 4  # 2 common + 1 python + 1 typescript
+
+    def test_skip_existing(self, rules_bridge: EccRulesBridge):
+        rules_bridge.import_rules(languages=["python"])
+        results = rules_bridge.import_rules(languages=["python"])
+        assert all(r.skipped for r in results)
+
+    def test_overwrite(self, rules_bridge: EccRulesBridge):
+        rules_bridge.import_rules(languages=["python"])
+        results = rules_bridge.import_rules(languages=["python"], overwrite=True)
+        assert all(r.success and not r.skipped for r in results)
+
+    def test_imported_rule_loads_in_skill_library(self, rules_bridge: EccRulesBridge, opc_home: Path):
+        rules_bridge.import_rules(languages=["common"])
+        lib = SkillLibrary(opc_home)
+        lib.load_all()
+        skill = lib.get("ecc-rule-common-coding-style")
+        assert skill is not None
+        assert skill.always is True
+
+    def test_no_source_raises(self, opc_home: Path):
+        bridge = EccRulesBridge(opc_home)
+        with pytest.raises(EccBridgeError, match="not prepared"):
+            bridge.list_available()

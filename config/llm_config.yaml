@@ -13,6 +13,11 @@ llm:
   api_key: ""
   # 使用環境變數提供 API 金鑰（推薦）
   api_key_env: "MIMO_API_KEY"
+  # 支援的 provider 環境變數（依 default_model 選用，只需設定一個）：
+  # DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY,
+  # AZURE_OPENAI_API_KEY, AZURE_API_KEY, GEMINI_API_KEY,
+  # GOOGLE_API_KEY, MISTRAL_API_KEY, GROQ_API_KEY,
+  # TOGETHERAI_API_KEY, ARK_API_KEY, OPENROUTER_API_KEY
 
   # 生成溫度（0.0-2.0，越高越隨機）
   temperature: 1
