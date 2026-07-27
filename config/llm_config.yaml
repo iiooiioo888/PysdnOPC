@@ -7,7 +7,7 @@ llm:
   # 預設模型（格式：provider/model-name）
   # MiMo API 模型
   default_model: "openai/mimo-v2.5-pro"
-  # API 基礎 URL（MiMo 端點）
+  # API 基礎 URL（MiMo 端點，全域預設）
   api_base: "https://token-plan-sgp.xiaomimimo.com/v1"
   # API 金鑰（直接設定或使用環境變數）
   api_key: ""
@@ -19,29 +19,48 @@ llm:
   # GOOGLE_API_KEY, MISTRAL_API_KEY, GROQ_API_KEY,
   # TOGETHERAI_API_KEY, ARK_API_KEY, OPENROUTER_API_KEY
 
+  # 具名端點：依模型名稱路由到不同 API 端點（多供應商混用）。
+  # 模型名稱（去除 provider 前綴後）與 models 樣式完全或前綴匹配時，
+  # 使用該端點的 api_base / api_key；未匹配則回退到上方全域設定。
+  endpoints:
+    qwen_token_plan:
+      # 千問個人版 Token Plan 端點
+      api_base: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+      api_key_env: "DASHSCOPE_API_KEY"
+      models:
+        - "qwen3.8-max-preview"
+        - "qwen3.7-plus"
+        - "qwen3.7-max"
+        - "qwen3.6-flash"
+        - "glm-5.2"
+        - "deepseek-v4-pro"
+
   # 生成溫度（0.0-2.0，越高越隨機）
   temperature: 1
   # 最大生成 token 數
   max_tokens: 32768
   # 路由設定（依任務類型路由到不同模型）
-  routing: {}
+  # 輕量任務走千問 Token Plan，節省 MiMo 額度
+  routing:
+    quick_tasks: "openai/qwen3.7-plus"
+    simple_qa: "openai/qwen3.6-flash"
   # 後備設定（主模型失敗時的備選）
   fallback: {}
 
   # 預算感知調度：模型分層路由（P0-B）
   # 根據任務重要性選擇不同層級的模型
   tier_routing:
-    critical: "openai/mimo-v2.5-pro"   # 關鍵決策、複雜代碼生成
-    reasoning: "openai/mimo-v2.5-pro"  # 複雜推理、多步驟規劃
-    routine: "openai/mimo-v2.5-pro"    # 日常對話、簡單任務
-    summary: "openai/mimo-v2.5-pro"    # 摘要、分類、壓縮
+    critical: "openai/mimo-v2.5-pro"       # 關鍵決策、複雜代碼生成（MiMo）
+    reasoning: "openai/qwen3.7-max"        # 複雜推理、多步驟規劃（千問）
+    routine: "openai/qwen3.7-plus"         # 日常對話、簡單任務（千問）
+    summary: "openai/qwen3.6-flash"        # 摘要、分類、壓縮（千問）
 
   # 降級鏈：預算緊張時自動切換到較便宜的模型
   degrade_chain:
-    critical: "openai/mimo-v2.5-pro"
-    reasoning: "openai/mimo-v2.5-pro"
-    routine: "openai/mimo-v2.5-pro"
-    summary: "openai/mimo-v2.5-pro"
+    critical: "openai/qwen3.7-max"
+    reasoning: "openai/qwen3.7-plus"
+    routine: "openai/qwen3.6-flash"
+    summary: "openai/qwen3.6-flash"
 
   # 選填：總輸入上下文視窗大小，用作上下文使用量環的分母，
   # 並觸發自動摘要。大多數 OpenAI / Anthropic 模型透過 litellm 自動偵測；
@@ -51,5 +70,5 @@ llm:
   # context_window: 200000
   # 或依模型設定（優先於純量）；鍵名依模型名稱比對：
   # context_window_overrides:
-  #   gpt-5.4: 400000
-  #   claude-sonnet-4.5: 200000
+  #   qwen3.8-max-preview: 262144
+  #   qwen3.7-plus: 131072

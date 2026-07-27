@@ -374,12 +374,27 @@ def allocate_organization_id(config_dir: Path, organization_name: Any, *, prefer
 # 每個模型對應配置檔案中的一個區段或子系統
 # ---------------------------------------------------------------------------
 
+class LLMEndpointConfig(BaseModel):
+    """具名 LLM 端點 — 讓不同模型走不同的 API 端點（多供應商混用）。
+
+    當調用的模型名稱（去除 provider 前綴後）匹配 ``models`` 中的任一
+    樣式（完全相符或前綴相符）時，採用此端點的 api_base / api_key；
+    否則回退到 LLMConfig 的全域 api_base / api_key。
+    """
+    api_base: str = ""  # 此端點的 API 基礎 URL
+    api_key: str = ""  # API 金鑰（直接指定）
+    api_key_env: str = ""  # API 金鑰環境變數名稱
+    models: list[str] = Field(default_factory=list)  # 模型名稱樣式（完全或前綴匹配）
+
+
 class LLMConfig(BaseModel):
     """LLM 配置 — 大型語言模型的連接和參數設定。"""
     default_model: str = "deepseek/deepseek-chat"  # 預設模型（litellm 格式，國內優先）
     api_base: str = ""  # API 基礎 URL（自建代理時）
     api_key: str = ""  # API 金鑰（直接指定）
     api_key_env: str = ""  # API 金鑰環境變數名稱
+    # 具名端點：依模型名稱將調用路由到不同的 API 端點（如 MiMo + 千問混用）
+    endpoints: dict[str, LLMEndpointConfig] = Field(default_factory=dict)
     routing: dict[str, str] = Field(default_factory=dict)  # 模型路由映射（用途→模型）
     fallback: dict[str, Any] = Field(default_factory=dict)  # 回退配置
     temperature: float = 0.3  # 生成溫度（0.0~1.0）

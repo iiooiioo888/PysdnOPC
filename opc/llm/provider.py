@@ -371,7 +371,31 @@ class LLMProvider:
         """
         if self._api_key:
             return True
+        for endpoint in (getattr(self.config, "endpoints", None) or {}).values():
+            if endpoint.api_key or (endpoint.api_key_env and os.environ.get(endpoint.api_key_env)):
+                return True
         return any(os.environ.get(var) for var in self._CREDENTIAL_ENV_VARS)
+
+    def _endpoint_for_model(self, model: str) -> tuple[str | None, str | None]:
+        """Resolve (api_base, api_key) for a model via named endpoints.
+
+        Named endpoints in ``llm.endpoints`` let different models route to
+        different API bases (e.g. MiMo token plan + Qwen token plan mixed by
+        tier). The normalized model name is matched against each endpoint's
+        ``models`` patterns (exact or prefix match). Falls back to the global
+        ``api_base`` / ``api_key`` when no endpoint matches.
+        """
+        endpoints = getattr(self.config, "endpoints", None) or {}
+        normalized = _normalized_model_name(model)
+        for endpoint in endpoints.values():
+            for pattern in endpoint.models or []:
+                candidate = _normalized_model_name(str(pattern))
+                if candidate and (normalized == candidate or normalized.startswith(candidate)):
+                    api_key = endpoint.api_key or (
+                        os.environ.get(endpoint.api_key_env) if endpoint.api_key_env else None
+                    ) or None
+                    return endpoint.api_base or None, api_key
+        return self._api_base, self._api_key
 
     def validate_model_config(self) -> dict[str, Any]:
         """Validate that the configured default model is usable.
@@ -738,10 +762,11 @@ class LLMProvider:
         }
         if temp is not None:
             call_kwargs["temperature"] = temp
-        if self._api_base:
-            call_kwargs["api_base"] = self._api_base
-        if self._api_key:
-            call_kwargs["api_key"] = self._api_key
+        api_base, api_key = self._endpoint_for_model(model)
+        if api_base:
+            call_kwargs["api_base"] = api_base
+        if api_key:
+            call_kwargs["api_key"] = api_key
         if tools:
             call_kwargs["tools"] = tools
             call_kwargs["tool_choice"] = "auto"
@@ -750,7 +775,7 @@ class LLMProvider:
         if "mimo" in model.lower():
             call_kwargs["max_completion_tokens"] = call_kwargs.pop("max_tokens")
 
-        logger.debug(f"LLM call: model={model}, base={self._api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}")
+        logger.debug(f"LLM call: model={model}, base={api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}")
 
         try:
             response = await litellm.acompletion(**call_kwargs)
@@ -945,10 +970,11 @@ class LLMProvider:
         }
         if temp is not None:
             call_kwargs["temperature"] = temp
-        if self._api_base:
-            call_kwargs["api_base"] = self._api_base
-        if self._api_key:
-            call_kwargs["api_key"] = self._api_key
+        api_base, api_key = self._endpoint_for_model(model)
+        if api_base:
+            call_kwargs["api_base"] = api_base
+        if api_key:
+            call_kwargs["api_key"] = api_key
         if tools:
             call_kwargs["tools"] = tools
             call_kwargs["tool_choice"] = "auto"
@@ -958,7 +984,7 @@ class LLMProvider:
             call_kwargs["max_completion_tokens"] = call_kwargs.pop("max_tokens")
 
         logger.debug(
-            f"LLM stream call: model={model}, base={self._api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}"
+            f"LLM stream call: model={model}, base={api_base or 'default'}, msgs={len(messages)}, tools={len(tools or [])}"
         )
 
         last_usage = {"prompt_tokens": 0, "completion_tokens": 0}

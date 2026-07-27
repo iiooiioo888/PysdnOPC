@@ -882,8 +882,18 @@ class WsConfigMixin:
             "api_key_set": bool(llm.api_key),
             "temperature": llm.temperature,
             "max_tokens": llm.max_tokens,
+            "routing": dict(llm.routing) if llm.routing else {},
             "tier_routing": dict(llm.tier_routing) if llm.tier_routing else {},
             "degrade_chain": dict(llm.degrade_chain) if llm.degrade_chain else {},
+            "endpoints": {
+                name: {
+                    "api_base": endpoint.api_base,
+                    "api_key_env": endpoint.api_key_env,
+                    "api_key_set": bool(endpoint.api_key),
+                    "models": list(endpoint.models),
+                }
+                for name, endpoint in (llm.endpoints or {}).items()
+            },
             "roles": roles_payload,
         }})
 
