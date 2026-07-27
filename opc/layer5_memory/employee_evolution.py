@@ -401,7 +401,40 @@ class EmployeeEvolutionManager:
                 "reflection": reflection,
             })
 
+        # Trigger instinct extraction from reflections (ECC Continuous Learning integration)
+        self._trigger_instinct_extraction(project_id, results)
+
         return results
+
+    def _trigger_instinct_extraction(
+        self, project_id: str, reflections: list[dict[str, Any]]
+    ) -> None:
+        """從反思結果中觸發本能提取（ECC Continuous Learning v2 整合）。"""
+        if not reflections:
+            return
+        try:
+            from opc.layer5_memory.instinct_engine import InstinctEngine
+            engine = InstinctEngine(self.opc_home)
+            # Build pseudo-messages from reflections for pattern extraction
+            messages = [
+                {"role": "assistant", "content": str(r.get("reflection", {}).get("summary", ""))}
+                for r in reflections
+                if r.get("reflection")
+            ]
+            if messages:
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(
+                        engine.extract_from_session(f"reflection-{project_id}", messages)
+                    )
+                except RuntimeError:
+                    # No running event loop; run synchronously via new loop
+                    asyncio.run(
+                        engine.extract_from_session(f"reflection-{project_id}", messages)
+                    )
+        except Exception:
+            pass  # Instinct extraction is best-effort, never block reflections
 
     def _record_in_profile(
         self,

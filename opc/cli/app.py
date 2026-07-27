@@ -1598,6 +1598,340 @@ def skills_ecc_import(
     )
 
 
+@app.command("skills-ecc-agents")
+def skills_ecc_agents(
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="ECC 倉庫本地路徑"),
+    filter_pattern: Optional[str] = typer.Option(None, "--filter", "-f", help="代理名稱 glob 篩選"),
+    do_import: bool = typer.Option(False, "--import", help="執行匯入（預設僅列出）"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="覆蓋已存在的代理"),
+):
+    """列出或匯入 ECC 倉庫中的專業代理。"""
+    from opc.layer5_memory.ecc_bridge import EccAgentBridge, EccBridgeError
+
+    opc_home = get_opc_home()
+    ecc_path = Path(source) if source else None
+    bridge = EccAgentBridge(opc_home, ecc_repo_path=ecc_path)
+
+    if not ecc_path:
+        try:
+            asyncio.run(bridge.prepare_source())
+        except EccBridgeError as exc:
+            console.print(f"[error]ECC source error: {exc}[/error]")
+            raise typer.Exit(1)
+
+    try:
+        agents = bridge.list_available(pattern=filter_pattern or "")
+    except EccBridgeError as exc:
+        console.print(f"[error]{exc}[/error]")
+        raise typer.Exit(1)
+
+    if not agents:
+        console.print("[warning]No ECC agents found.[/warning]")
+        return
+
+    if not do_import:
+        console.print(f"[bold]ECC Agents ({len(agents)}):[/bold]")
+        for info in agents:
+            tools_str = ", ".join(info.tools) if info.tools else "-"
+            console.print(f"  - [bold]{info.name}[/bold] (model: {info.model or 'default'}, tools: {tools_str})")
+            if info.description:
+                console.print(f"    {info.description[:100]}")
+        return
+
+    names = [a.name for a in agents]
+    console.print(f"[bold]Importing {len(names)} ECC agent(s)...[/bold]")
+    results = bridge.import_agents(names, overwrite=overwrite)
+    imported = [r for r in results if r.success and not r.skipped]
+    skipped = [r for r in results if r.skipped]
+    failed = [r for r in results if not r.success]
+    for r in imported:
+        console.print(f"  [success]+ {r.agent_name}[/success]")
+    for r in skipped:
+        console.print(f"  [warning]= {r.agent_name} (skipped)[/warning]")
+    for r in failed:
+        console.print(f"  [error]x {r.agent_name}: {r.message}[/error]")
+    console.print(f"\n[bold]Done:[/bold] {len(imported)} imported, {len(skipped)} skipped, {len(failed)} failed.")
+
+
+@app.command("skills-ecc-rules")
+def skills_ecc_rules(
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="ECC 倉庫本地路徑"),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help="語言篩選（逗號分隔，如 common,python）"),
+    do_import: bool = typer.Option(False, "--import", help="執行匯入（預設僅列出）"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="覆蓋已存在的規則"),
+):
+    """列出或匯入 ECC 倉庫中的編碼準則。"""
+    from opc.layer5_memory.ecc_bridge import EccRulesBridge, EccBridgeError
+
+    opc_home = get_opc_home()
+    ecc_path = Path(source) if source else None
+    bridge = EccRulesBridge(opc_home, ecc_repo_path=ecc_path)
+
+    if not ecc_path:
+        try:
+            asyncio.run(bridge.prepare_source())
+        except EccBridgeError as exc:
+            console.print(f"[error]ECC source error: {exc}[/error]")
+            raise typer.Exit(1)
+
+    languages = [l.strip() for l in lang.split(",") if l.strip()] if lang else None
+
+    try:
+        rules = bridge.list_available(languages=languages)
+    except EccBridgeError as exc:
+        console.print(f"[error]{exc}[/error]")
+        raise typer.Exit(1)
+
+    if not rules:
+        console.print("[warning]No ECC rules found.[/warning]")
+        return
+
+    if not do_import:
+        console.print(f"[bold]ECC Rules ({len(rules)}):[/bold]")
+        for info in rules:
+            console.print(f"  - [bold]{info.name}[/bold] ({info.language})")
+            if info.description:
+                console.print(f"    {info.description[:100]}")
+        return
+
+    console.print(f"[bold]Importing {len(rules)} ECC rule(s)...[/bold]")
+    results = bridge.import_rules(languages=languages, overwrite=overwrite)
+    imported = [r for r in results if r.success and not r.skipped]
+    skipped = [r for r in results if r.skipped]
+    failed = [r for r in results if not r.success]
+    for r in imported:
+        console.print(f"  [success]+ {r.rule_name}[/success]")
+    for r in skipped:
+        console.print(f"  [warning]= {r.rule_name} (skipped)[/warning]")
+    for r in failed:
+        console.print(f"  [error]x {r.rule_name}: {r.message}[/error]")
+    console.print(f"\n[bold]Done:[/bold] {len(imported)} imported, {len(skipped)} skipped, {len(failed)} failed.")
+
+
+@app.command("memory-vault")
+def memory_vault_cmd(
+    action: str = typer.Argument(..., help="操作: save, search, read, handoff, doctor, list"),
+    title: Optional[str] = typer.Option(None, "--title", "-t", help="記憶標題"),
+    body: Optional[str] = typer.Option(None, "--body", "-b", help="記憶內容"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="搜尋關鍵字"),
+    memory_id: Optional[str] = typer.Option(None, "--id", help="記憶 ID"),
+    target: Optional[str] = typer.Option(None, "--target", help="目標 harness"),
+    tags: Optional[str] = typer.Option(None, "--tags", help="標籤（逗號分隔）"),
+):
+    """Memory Vault — 跨 harness 可攜式記憶管理。"""
+    from opc.layer5_memory.memory_vault import MemoryVault
+
+    opc_home = get_opc_home()
+    vault = MemoryVault(opc_home)
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+    if action == "save":
+        if not title or not body:
+            console.print("[error]--title and --body required for save[/error]")
+            raise typer.Exit(1)
+        mid = vault.save(title, body, target_harness=target or "", tags=tag_list)
+        console.print(f"[success]Saved: {mid}[/success]")
+    elif action == "search":
+        if not query:
+            console.print("[error]--query required for search[/error]")
+            raise typer.Exit(1)
+        results = vault.search(query, target_harness=target or "")
+        console.print(f"[bold]Found {len(results)} memories:[/bold]")
+        for entry in results:
+            console.print(f"  - [{entry.id}] {entry.title} (status: {entry.status})")
+    elif action == "read":
+        if not memory_id:
+            console.print("[error]--id required for read[/error]")
+            raise typer.Exit(1)
+        entry = vault.read(memory_id)
+        if not entry:
+            console.print(f"[error]Memory not found: {memory_id}[/error]")
+            raise typer.Exit(1)
+        console.print(f"[bold]{entry.title}[/bold] ({entry.id})")
+        console.print(f"Source: {entry.source_harness} | Target: {entry.target_harness or 'any'}")
+        console.print(f"Tags: {', '.join(entry.tags)}")
+        console.print(f"\n{entry.body}")
+    elif action == "handoff":
+        if not title or not body or not target:
+            console.print("[error]--title, --body, and --target required for handoff[/error]")
+            raise typer.Exit(1)
+        mid = vault.handoff(title, body, from_harness="openopc", target_harness=target, tags=tag_list)
+        console.print(f"[success]Handoff created: {mid} -> {target}[/success]")
+    elif action == "doctor":
+        report = vault.doctor()
+        status = "[success]HEALTHY[/success]" if report.healthy else "[error]UNHEALTHY[/error]"
+        console.print(f"Vault status: {status}")
+        for msg in report.messages:
+            console.print(f"  {msg}")
+    elif action == "list":
+        entries = vault.list_all()
+        console.print(f"[bold]Vault entries ({len(entries)}):[/bold]")
+        for entry in entries:
+            console.print(f"  - [{entry.id}] {entry.title} ({entry.status})")
+    else:
+        console.print(f"[error]Unknown action: {action}. Use: save, search, read, handoff, doctor, list[/error]")
+        raise typer.Exit(1)
+
+
+@app.command("instincts")
+def instincts_cmd(
+    action: str = typer.Argument(..., help="操作: status, prune, evolve, import, export"),
+    max_age: int = typer.Option(90, "--max-age", help="過期天數（prune 用）"),
+    ids: Optional[str] = typer.Option(None, "--ids", help="本能 ID 列表（逗號分隔，evolve 用）"),
+    file_path: Optional[str] = typer.Option(None, "--file", help="檔案路徑（import/export 用）"),
+):
+    """本能系統 — 持續學習模式管理。"""
+    from opc.layer5_memory.instinct_engine import InstinctEngine
+
+    opc_home = get_opc_home()
+    engine = InstinctEngine(opc_home)
+
+    if action == "status":
+        instincts = engine.status()
+        if not instincts:
+            console.print("[warning]No instincts recorded yet.[/warning]")
+            return
+        console.print(f"[bold]Instincts ({len(instincts)}):[/bold]")
+        for inst in instincts:
+            console.print(
+                f"  - [{inst.id}] {inst.pattern[:60]} "
+                f"(confidence: {inst.confidence:.2f}, category: {inst.category}, "
+                f"reinforced: {inst.reinforcement_count}x)"
+            )
+    elif action == "prune":
+        pruned = engine.prune_expired(max_age_days=max_age)
+        console.print(f"[success]Pruned {pruned} expired instincts.[/success]")
+    elif action == "evolve":
+        if not ids:
+            console.print("[error]--ids required for evolve[/error]")
+            raise typer.Exit(1)
+        id_list = [i.strip() for i in ids.split(",") if i.strip()]
+        skill_name = engine.evolve_to_skill(id_list)
+        if skill_name:
+            console.print(f"[success]Evolved to skill: {skill_name}[/success]")
+        else:
+            console.print("[error]Evolution failed (confidence too low or IDs not found)[/error]")
+    elif action == "export":
+        import json as _json
+        data = engine.export_instincts()
+        output = _json.dumps(data, ensure_ascii=False, indent=2)
+        if file_path:
+            Path(file_path).write_text(output + "\n", encoding="utf-8")
+            console.print(f"[success]Exported {len(data)} instincts to {file_path}[/success]")
+        else:
+            console.print(output)
+    elif action == "import":
+        import json as _json
+        if not file_path:
+            console.print("[error]--file required for import[/error]")
+            raise typer.Exit(1)
+        p = Path(file_path)
+        if not p.exists():
+            console.print(f"[error]File not found: {file_path}[/error]")
+            raise typer.Exit(1)
+        try:
+            data = _json.loads(p.read_text(encoding="utf-8"))
+        except _json.JSONDecodeError as exc:
+            console.print(f"[error]Invalid JSON: {exc}[/error]")
+            raise typer.Exit(1)
+        if not isinstance(data, list):
+            console.print("[error]Expected a JSON array of instincts[/error]")
+            raise typer.Exit(1)
+        count = engine.import_instincts(data)
+        console.print(f"[success]Imported {count} instincts.[/success]")
+    else:
+        console.print(f"[error]Unknown action: {action}. Use: status, prune, evolve, import, export[/error]")
+        raise typer.Exit(1)
+
+
+@app.command("security-scan")
+def security_scan_cmd(
+    format: str = typer.Option("terminal", "--format", "-f", help="輸出格式: terminal, json, markdown"),
+    scope: Optional[str] = typer.Option(None, "--scope", help="掃描範圍: config, skills, agents, all"),
+):
+    """安全掃描 — 偵測配置中的安全風險。"""
+    from opc.layer6_observability.security_scanner import SecurityScanner
+
+    opc_home = get_opc_home()
+    scanner = SecurityScanner(opc_home)
+
+    if scope == "config":
+        report = scanner.scan_config()
+    elif scope == "skills":
+        report = scanner.scan_skills()
+    elif scope == "agents":
+        report = scanner.scan_agents()
+    else:
+        report = scanner.scan_all()
+
+    output = scanner.generate_report(report, format=format)
+    console.print(output)
+
+    if report.critical_count > 0:
+        raise typer.Exit(2)
+
+
+@app.command("hooks")
+def hooks_cmd(
+    action: str = typer.Argument(..., help="操作: list, enable, disable, import-ecc"),
+    hook_id: Optional[str] = typer.Option(None, "--id", help="鉤子 ID（enable/disable 用）"),
+    ecc_source: Optional[str] = typer.Option(None, "--ecc-source", help="ECC hooks.json 路徑（import-ecc 用）"),
+):
+    """鉤子管理 — 事件驅動自動化控制。"""
+    from opc.layer6_observability.hook_engine import HookEngine
+    from opc.layer6_observability.builtin_hooks import register_all_builtin_hooks
+
+    opc_home = get_opc_home()
+    engine = HookEngine(opc_home)
+    register_all_builtin_hooks(engine)
+    engine.load_hooks()
+
+    if action == "list":
+        hooks = engine.list_hooks()
+        if not hooks:
+            console.print("[warning]No hooks configured.[/warning]")
+            return
+        console.print(f"[bold]Hooks ({len(hooks)}):[/bold]")
+        for h in hooks:
+            status = "[success]ON[/success]" if h.enabled else "[error]OFF[/error]"
+            console.print(
+                f"  {status} [{h.hook_id}] event={h.event_type} "
+                f"action={h.action} profile={h.profile}"
+            )
+    elif action == "enable":
+        if not hook_id:
+            console.print("[error]--id required for enable[/error]")
+            raise typer.Exit(1)
+        if engine.enable_hook(hook_id):
+            engine.save_config()
+            console.print(f"[success]Enabled hook: {hook_id}[/success]")
+        else:
+            console.print(f"[error]Hook not found: {hook_id}[/error]")
+    elif action == "disable":
+        if not hook_id:
+            console.print("[error]--id required for disable[/error]")
+            raise typer.Exit(1)
+        if engine.disable_hook(hook_id):
+            engine.save_config()
+            console.print(f"[success]Disabled hook: {hook_id}[/success]")
+        else:
+            console.print(f"[error]Hook not found: {hook_id}[/error]")
+    elif action == "import-ecc":
+        if not ecc_source:
+            console.print("[error]--ecc-source required for import-ecc[/error]")
+            raise typer.Exit(1)
+        ecc_path = Path(ecc_source)
+        if not ecc_path.exists():
+            console.print(f"[error]File not found: {ecc_source}[/error]")
+            raise typer.Exit(1)
+        count = engine.import_ecc_hooks(ecc_path)
+        engine.save_config()
+        console.print(f"[success]Imported {count} hooks from ECC format.[/success]")
+    else:
+        console.print(f"[error]Unknown action: {action}. Use: list, enable, disable, import-ecc[/error]")
+        raise typer.Exit(1)
+
+
 @app.command()
 def config_show():
     """顯示當前配置。"""

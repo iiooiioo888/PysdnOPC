@@ -120,6 +120,10 @@ class HistoryCompactor:
             )
         )
         await self.memory_manager.update_session_summary(session_id, result["history_summary"])
+
+        # ECC Continuous Learning: trigger instinct extraction on compaction
+        self._trigger_instinct_extraction(session_id, messages)
+
         return True
 
     async def maybe_compact_agent(
@@ -363,6 +367,25 @@ class HistoryCompactor:
                     "History compactor retrying after context overflow with "
                     f"{len(working_payload['messages'])} messages preserved and budget={retry_budget} chars."
                 )
+
+    def _trigger_instinct_extraction(
+        self, session_id: str, messages: list[dict[str, Any]]
+    ) -> None:
+        """ECC Continuous Learning: 壓縮時觸發本能提取（best-effort）。"""
+        try:
+            from opc.layer5_memory.instinct_engine import InstinctEngine
+            opc_home = getattr(self.memory_manager, "opc_home", None)
+            if not opc_home:
+                return
+            engine = InstinctEngine(opc_home)
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(engine.extract_from_session(session_id, messages))
+            except RuntimeError:
+                asyncio.run(engine.extract_from_session(session_id, messages))
+        except Exception:
+            pass  # Best-effort, never block compaction
 
     def _should_compact(self, messages: list[dict[str, Any]], *, force: bool = False) -> bool:
         if force:
