@@ -194,6 +194,25 @@ class EccSkillBridge:
         self.system_skills_dir.mkdir(parents=True, exist_ok=True)
         results: list[EccImportResult] = []
 
+        # Build normalized-name -> source directory map. ECC 部分技能的
+        # frontmatter ``name`` 與其目錄名不一致（例如目錄 scientific-db-pubmed-database
+        # 的 name 為 pubmed-database），因此必須以 frontmatter 正規化名定位來源，
+        # 與 list_available() 的命名邏輯保持一致。
+        name_to_dir: dict[str, Path] = {}
+        if skills_dir.is_dir():
+            for child in skills_dir.iterdir():
+                if not child.is_dir():
+                    continue
+                skill_md = child / "SKILL.md"
+                if not skill_md.exists():
+                    continue
+                fm, _ = self._parse_skill_md(skill_md)
+                key = self.normalize_skill_name(
+                    str(fm.get("name", child.name)).strip() or child.name
+                )
+                if key:
+                    name_to_dir.setdefault(key, child)
+
         for raw_name in names:
             normalized = self.normalize_skill_name(raw_name)
             if not normalized:
@@ -205,13 +224,17 @@ class EccSkillBridge:
                 ))
                 continue
 
-            # Locate source skill directory
-            source_skill_dir = skills_dir / normalized
-            if not source_skill_dir.exists():
-                # Try original raw name as directory
-                source_skill_dir = skills_dir / raw_name
-            source_skill_md = source_skill_dir / "SKILL.md"
-            if not source_skill_md.exists():
+            # Locate source skill directory by normalized frontmatter name,
+            # falling back to a raw directory-name match.
+            source_skill_dir = name_to_dir.get(normalized)
+            if source_skill_dir is None:
+                candidate = skills_dir / raw_name
+                if candidate.is_dir():
+                    source_skill_dir = candidate
+            source_skill_md = (
+                source_skill_dir / "SKILL.md" if source_skill_dir else None
+            )
+            if source_skill_md is None or not source_skill_md.exists():
                 results.append(EccImportResult(
                     skill_name=normalized,
                     skill_path="",
