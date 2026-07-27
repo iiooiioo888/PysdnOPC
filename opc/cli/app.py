@@ -3355,14 +3355,18 @@ async def _read_persisted_chat_context(state: _InteractiveChatState) -> dict[str
         db_path = state.engine.opc_home / "ui_state.db"
         if not db_path.exists():
             return {}
-        with sqlite3.connect(str(db_path), timeout=1) as db:
-            db.execute(
+        conn = sqlite3.connect(str(db_path), timeout=1)
+        try:
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS server_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
-            rows = db.execute(
+            rows = conn.execute(
                 "SELECT key, value FROM server_state WHERE key IN (?, ?, ?)",
                 ("exec_mode", "company_profile", "task_preferred_agent"),
             ).fetchall()
+            conn.commit()
+        finally:
+            conn.close()
         values = {str(key): str(value) for key, value in rows}
         return {
             "mode": values.get("exec_mode", ""),
@@ -3379,11 +3383,12 @@ async def _persist_chat_context(state: _InteractiveChatState) -> None:
 
         db_path = state.engine.opc_home / "ui_state.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(str(db_path), timeout=1) as db:
-            db.execute(
+        conn = sqlite3.connect(str(db_path), timeout=1)
+        try:
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS server_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
-            db.executemany(
+            conn.executemany(
                 "INSERT OR REPLACE INTO server_state (key, value) VALUES (?, ?)",
                 (
                     ("exec_mode", state.mode),
@@ -3391,7 +3396,9 @@ async def _persist_chat_context(state: _InteractiveChatState) -> None:
                     ("task_preferred_agent", state.preferred_agent or "native"),
                 ),
             )
-            db.commit()
+            conn.commit()
+        finally:
+            conn.close()
     except Exception as exc:
         console.print(f"[warning]Could not persist CLI mode state: {escape(str(exc))}[/warning]")
 

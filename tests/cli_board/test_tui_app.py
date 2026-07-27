@@ -75,7 +75,11 @@ class CliBoardAppPilotTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.state.selected_task().task_id, "todo-1")
 
             await pilot.press("right")
+            await pilot.pause()  # wait for _load_selected_detail worker to finish
             self.assertEqual(app.state.selected_task().task_id, "run-1")
+            # Auto-focus switches context_tab to "session" for running tasks;
+            # reset to "detail" so the later cycle assertion is deterministic.
+            app.state.set_context_tab("detail")
 
             await pilot.press("2")
             self.assertEqual(app.state.view_mode, "list")
@@ -94,15 +98,19 @@ class CliBoardAppPilotTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(app.state.show_done)
 
             await pilot.press("n")
+            await pilot.pause()
             self.assertIsInstance(app.screen, PromptScreen)
             await pilot.press("escape")
+            await pilot.pause()
 
             app.action_open_palette()
             await pilot.pause()
             self.assertIsInstance(app.screen, CommandPaletteScreen)
             await pilot.press("escape")
+            await pilot.pause()
 
             await pilot.press("?")
+            await pilot.pause()
             self.assertIsInstance(app.screen, HelpScreen)
             await pilot.press("escape")
 

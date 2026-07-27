@@ -9,7 +9,7 @@ from textual.widgets import Static
 
 from ..state.models import TaskDetailView
 from ..state.store import BoardStateStore
-from .render_utils import format_clock, role_style, status_style, truncate_text
+from .render_utils import format_clock, get_display_tz, role_style, status_style, truncate_text
 
 
 class SessionPaneWidget(Static):
@@ -38,7 +38,7 @@ class SessionPaneWidget(Static):
         messages: list[RenderableType] = []
         for message in self.detail.transcript[-14:]:
             block = Text()
-            block.append(f"[{format_clock(message.created_at)}] ", style="dim")
+            block.append(f"[{format_clock(message.created_at, tz=get_display_tz())}] ", style="dim")
             block.append(message.sender_name, style=role_style(message.role))
             block.append("\n")
             # Show content with natural line breaks — let the panel wrap

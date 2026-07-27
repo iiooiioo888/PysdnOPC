@@ -121,6 +121,11 @@ def meta_int(metadata: dict[str, Any] | None, key: str, default: int = 0) -> int
 # exhausted the turn exits with a parked summary instead of spinning forever.
 _HUMAN_WAIT_MAX_STALL_TICKS = 24
 
+# Global wall-clock timeout (seconds) for _execute_multi_team_org_scoped.
+# If the continuous-dispatch loop exceeds this budget the turn exits with a
+# degraded summary instead of spinning indefinitely.
+_MULTI_TEAM_ORG_WALL_CLOCK_TIMEOUT_SEC = 30.0
+
 # Matches the manager dispatch guard's escape line while tolerating the
 # markdown decoration models routinely wrap protocol tokens in — bold
 # (`**NO_DELEGATION_JUSTIFICATION**:`), headings, quotes, list markers,

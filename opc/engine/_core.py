@@ -683,6 +683,7 @@ class OPCEngine(
             self.approval_engine.config = self.config.autonomy
         if self.company_executor:
             self.company_executor.work_item_timeout = self.config.system.task_mode.sub_agent_timeout_sec
+            self.company_executor.multi_team_org_wall_clock_timeout = self.config.system.task_mode.multi_team_org_wall_clock_timeout_sec
         if self.adapter_registry:
             self.adapter_registry.config = self.config.agents
             await self.adapter_registry.initialize()
@@ -838,6 +839,7 @@ class OPCEngine(
             agent_selector=self._assign_task_execution_agent,
             emit_runtime_event=self._emit_company_runtime_event,
             work_item_timeout=self.config.system.task_mode.sub_agent_timeout_sec,
+            multi_team_org_wall_clock_timeout=self.config.system.task_mode.multi_team_org_wall_clock_timeout_sec,
             role_prompt_runner=self._run_role_prompt_via_task_execution_agent,
             active_task_run_registry=self._active_task_run_registry,
         )

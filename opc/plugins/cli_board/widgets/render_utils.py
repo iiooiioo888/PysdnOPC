@@ -2,10 +2,39 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from rich.text import Text
+
+# ---------------------------------------------------------------------------
+# Module-level display timezone management.
+# Call ``set_display_timezone`` once at app startup; widgets use
+# ``get_display_tz()`` to obtain the resolved tzinfo.
+# ---------------------------------------------------------------------------
+_display_tz: ZoneInfo | timezone = timezone.utc
+
+
+def set_display_timezone(name: str) -> None:
+    """Set the module-level display timezone from an IANA name (e.g. 'Asia/Taipei').
+
+    Falls back to UTC if the name is empty or invalid.
+    """
+    global _display_tz
+    name = (name or "").strip()
+    if not name or name.upper() == "UTC":
+        _display_tz = timezone.utc
+        return
+    try:
+        _display_tz = ZoneInfo(name)
+    except (KeyError, Exception):
+        _display_tz = timezone.utc
+
+
+def get_display_tz() -> ZoneInfo | timezone:
+    """Return the currently configured display timezone."""
+    return _display_tz
 
 STATUS_STYLES = {
     "pending": "bold black on #64748b",
@@ -46,10 +75,29 @@ def truncate_text(value: str | None, limit: int) -> str:
     return f"{text[: max(0, limit - 1)].rstrip()}…"
 
 
-def humanize_age(timestamp: float | None, *, now: float | None = None) -> str:
+def humanize_age(
+    timestamp: float | None,
+    *,
+    now: float | None = None,
+    tz: ZoneInfo | timezone | None = None,
+) -> str:
+    """Return a compact relative-age string (e.g. '5m', '2h', '3d').
+
+    The calculation uses UTC epoch arithmetic so it is inherently DST-safe.
+    The *tz* parameter is accepted for API symmetry with :func:`format_clock`
+    and does not affect the result (relative elapsed seconds are
+    timezone-independent).
+    """
     if not timestamp:
         return "n/a"
-    current = float(now if now is not None else datetime.now().timestamp())
+    if now is not None:
+        current = float(now)
+    else:
+        # Use timezone-aware now to avoid naive-datetime pitfalls; the
+        # resulting epoch is identical regardless of tz, but this keeps
+        # the code path explicit and DST-safe.
+        _tz = tz if tz is not None else timezone.utc
+        current = datetime.now(_tz).timestamp()
     seconds = max(0, int(current - float(timestamp)))
     if seconds < 60:
         return f"{seconds}s"
@@ -60,10 +108,30 @@ def humanize_age(timestamp: float | None, *, now: float | None = None) -> str:
     return f"{seconds // 86400}d"
 
 
-def format_clock(timestamp: float | None) -> str:
+def format_clock(
+    timestamp: float | None,
+    *,
+    tz: ZoneInfo | timezone | None = None,
+) -> str:
+    """Format an epoch timestamp as ``HH:MM`` in the given timezone.
+
+    Parameters
+    ----------
+    timestamp:
+        POSIX epoch seconds (UTC-based).
+    tz:
+        Target timezone for display.  Defaults to UTC when *None*.
+        Accepts :class:`zoneinfo.ZoneInfo` (handles DST) or a fixed
+        :class:`datetime.timezone` offset.
+
+    The output uses the **local time of the specified timezone** and
+    correctly reflects DST transitions when a :class:`ZoneInfo` instance
+    is provided (e.g. ``ZoneInfo("America/New_York")``).
+    """
     if not timestamp:
         return "--:--"
-    return datetime.fromtimestamp(float(timestamp)).strftime("%H:%M")
+    _tz = tz if tz is not None else timezone.utc
+    return datetime.fromtimestamp(float(timestamp), tz=_tz).strftime("%H:%M")
 
 
 def badge(label: str, style: str, *, prefix: str = "") -> Text:

@@ -9,7 +9,7 @@ from textual.widgets import Static
 
 from ..state.models import TaskDetailView
 from ..state.store import BoardStateStore
-from .render_utils import badge, format_clock, humanize_age, status_style, truncate_text
+from .render_utils import badge, format_clock, get_display_tz, humanize_age, status_style, truncate_text
 
 
 class FocusTaskWidget(Static):
@@ -73,7 +73,7 @@ class FocusTaskWidget(Static):
         text.append(f"  {getattr(task, 'title', '')}", style="bold white")
         if getattr(task, 'assigned_to', ''):
             text.append(f"  \u2022 {task.assigned_to}", style="dim")
-        text.append(f"  {humanize_age(getattr(task, 'updated_at', 0))}", style="dim")
+        text.append(f"  {humanize_age(getattr(task, 'updated_at', 0), tz=get_display_tz())}", style="dim")
 
         # Badges on second line
         text.append("\n")
@@ -101,7 +101,7 @@ class FocusTaskWidget(Static):
 
         text.append("\n")
         for msg in transcript[-20:]:
-            timestamp = format_clock(msg.created_at)
+            timestamp = format_clock(msg.created_at, tz=get_display_tz())
             role = msg.role
             sender = msg.sender_name
 

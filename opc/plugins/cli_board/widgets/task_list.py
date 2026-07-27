@@ -8,7 +8,7 @@ from rich.text import Text
 from textual.widgets import Static
 
 from ..state.store import BoardStateStore
-from .render_utils import humanize_age, priority_style, status_style, truncate_text
+from .render_utils import get_display_tz, humanize_age, priority_style, status_style, truncate_text
 
 
 class TaskListWidget(Static):
@@ -47,7 +47,7 @@ class TaskListWidget(Static):
         row.append(truncate_text(task.title, 28).ljust(30))
         row.append(task.status[:14].upper().ljust(16), style=status_style(task.status))
         row.append(truncate_text(task.assigned_to or "-", 14).ljust(16), style="dim" if not selected else "black on #22d3ee")
-        row.append(humanize_age(task.updated_at), style="dim" if not selected else "black on #22d3ee")
+        row.append(humanize_age(task.updated_at, tz=get_display_tz()), style="dim" if not selected else "black on #22d3ee")
         if task.priority:
             row.append(" ")
             row.append(task.priority[0].upper(), style=priority_style(task.priority))

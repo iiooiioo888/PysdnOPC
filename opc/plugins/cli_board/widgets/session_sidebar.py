@@ -13,7 +13,7 @@ from textual.widgets import Static
 
 from ..state.models import BoardTaskView, SessionSummaryView
 from ..state.store import BoardStateStore
-from .render_utils import badge, humanize_age, priority_style, status_style, truncate_text
+from .render_utils import badge, get_display_tz, humanize_age, priority_style, status_style, truncate_text
 
 _STATUS_SYMBOL = {
     "done": ("\u2713", "bold #22c55e"),
@@ -120,7 +120,7 @@ class SessionSidebarWidget(Static):
         text.append(f"{sym} ", style=sym_style)
         title_style = "bold white" if selected else "white"
         text.append(truncate_text(task.title, 22), style=title_style)
-        text.append(f"  {humanize_age(task.updated_at)}", style="dim")
+        text.append(f"  {humanize_age(task.updated_at, tz=get_display_tz())}", style="dim")
 
         # Runtime info
         if runtime and runtime.current_tool:
@@ -168,7 +168,7 @@ class SessionSidebarWidget(Static):
             text.append(f"  {truncate_text(task.assigned_to, 10)}", style="dim")
 
         # Elapsed
-        text.append(f"  {humanize_age(task.updated_at)}", style="dim")
+        text.append(f"  {humanize_age(task.updated_at, tz=get_display_tz())}", style="dim")
 
         # Current tool
         if runtime and runtime.current_tool:

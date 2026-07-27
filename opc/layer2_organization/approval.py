@@ -549,7 +549,15 @@ class ApprovalEngine:
         try:
             resolved = Path(candidate).resolve()
         except Exception:
-            return None
+            # Fail-closed: an unresolvable path cannot be verified as inside the
+            # workspace, so it must not fall through to the default ALLOW.
+            return self._predict_decision(
+                PermissionResolution.ASK if p2.fail_closed else PermissionResolution.DENY,
+                RiskLevel.HIGH,
+                "Target path could not be resolved; blocking until reviewed.",
+                source="path_guard",
+                metadata={"candidate": candidate},
+            )
         for root in self._predict_workspace_roots(task):
             if resolved == root or root in resolved.parents:
                 return None
@@ -839,17 +847,28 @@ class ApprovalEngine:
             if llm_decision:
                 decision = self._merge_decisions(heuristic, llm_decision)
             elif heuristic.risk_level == RiskLevel.MEDIUM:
-                # LLM review failed (e.g. empty response) — for medium-risk
-                # actions with auto-approval enabled, approve rather than
-                # escalating on a transient LLM failure.
-                decision = ApprovalDecision(
-                    action=ApprovalAction.AUTO_APPROVE,
-                    risk_level=RiskLevel.MEDIUM,
-                    rationale=f"{heuristic.rationale} | LLM review unavailable; auto-approving medium-risk action.",
-                    confidence=0.55,
-                    policy_source="heuristic_fallback",
-                    metadata=metadata,
-                )
+                # LLM review failed (e.g. empty response). Honor fail_closed: when
+                # enabled (default) the action cannot be verified, so escalate rather
+                # than auto-approving on a transient LLM failure. Operators who opt out
+                # of fail_closed keep the previous auto-approve behavior.
+                if self.config.permissions_v2.fail_closed:
+                    decision = ApprovalDecision(
+                        action=ApprovalAction.ESCALATE,
+                        risk_level=RiskLevel.MEDIUM,
+                        rationale=f"{heuristic.rationale} | LLM review unavailable; escalating medium-risk action (fail_closed).",
+                        confidence=0.55,
+                        policy_source="heuristic_fallback",
+                        metadata=metadata,
+                    )
+                else:
+                    decision = ApprovalDecision(
+                        action=ApprovalAction.AUTO_APPROVE,
+                        risk_level=RiskLevel.MEDIUM,
+                        rationale=f"{heuristic.rationale} | LLM review unavailable; auto-approving medium-risk action.",
+                        confidence=0.55,
+                        policy_source="heuristic_fallback",
+                        metadata=metadata,
+                    )
 
         if decision.action == ApprovalAction.ESCALATE and self.escalation and task:
             hierarchy_target = self._company_hierarchy_target(task)

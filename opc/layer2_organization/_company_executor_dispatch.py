@@ -8,6 +8,7 @@ import hashlib
 import inspect
 import json
 import re
+import time
 import uuid
 from contextvars import ContextVar, Token
 from dataclasses import asdict, dataclass, field
@@ -139,6 +140,7 @@ from opc.layer2_organization._company_mode_shared import (  # noqa: E402
     _DEFAULT_DATA_ACQUISITION_REPORT_PATH,
     _DEFAULT_WORKSPACE_LAYOUT,
     _HUMAN_WAIT_MAX_STALL_TICKS,
+    _MULTI_TEAM_ORG_WALL_CLOCK_TIMEOUT_SEC,
     _MAX_GATE_REVIEW_FEEDBACK_CHARS,
     _NO_DELEGATION_JUSTIFICATION_LINE,
     _REVIEW_VERDICT_PARSE_RETRY_HINT,
@@ -2407,6 +2409,7 @@ class CompanyExecutorDispatchMixin:
         self._active_tasks = tasks
         await self.runtime.bootstrap(tasks)
         self._stall_counter = 0
+        _wall_clock_start = time.monotonic()
         # Continuous-dispatch loop (kanban-push).  Previously this method
         # ran claim → asyncio.gather(ALL work items) → iterate, which meant
         # children created mid-turn by a leader could not be picked up
@@ -2425,8 +2428,23 @@ class CompanyExecutorDispatchMixin:
         self._dispatcher_wake.clear()
         poll_timeout_sec = 0.5
         active_work_poll_timeout_sec = 5.0
+        wall_clock_timeout = float(
+            getattr(self, "multi_team_org_wall_clock_timeout", _MULTI_TEAM_ORG_WALL_CLOCK_TIMEOUT_SEC)
+        )
         try:
             while True:
+                # Global wall-clock timeout guard — prevent infinite spin.
+                if time.monotonic() - _wall_clock_start > wall_clock_timeout:
+                    logger.warning(
+                        "_execute_multi_team_org: wall-clock timeout ({:.0f}s) exceeded; "
+                        "returning degraded summary",
+                        wall_clock_timeout,
+                    )
+                    await self._emit_progress(
+                        "[Company] runtime turn timed out after "
+                        f"{wall_clock_timeout:.0f}s; returning partial results."
+                    )
+                    return self._summarize_multi_team_org_results(tasks)
                 if self.store:
                     project_id = str(tasks[0].project_id or "default").strip() if tasks else "default"
                     parent_session_id = str(

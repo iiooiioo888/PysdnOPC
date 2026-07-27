@@ -644,6 +644,7 @@ class TaskModeConfig(BaseModel):
     max_sub_agents: int = 8
     sub_agent_timeout_sec: int = 86400
     allow_parallel_dispatch: bool = True
+    multi_team_org_wall_clock_timeout_sec: float = 30.0  # 公司模式多角色 dispatch 循環的全局 wall-clock 超時（秒）
 
 
 ProjectModeConfig = TaskModeConfig  # 向下相容別名
@@ -1243,6 +1244,7 @@ class SystemConfig(BaseModel):
         serialization_alias="task_mode",
     )
     budget: BudgetConfig = Field(default_factory=BudgetConfig)  # 預算配置
+    display_timezone: str = "UTC"  # 顯示時區（IANA 名稱，如 "Asia/Taipei"、"America/New_York"）
 
 
 class AutonomyConfig(BaseModel):

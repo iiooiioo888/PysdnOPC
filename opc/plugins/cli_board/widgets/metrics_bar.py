@@ -9,7 +9,7 @@ from rich.text import Text
 from textual.widgets import Static
 
 from ..state.store import BoardStateStore
-from .render_utils import badge, format_clock, humanize_age, priority_style, status_style, truncate_text
+from .render_utils import badge, format_clock, get_display_tz, humanize_age, priority_style, status_style, truncate_text
 
 
 class MetricsBarWidget(Static):
@@ -67,12 +67,12 @@ class MetricsBarWidget(Static):
 
         health_text = Text()
         health_text.append("last refresh ", style="dim")
-        health_text.append(format_clock(metrics.last_refreshed_at), style="bold white")
+        health_text.append(format_clock(metrics.last_refreshed_at, tz=get_display_tz()), style="bold white")
         health_text.append("  stale ", style="dim")
         health_text.append(str(metrics.stale_task_count), style="bold yellow")
         if metrics.last_runtime_update:
             health_text.append("\nruntime heartbeat ", style="dim")
-            health_text.append(humanize_age(metrics.last_runtime_update), style="bold #22c55e")
+            health_text.append(humanize_age(metrics.last_runtime_update, tz=get_display_tz()), style="bold #22c55e")
         else:
             health_text.append("\nruntime heartbeat ", style="dim")
             health_text.append("idle", style="bold #64748b")
@@ -107,7 +107,7 @@ class MetricsBarWidget(Static):
             runtime = self.state.runtime_for(selected.task_id)
             if runtime and runtime.current_tool:
                 selection_text.append(f"\n\u2699{truncate_text(runtime.current_tool, 16)}", style="dim")
-            selection_text.append(f"  {humanize_age(selected.updated_at)}", style="dim")
+            selection_text.append(f"  {humanize_age(selected.updated_at, tz=get_display_tz())}", style="dim")
 
         panels = [
             Panel(board_text, title="Board", border_style="cyan"),
