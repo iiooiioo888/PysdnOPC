@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any, AsyncIterator
 from urllib.parse import urlparse
@@ -333,6 +334,8 @@ class LLMProvider:
         self._cache_max_size = 100
         self._cache_hits = 0
         self._cache_misses = 0
+        # 並行調用防護：計數器與快取的執行緒/協程安全鎖
+        self._stats_lock = threading.Lock()
 
         self._api_key = config.api_key or (
             os.environ.get(config.api_key_env) if config.api_key_env else None
@@ -352,12 +355,39 @@ class LLMProvider:
 
     def get_cache_stats(self) -> dict[str, int]:
         """Return cache statistics."""
-        return {
-            "hits": self._cache_hits,
-            "misses": self._cache_misses,
-            "size": len(self._response_cache),
-            "hit_rate": self._cache_hits / max(1, self._cache_hits + self._cache_misses),
-        }
+        with self._stats_lock:
+            return {
+                "hits": self._cache_hits,
+                "misses": self._cache_misses,
+                "size": len(self._response_cache),
+                "hit_rate": self._cache_hits / max(1, self._cache_hits + self._cache_misses),
+            }
+
+    def _record_usage(self, tokens_in: int, tokens_out: int, cost: float) -> float:
+        """執行緒安全地累加 token/成本計數，回傳累計成本快照（並行調用防競態）。"""
+        with self._stats_lock:
+            self._total_tokens_in += int(tokens_in or 0)
+            self._total_tokens_out += int(tokens_out or 0)
+            self._total_cost += float(cost or 0.0)
+            return self._total_cost
+
+    def _cache_get(self, cache_key: str) -> dict[str, Any] | None:
+        """執行緒安全的快取查找；同時更新命中/未命中計數。"""
+        with self._stats_lock:
+            cached = self._response_cache.get(cache_key)
+            if cached is not None:
+                self._cache_hits += 1
+            else:
+                self._cache_misses += 1
+            return cached
+
+    def _cache_put(self, cache_key: str, result: dict[str, Any]) -> None:
+        """執行緒安全的快取寫入（LRU: 超出容量時移除最舊條目）。"""
+        with self._stats_lock:
+            if len(self._response_cache) >= self._cache_max_size:
+                oldest_key = next(iter(self._response_cache))
+                del self._response_cache[oldest_key]
+            self._response_cache[cache_key] = result
 
     def has_credentials(self) -> bool:
         """Whether an LLM call can plausibly authenticate.
@@ -463,11 +493,12 @@ class LLMProvider:
 
     @property
     def stats(self) -> dict[str, Any]:
-        return {
-            "tokens_in": self._total_tokens_in,
-            "tokens_out": self._total_tokens_out,
-            "estimated_cost": self._total_cost,
-        }
+        with self._stats_lock:
+            return {
+                "tokens_in": self._total_tokens_in,
+                "tokens_out": self._total_tokens_out,
+                "estimated_cost": self._total_cost,
+            }
 
     def _select_model(self, task_type: str | None = None) -> str:
         if task_type and task_type in self.config.routing:
@@ -731,11 +762,10 @@ class LLMProvider:
         cache_key = None
         if use_cache and not tools and len(messages) <= 5:
             cache_key = self._cache_key(messages, model, tools)
-            if cache_key in self._response_cache:
-                self._cache_hits += 1
+            cached = self._cache_get(cache_key)
+            if cached is not None:
                 logger.debug(f"LLM cache hit: {cache_key[:8]}...")
-                return self._response_cache[cache_key]
-            self._cache_misses += 1
+                return cached
 
         # 預算守衛檢查
         if self._budget_guard:
@@ -811,13 +841,15 @@ class LLMProvider:
         usage = getattr(response, "usage", None)
         cost = 0.0
         if usage:
-            self._total_tokens_in += getattr(usage, "prompt_tokens", 0)
-            self._total_tokens_out += getattr(usage, "completion_tokens", 0)
             try:
                 cost = litellm.completion_cost(completion_response=response)
-                self._total_cost += cost
             except Exception:
-                pass
+                cost = 0.0
+            self._record_usage(
+                getattr(usage, "prompt_tokens", 0),
+                getattr(usage, "completion_tokens", 0),
+                cost,
+            )
 
         # 更新預算守衛計量
         if self._budget_guard and cost > 0:
@@ -854,11 +886,7 @@ class LLMProvider:
 
         # 儲存到快取（僅對無工具調用的簡單查詢）
         if cache_key and not result.get("tool_calls"):
-            # LRU: 移除最舊的條目
-            if len(self._response_cache) >= self._cache_max_size:
-                oldest_key = next(iter(self._response_cache))
-                del self._response_cache[oldest_key]
-            self._response_cache[cache_key] = result
+            self._cache_put(cache_key, result)
             logger.debug(f"LLM cache stored: {cache_key[:8]}...")
 
         return result
@@ -1012,9 +1040,7 @@ class LLMProvider:
                                 cost = float(prompt_cost or 0.0) + float(completion_cost or 0.0)
                             except Exception:
                                 cost = 0.0
-                            self._total_tokens_in += delta_prompt
-                            self._total_tokens_out += delta_completion
-                            self._total_cost += cost
+                            cost_total = self._record_usage(delta_prompt, delta_completion, cost)
                             event.payload = {
                                 **dict(event.payload),
                                 "prompt_tokens": delta_prompt,
@@ -1022,7 +1048,7 @@ class LLMProvider:
                                 "prompt_tokens_total": total_prompt,
                                 "completion_tokens_total": total_completion,
                                 "estimated_cost_delta": cost,
-                                "estimated_cost_total": self._total_cost,
+                                "estimated_cost_total": cost_total,
                                 "context_window": event.payload.get("context_window") or self.get_context_window(model=model),
                                 "model": model,
                             }
@@ -1062,9 +1088,7 @@ class LLMProvider:
                         cost = float(prompt_cost or 0.0) + float(completion_cost or 0.0)
                     except Exception:
                         cost = 0.0
-                    self._total_tokens_in += prompt_tokens
-                    self._total_tokens_out += completion_tokens
-                    self._total_cost += cost
+                    cost_total = self._record_usage(prompt_tokens, completion_tokens, cost)
                     yield RuntimeLLMEvent(
                         event_type="usage",
                         model=model,
@@ -1074,7 +1098,7 @@ class LLMProvider:
                             "prompt_tokens_total": prompt_tokens,
                             "completion_tokens_total": completion_tokens,
                             "estimated_cost_delta": cost,
-                            "estimated_cost_total": self._total_cost,
+                            "estimated_cost_total": cost_total,
                             "context_window": self.get_context_window(model=model),
                             "model": model,
                         },
@@ -1114,8 +1138,7 @@ class LLMProvider:
                                     delta_completion = max(0, total_completion - last_usage["completion_tokens"])
                                     last_usage["prompt_tokens"] = total_prompt
                                     last_usage["completion_tokens"] = total_completion
-                                    self._total_tokens_in += delta_prompt
-                                    self._total_tokens_out += delta_completion
+                                    self._record_usage(delta_prompt, delta_completion, 0.0)
                                     event.payload = {
                                         **dict(event.payload),
                                         "prompt_tokens": delta_prompt,

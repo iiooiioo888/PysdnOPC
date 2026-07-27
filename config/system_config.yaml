@@ -176,6 +176,7 @@ system:
   # 任務模式設定
   task_mode:
     sub_agent_timeout_sec: 86400  # 子代理逾時時間（秒）
+    company_max_parallel_workers: 20  # 公司模式 dispatch 循環同時執行的工作項目上限（並行限流）
   # 需要確認的操作清單
   require_confirmation:
   - deploy to production    # 部署到生產環境

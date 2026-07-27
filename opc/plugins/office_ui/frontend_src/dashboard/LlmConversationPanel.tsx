@@ -171,6 +171,20 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
   }
 
   // Process runtime transcript entries (LLM conversation records)
+  // Consecutive `stream` fragments with the same role are merged into one
+  // bubble so a single LLM response is not split into many small messages.
+  let streamBuf: { role: ConversationRole; texts: string[]; timestamp?: number; model: string } | null = null
+  const flushStream = () => {
+    if (!streamBuf) return
+    messages.push({
+      id: `rt-entry-${seq++}`,
+      role: streamBuf.role,
+      content: truncateText(streamBuf.texts.join('')),
+      timestamp: streamBuf.timestamp,
+      meta: { model: streamBuf.model, eventType: 'stream' },
+    })
+    streamBuf = null
+  }
   for (const entry of data.runtime_transcript_entries ?? []) {
     const content = str(entry.content || '')
     if (!content.trim()) continue
@@ -179,6 +193,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
     const meta = (entry.metadata || {}) as Record<string, unknown>
 
     if (entryType === 'compaction_boundary') {
+      flushStream()
       messages.push({
         id: `rt-entry-${seq++}`,
         role: 'event',
@@ -187,6 +202,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
         meta: { eventType: 'compaction_boundary' },
       })
     } else if (entryType === 'tool_result') {
+      flushStream()
       messages.push({
         id: `rt-entry-${seq++}`,
         role: 'tool',
@@ -200,6 +216,21 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
       if (role === 'user' || role === 'human') convRole = 'user'
       else if (role === 'assistant' || role === 'ai') convRole = 'assistant'
       else if (role === 'system') convRole = 'system'
+      if (entryType === 'stream') {
+        if (streamBuf && streamBuf.role === convRole) {
+          streamBuf.texts.push(content)
+        } else {
+          flushStream()
+          streamBuf = {
+            role: convRole,
+            texts: [content],
+            timestamp: entry.created_at ? new Date(str(entry.created_at)).getTime() : undefined,
+            model: str(meta.model || ''),
+          }
+        }
+        continue
+      }
+      flushStream()
       messages.push({
         id: `rt-entry-${seq++}`,
         role: convRole,
@@ -212,35 +243,54 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
       })
     }
   }
+  flushStream()
 
   // Process runtime events
+  // Streaming delta fragments (thinking_delta / assistant_delta) are merged
+  // into one bubble per burst so a single response is not split apart.
+  let deltaBuf: {
+    role: ConversationRole
+    texts: string[]
+    timestamp?: number
+    eventType: string
+    model: string
+    iteration?: number
+  } | null = null
+  const flushDelta = () => {
+    if (!deltaBuf) return
+    messages.push({
+      id: `event-${deltaBuf.role}-${seq++}`,
+      role: deltaBuf.role,
+      content: truncateText(deltaBuf.texts.join('')),
+      timestamp: deltaBuf.timestamp,
+      meta: { eventType: deltaBuf.eventType, model: deltaBuf.model, iteration: deltaBuf.iteration },
+    })
+    deltaBuf = null
+  }
   for (const event of data.runtime_events ?? []) {
     const eventType = str(event.event_type || event.payload?.type || '')
     const payload = (event.payload || {}) as Record<string, unknown>
 
-    if (eventType === 'thinking_delta' || eventType === 'thinking') {
+    if (eventType === 'thinking_delta' || eventType === 'thinking' || eventType === 'assistant_delta' || eventType === 'assistant') {
       const text = str(payload.text || payload.content || '')
-      if (text.trim()) {
-        messages.push({
-          id: `event-thinking-${seq++}`,
-          role: 'thinking',
-          content: truncateText(text),
+      if (!text.trim()) continue
+      const convRole: ConversationRole = eventType.startsWith('thinking') ? 'thinking' : 'assistant'
+      const iteration = num(payload.iteration)
+      if (deltaBuf && deltaBuf.role === convRole && deltaBuf.iteration === iteration) {
+        deltaBuf.texts.push(text)
+      } else {
+        flushDelta()
+        deltaBuf = {
+          role: convRole,
+          texts: [text],
           timestamp: event.created_at ? new Date(str(event.created_at)).getTime() : undefined,
-          meta: { eventType, iteration: num(payload.iteration) },
-        })
-      }
-    } else if (eventType === 'assistant_delta' || eventType === 'assistant') {
-      const text = str(payload.text || payload.content || '')
-      if (text.trim()) {
-        messages.push({
-          id: `event-assistant-${seq++}`,
-          role: 'assistant',
-          content: truncateText(text),
-          timestamp: event.created_at ? new Date(str(event.created_at)).getTime() : undefined,
-          meta: { eventType, model: str(payload.model || ''), iteration: num(payload.iteration) },
-        })
+          eventType,
+          model: str(payload.model || ''),
+          iteration,
+        }
       }
     } else if (eventType === 'tool_started') {
+      flushDelta()
       messages.push({
         id: `event-tool-start-${seq++}`,
         role: 'tool',
@@ -249,6 +299,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
         meta: { toolName: str(payload.tool_name || ''), eventType },
       })
     } else if (eventType === 'tool_completed') {
+      flushDelta()
       const summary = str(payload.result_summary || payload.result_preview || '')
       messages.push({
         id: `event-tool-done-${seq++}`,
@@ -258,6 +309,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
         meta: { toolName: str(payload.tool_name || ''), eventType },
       })
     } else if (eventType === 'cost_update') {
+      flushDelta()
       messages.push({
         id: `event-cost-${seq++}`,
         role: 'cost',
@@ -266,6 +318,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
         meta: { eventType, model: str(payload.model || ''), tokensIn: num(payload.tokens_in), tokensOut: num(payload.tokens_out) },
       })
     } else if (eventType === 'turn_started') {
+      flushDelta()
       messages.push({
         id: `event-turn-${seq++}`,
         role: 'iteration',
@@ -274,6 +327,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
         meta: { eventType, iteration: num(payload.iteration) },
       })
     } else if (eventType === 'turn_completed' || eventType === 'turn_failed') {
+      flushDelta()
       const isFailed = eventType === 'turn_failed'
       messages.push({
         id: `event-turn-end-${seq++}`,
@@ -287,6 +341,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
       continue
     } else if (eventType && payload) {
       // Generic event fallback
+      flushDelta()
       const displayText = str(event.display_text || eventType)
       messages.push({
         id: `event-generic-${seq++}`,
@@ -297,6 +352,7 @@ function buildConversation(data: RuntimeLogsResponse): ConversationMessage[] {
       })
     }
   }
+  flushDelta()
 
   return messages
 }

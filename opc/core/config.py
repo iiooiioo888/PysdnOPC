@@ -624,7 +624,7 @@ class ParallelPolicyConfig(BaseModel):
     """並行策略配置 — 控制工作項目的並行分發。"""
     auto_dispatch: bool = True
     review_gate_enabled: bool = True
-    max_workers: int = 10
+    max_workers: int = 20
 
 
 class CoordinationPolicyConfig(BaseModel):
@@ -660,6 +660,7 @@ class TaskModeConfig(BaseModel):
     sub_agent_timeout_sec: int = 86400
     allow_parallel_dispatch: bool = True
     multi_team_org_wall_clock_timeout_sec: float = 30.0  # 公司模式多角色 dispatch 循環的全局 wall-clock 超時（秒）
+    company_max_parallel_workers: int = 20  # 公司模式 dispatch 循環同時執行的工作項目上限（並行限流）
 
 
 ProjectModeConfig = TaskModeConfig  # 向下相容別名

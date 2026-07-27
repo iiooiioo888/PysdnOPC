@@ -1,0 +1,3 @@
+# Strict Mode
+
+Always strict.

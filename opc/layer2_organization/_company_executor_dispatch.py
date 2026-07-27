@@ -2423,6 +2423,15 @@ class CompanyExecutorDispatchMixin:
             asyncio.Task[TaskResult | None],
             tuple[CompanyMemberSession, Task],
         ] = {}
+        # Bind the parallel-limit semaphore to the *current* event loop.  A
+        # single dispatch loop owns one semaphore for its lifetime; each
+        # claimed work item acquires it before running the heavy coroutine
+        # so at most ``max_parallel_workers`` execute concurrently.  Claims
+        # (durable state) are unaffected — only execution is throttled.
+        max_parallel_workers = int(getattr(self, "max_parallel_workers", 0) or 0)
+        self._dispatch_semaphore = (
+            asyncio.Semaphore(max_parallel_workers) if max_parallel_workers > 0 else None
+        )
         # Start with the wake event cleared so the first iteration always
         # performs a full load/claim pass.
         self._dispatcher_wake.clear()
@@ -2789,6 +2798,17 @@ class CompanyExecutorDispatchMixin:
 
         async def run_owned() -> TaskResult | None:
             try:
+                semaphore = getattr(self, "_dispatch_semaphore", None)
+                if semaphore is not None:
+                    # Gate concurrent execution to max_parallel_workers.  The
+                    # work item is already durably claimed; queued items simply
+                    # await a free slot instead of hammering the LLM/DB.
+                    async with semaphore:
+                        return await self._run_claimed_work_item(
+                            member_session,
+                            task,
+                            task_by_projection_id,
+                        )
                 return await self._run_claimed_work_item(
                     member_session,
                     task,

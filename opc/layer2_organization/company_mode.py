@@ -236,6 +236,7 @@ class CompanyWorkItemExecutor(
         on_kanban_changed: Callable[[], Awaitable[None]] | None = None,
         work_item_timeout: int = 600,
         multi_team_org_wall_clock_timeout: float = 30.0,
+        max_parallel_workers: int = 20,
         store: Any | None = None,
         llm: Any | None = None,
         role_prompt_runner: Callable[[Task, str, dict[str, Any], str, bool], Awaitable[str | None]] | None = None,
@@ -259,6 +260,11 @@ class CompanyWorkItemExecutor(
         self.on_kanban_changed = on_kanban_changed
         self.work_item_timeout = work_item_timeout
         self.multi_team_org_wall_clock_timeout = multi_team_org_wall_clock_timeout
+        # 公司模式 dispatch 循環同時執行工作項目的上限（並行限流）。
+        # 實際鎖（asyncio.Semaphore）在 dispatch 循環進入事件循環後延遲建立，
+        # 因為 Semaphore 必須綁定到正在運行的 event loop。
+        self.max_parallel_workers = max_parallel_workers
+        self._dispatch_semaphore: asyncio.Semaphore | None = None
         self.role_prompt_runner = role_prompt_runner
         self.active_task_run_registry = active_task_run_registry
         self._default_run_state = CompanyExecutorRunState()

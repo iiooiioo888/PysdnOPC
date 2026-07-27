@@ -1,0 +1,26 @@
+settings:
+  default_initial_phase: queued
+  default_turn_type: execute
+  show_on_kanban: true
+
+role_daily_tasks:
+  devops_engineer:
+    - task_id: daily-ci-check
+      title: Daily CI Check
+      summary: Check CI pipelines
+      turn_type: monitor
+      priority: high
+      tags: [ci, daily]
+    - task_id: daily-infra-review
+      title: Infra Review
+      summary: Review infrastructure
+      turn_type: execute
+      priority: medium
+      tags: [infra, daily]
+  designer:
+    - task_id: daily-design-review
+      title: Design Review
+      summary: Review UI changes
+      turn_type: review
+      priority: medium
+      tags: [design, daily]

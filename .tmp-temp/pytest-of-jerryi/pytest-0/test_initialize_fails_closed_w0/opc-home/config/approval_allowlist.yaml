@@ -1,0 +1,7 @@
+version: 1
+global:
+  tool: {}
+  external_agent: {}
+  work_item_projection_title: {}
+projects: {}
+sessions: {}

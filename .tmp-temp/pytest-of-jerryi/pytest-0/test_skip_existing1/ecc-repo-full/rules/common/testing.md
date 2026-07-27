@@ -1,0 +1,3 @@
+# Testing Rules
+
+TDD always.

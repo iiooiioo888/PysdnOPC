@@ -1,0 +1,6 @@
+settings:
+  show_on_kanban: false
+role_daily_tasks:
+  tester:
+    - task_id: t1
+      title: Test Task
