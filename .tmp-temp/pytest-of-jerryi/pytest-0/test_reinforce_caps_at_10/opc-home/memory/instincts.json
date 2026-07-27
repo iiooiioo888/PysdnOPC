@@ -1,0 +1,15 @@
+{
+  "inst-cap": {
+    "id": "inst-cap",
+    "pattern": "cap test",
+    "evidence": [
+      "ev"
+    ],
+    "confidence": 1.0,
+    "category": "coding",
+    "created_at": "",
+    "last_reinforced": "2026-07-27T10:14:27.956782+00:00",
+    "reinforcement_count": 2,
+    "metadata": {}
+  }
+}

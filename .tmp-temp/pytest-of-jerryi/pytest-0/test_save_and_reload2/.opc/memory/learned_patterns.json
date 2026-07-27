@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "patterns": {
+    "opc/core": {
+      "confidence": 0.9,
+      "runs": 5
+    }
+  }
+}

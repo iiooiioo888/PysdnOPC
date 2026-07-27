@@ -1,0 +1,744 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: corporate
+organization_name: My One-Person Company
+company:
+  name: My One-Person Company
+  topology: Corporate Structure
+  company_profile: corporate
+  execution_model: actor_runtime
+  final_decider_role_id: ceo
+  company_profiles:
+  - corporate
+  - custom
+roles:
+- id: ceo
+  name: CEO
+  responsibility: 策略性接收、高層級路由、最終彙整並交付給業主。
+  reports_to: owner
+  icon: leader
+  can_spawn:
+  - cto
+  - cmo
+  - coo
+  - hr_manager
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - shell_exec
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 將任務路由至適當的 C 級高管。彙整最終結果。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: cto
+  name: CTO
+  responsibility: 技術規劃、架構決策、程式碼審查與工程監督。
+  reports_to: ceo
+  icon: code
+  can_spawn:
+  - senior_engineer
+  - devops_engineer
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - shell_exec
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 專注於技術可行性、架構品質與工程最佳實踐。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: cmo
+  name: CMO
+  responsibility: 行銷策略、內容規劃、UX 審查與品牌監督。
+  reports_to: ceo
+  icon: marketing
+  can_spawn:
+  - content_specialist
+  - designer
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - browser_navigate
+  - browser_navigate_back
+  - browser_snapshot
+  - browser_wait_for
+  - browser_scroll
+  - browser_take_screenshot
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 優化受眾契合度、品牌一致性與內容品質。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: coo
+  name: COO
+  responsibility: 營運協調、流程管理、跨團隊對齊與品質保證。
+  reports_to: ceo
+  icon: strategy
+  can_spawn:
+  - acquisition_specialist
+  - qa_analyst
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - browser_navigate
+  - browser_navigate_back
+  - browser_snapshot
+  - browser_wait_for
+  - browser_scroll
+  - browser_take_screenshot
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 確保營運效率、流程合規與交付品質。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_manager
+  name: HR Manager
+  responsibility: 自主人力資源架構師：獨立設計並建構組織的完整人員結構。負責分析任務需求、規劃團隊組成、建立與配置角色、驅動招募流程、管理員工生命週期（到職、評估、晉升、離職）、識別技能缺口、提出組織重組方案，並維護人才庫。主動運作，無需等待指令。
+  reports_to: ceo
+  icon: people
+  can_spawn:
+  - hr_recruiter
+  - hr_training_specialist
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - shell_exec
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 自主分析傳入的任務並決定最佳團隊結構。
+  - 主動設計角色定義、匯報關係與人員配置計畫。
+  - 驅動完整招募流程：尋找候選人、評估契合度、錄取並進行到職引導。
+  - 監控員工績效與技能成長；提出晉升或角色調整建議。
+  - 識別組織缺口並主動重組團隊，無需等待指示。
+  - 維護動態人才庫及每個關鍵角色的繼任計畫。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_recruiter
+  name: HR Recruiter
+  responsibility: 人才搜尋與招募執行：掃描人才範本、根據角色需求評估候選人契合度、進行結構化評估，並產出附帶理由的錄取/不錄取建議。
+  reports_to: hr_manager
+  icon: search
+  can_spawn: []
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  - browser_navigate
+  - browser_navigate_back
+  - browser_snapshot
+  - browser_wait_for
+  - browser_scroll
+  - browser_take_screenshot
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 從人才範本與外部人才庫中搜尋候選人。
+  - 根據角色專屬能力矩陣評估候選人。
+  - 產出附帶評分理由的結構化錄取/不錄取建議。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: hr_training_specialist
+  name: HR Training Specialist
+  responsibility: 員工發展與技能培養：設計到職培訓計畫、建立技能發展方案、追蹤學習進度，並確保員工勝任其角色。
+  reports_to: hr_manager
+  icon: book
+  can_spawn: []
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - todo_write
+  - todo_read
+  - web_search
+  - web_fetch
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 為新進員工設計結構化的到職培訓計畫。
+  - 根據角色需求與技能缺口建立個人化技能發展方案。
+  - 追蹤學習進度並據此調整培訓策略。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: acquisition_specialist
+  name: Acquisition Specialist
+  responsibility: 在共享工作區中發現、驗證、準備並回報任務關鍵的外部輸入資料。
+  reports_to: coo
+  icon: target
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  - browser_navigate
+  - browser_navigate_back
+  - browser_click
+  - browser_snapshot
+  - browser_type
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  - browser_close
+  preferred_external_agent: claude_code
+  model: ''
+  prompt_refs:
+  - 以四階段執行資料獲取：發現、驗證、準備、回報。
+  - 對於媒體任務，HTML 快照與 URL 清單絕不視為已獲取的二進位資產。
+  - 透過 shell_exec 使用標準 CLI 下載工具，而非臨時撰寫的網路腳本。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: senior_engineer
+  name: Senior Engineer
+  responsibility: 程式碼實作、系統開發與技術執行。
+  reports_to: cto
+  icon: terminal
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  - browser_navigate
+  - browser_navigate_back
+  - browser_click
+  - browser_snapshot
+  - browser_type
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  - browser_close
+  preferred_external_agent: codex
+  model: ''
+  prompt_refs:
+  - 撰寫乾淨、經過測試的程式碼。為審查者留下清晰的文件。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: devops_engineer
+  name: DevOps Engineer
+  responsibility: 基礎設施、部署、CI/CD、監控與營運強化。
+  reports_to: cto
+  icon: settings
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  - browser_navigate
+  - browser_navigate_back
+  - browser_click
+  - browser_snapshot
+  - browser_type
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  - browser_close
+  preferred_external_agent: cursor
+  model: ''
+  prompt_refs:
+  - 優先考慮營運安全性、可觀測性與部署就緒度。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: content_specialist
+  name: Content Specialist
+  responsibility: 文件撰寫、文案創作、簡報製作與面向使用者的寫作。
+  reports_to: cmo
+  icon: writing
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  - browser_navigate
+  - browser_navigate_back
+  - browser_click
+  - browser_snapshot
+  - browser_type
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  - browser_close
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 為目標受眾清晰撰寫。打磨交付物。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: designer
+  name: Designer
+  responsibility: 視覺設計、UX 產出物、線框圖與設計系統工作。
+  reports_to: cmo
+  icon: design
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  - browser_navigate
+  - browser_navigate_back
+  - browser_click
+  - browser_snapshot
+  - browser_type
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  - browser_close
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 專注於易用性、視覺一致性與設計品質。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: qa_analyst
+  name: QA Analyst
+  responsibility: 測試、安全審查、合規檢查與驗收確認。
+  reports_to: coo
+  icon: bug
+  can_spawn: []
+  tools:
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - shell_exec
+  - browser_navigate
+  - browser_navigate_back
+  - browser_snapshot
+  - browser_wait_for
+  - browser_scroll
+  - browser_select_option
+  - browser_take_screenshot
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 嚴格測試。拒絕不清晰或不安全的輸出。
+  skill_refs: []
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: auto
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: work
+    shell_timeout_override: null
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+- id: env_engineer
+  name: Environment Engineer
+  responsibility: 探測主機環境、安裝所需工具與相依套件、準備指定的 target_output_dir 與基礎工作區目錄、設定運行時環境（conda/venv/docker/系統套件），並為下游執行工作項目產出經驗證的環境清單。支援任何工具鏈：影片編輯（FFmpeg、DaVinci）、3D
+    引擎（Unity、Unreal、Blender、Godot）、音訊處理（FMOD、Wwise、SoX）、ML/AI 框架（PyTorch、TensorFlow）、遊戲開發
+    SDK、設計工具，以及任務所需的任何其他軟體。
+  reports_to: cto
+  icon: database
+  can_spawn: []
+  tools:
+  - shell_exec
+  - file_read
+  - file_write
+  - file_edit
+  - file_search
+  - list_dir
+  - web_search
+  - web_fetch
+  - todo_write
+  - todo_read
+  preferred_external_agent: null
+  model: ''
+  prompt_refs:
+  - 在嘗試安裝之前，務必先探測已安裝的內容。
+  - 在下游工作項目執行前準備指定的 target_output_dir，包括任何缺失的上層目錄與基礎工作區資料夾。
+  - 產出結構化的 environment_manifest JSON 作為最終產出物。
+  - 包含下游工作項目可用來驗證環境的驗證指令。
+  - 系統工具優先使用系統套件管理器（apt、brew、dnf），Python 套件使用 pip/conda/uv。
+  - 需要 GPU 時，檢查 CUDA/ROCm 可用性與驅動程式版本。
+  - 對於複雜環境，建立隔離環境（conda/venv）而非污染主機。
+  skill_refs:
+  - env_provisioning
+  handoff_template_ref: null
+  memory_policy_ref: null
+  artifact_contract_ref: null
+  runtime_policy:
+    execution_strategy: native
+    allowed_downstream_roles: []
+    review_role: null
+    default_turn_type: setup
+    shell_timeout_override: 1800
+    setup_env_type: null
+    coordination_hints: {}
+    signal_capabilities: []
+    parallelism_constraints: []
+    gate_preferences: {}
+  capabilities: []
+  role_type: worker
+  coordinator_policy: null
+employees: []
+escalation_rules: []
+runtime_policies:
+  corporate:
+    communication:
+      default_mode: dm
+      blocking_default: false
+      meeting_required_for:
+      - architecture
+      - cross_team_conflict
+      allow_broadcast: true
+    memory:
+      include_role_memory: true
+      include_project_memory: false
+      include_decision_log: true
+      include_artifact_index: true
+      recent_history_lines: 12
+    handoff:
+      require_structured_handoff: true
+      require_ack: false
+      include_risks: true
+      include_open_questions: true
+    artifact:
+      enforce_contract: false
+      require_artifact_index: true
+      required_kinds: []
+    review:
+      enable_work_item_gates: false
+      strict_gate_inference: false
+      require_reviewer_role: true
+      allow_human_override: true
+    gate_harness:
+      enabled: true
+      decision_mode: agent_first
+      default_degrade_policy: allow
+      auto_infer_turn_kind: true
+      auto_infer_gate_profile: true
+      max_rework_rounds_per_issue: 2
+      stagnation_threshold: 2
+      allow_pass_with_constraints: true
+      enable_delivery_constraints_propagation: true
+      agent_model: ''
+      agent_confidence_threshold: 0.55
+      fallback_to_rules_on_parse_error: true
+      builtin_blocker_map:
+        workspace_mismatch: rework_same_work_item
+        missing_required_artifact: rework_same_work_item
+        verification_missing: rework_same_work_item
+        dependency_not_ready: rework_same_work_item
+        cross_work_item_conflict: replan
+        external_secret_missing: await_user_decision
+        permission_missing: escalate
+        environment_capability_gap: pass_with_constraints
+        quality_gap: rework_same_work_item
+        goal_env_mismatch: replan
+        unresolved_user_visible_risk: pass_with_constraints
+      turn_kind_overrides: {}
+      gate_profile_overrides: {}
+    parallel:
+      auto_dispatch: true
+      review_gate_enabled: true
+      max_workers: 20
+    coordination:
+      inference_mode: llm_primary
+      fallback_mode: conservative
+      strict_gate_turn_kinds:
+      - verify
+      - deliver
+      mixed_gate_turn_kinds:
+      - synthesize
+      - review
+      - integration
+      allow_manager_release_for_mixed_only: true
+      allow_custom_signals: true
+talent_templates: []
+teams: []
+team_runtime:
+  default_team_id: ''
+  shared_role_session_scope: team
+  allow_shared_role_sessions: true
+  seat_refresh_interval_seconds: 30
+  metadata: {}
+installed_packages: []
+role_serial_queue_enabled: true
+metadata:
+  source: opc_config
+  organization_config_file: company_orgs/org_corporate_config.yaml

@@ -1,0 +1,24 @@
+{
+  "imp-1": {
+    "id": "imp-1",
+    "pattern": "imported pattern",
+    "evidence": [],
+    "confidence": 0.5,
+    "category": "coding",
+    "created_at": "2026-07-27T10:14:28.175773+00:00",
+    "last_reinforced": "2026-07-27T10:14:28.175773+00:00",
+    "reinforcement_count": 1,
+    "metadata": {}
+  },
+  "imp-2": {
+    "id": "imp-2",
+    "pattern": "another one",
+    "evidence": [],
+    "confidence": 0.4,
+    "category": "coding",
+    "created_at": "2026-07-27T10:14:28.175773+00:00",
+    "last_reinforced": "2026-07-27T10:14:28.175773+00:00",
+    "reinforcement_count": 1,
+    "metadata": {}
+  }
+}

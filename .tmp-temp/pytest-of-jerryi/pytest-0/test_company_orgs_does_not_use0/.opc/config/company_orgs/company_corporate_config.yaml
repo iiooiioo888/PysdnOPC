@@ -1,0 +1,17 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: corporate
+organization_name: Corporate
+company:
+  name: Corporate
+  company_profile: corporate
+  execution_model: actor_runtime
+  company_profiles:
+  - corporate
+  - custom
+roles:
+- id: company_style_legacy_role
+  name: Legacy Role
+  responsibility: Should not load
+employees: []
+escalation_rules: []

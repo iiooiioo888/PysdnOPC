@@ -1,0 +1,138 @@
+external_agents:
+  claude_code:
+    approval_mode: full-auto
+    auth_type: ''
+    command: claude
+    enabled: true
+    extra_args: []
+    idle_timeout_seconds: 900
+    interactive_timeout_seconds: 900
+    model: ''
+    model_flag: ''
+    new_session_flag: ''
+    resume_session_flag: ''
+    run_mode: interactive
+    session_id: ''
+    session_mode: auto
+    show_thinking: false
+    startup_timeout_seconds: 300
+    status_heartbeat_seconds: 30
+    workspace_base: ''
+  codex:
+    approval_mode: auto
+    auth_type: ''
+    command: codex
+    enabled: true
+    extra_args: []
+    idle_timeout_seconds: 900
+    interactive_timeout_seconds: 900
+    model: ''
+    model_flag: ''
+    new_session_flag: ''
+    resume_session_flag: ''
+    run_mode: interactive
+    session_id: ''
+    session_mode: auto
+    show_thinking: false
+    startup_timeout_seconds: 300
+    status_heartbeat_seconds: 30
+    workspace_base: ''
+  cursor:
+    approval_mode: full-auto
+    auth_type: ''
+    command: cursor-agent
+    enabled: true
+    extra_args: []
+    idle_timeout_seconds: 900
+    interactive_timeout_seconds: 900
+    model: ''
+    model_flag: ''
+    new_session_flag: ''
+    resume_session_flag: ''
+    run_mode: interactive
+    session_id: ''
+    session_mode: auto
+    show_thinking: false
+    startup_timeout_seconds: 300
+    status_heartbeat_seconds: 30
+    workspace_base: ''
+  opencode:
+    approval_mode: full-auto
+    auth_type: ''
+    command: opencode
+    enabled: true
+    extra_args: []
+    idle_timeout_seconds: 900
+    interactive_timeout_seconds: 900
+    model: ''
+    model_flag: --model
+    new_session_flag: ''
+    resume_session_flag: ''
+    run_mode: interactive
+    session_id: ''
+    session_mode: auto
+    show_thinking: true
+    startup_timeout_seconds: 300
+    status_heartbeat_seconds: 30
+    workspace_base: ''
+  preferred_order:
+  - qwen_code
+  - opencode
+  - claude_code
+  - cursor
+  - codex
+  qwen_code:
+    approval_mode: full-auto
+    auth_type: openai
+    command: qwen-code
+    enabled: true
+    extra_args: []
+    idle_timeout_seconds: 900
+    interactive_timeout_seconds: 900
+    model: ''
+    model_flag: ''
+    new_session_flag: ''
+    resume_session_flag: ''
+    run_mode: interactive
+    session_id: ''
+    session_mode: auto
+    show_thinking: true
+    startup_timeout_seconds: 300
+    status_heartbeat_seconds: 30
+    workspace_base: ''
+native_subagents:
+  explore:
+    allowed_tools: []
+    background: false
+    default_isolation: shared
+    enabled: true
+    max_iterations: 24
+    model: ''
+  general:
+    allowed_tools: []
+    background: false
+    default_isolation: shared
+    enabled: true
+    max_iterations: 24
+    model: ''
+  implement:
+    allowed_tools: []
+    background: false
+    default_isolation: worktree
+    enabled: true
+    max_iterations: 24
+    model: ''
+  plan:
+    allowed_tools: []
+    background: false
+    default_isolation: shared
+    enabled: true
+    max_iterations: 24
+    model: ''
+  verify:
+    allowed_tools: []
+    background: true
+    default_isolation: worktree
+    enabled: true
+    max_iterations: 24
+    model: ''

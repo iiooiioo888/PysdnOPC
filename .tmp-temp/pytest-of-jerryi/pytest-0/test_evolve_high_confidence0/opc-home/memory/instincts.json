@@ -1,0 +1,20 @@
+{
+  "inst-high": {
+    "id": "inst-high",
+    "pattern": "Always run linter before commit",
+    "evidence": [
+      "s1",
+      "s2",
+      "s3"
+    ],
+    "confidence": 0.9,
+    "category": "coding",
+    "created_at": "",
+    "last_reinforced": "",
+    "reinforcement_count": 1,
+    "metadata": {
+      "evolved_to": "learned-coding-f8c3bc",
+      "status": "evolved"
+    }
+  }
+}

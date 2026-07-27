@@ -1,0 +1,21 @@
+author:
+  github: ''
+  name: ''
+category: general
+contents:
+  gates: 0
+  prompts: 0
+  roles: 2
+  skills: 0
+  work_item_templates: 0
+description: ''
+id: export-test
+industry: []
+license: MIT
+name: Export Test
+opc_package: '1.0'
+opc_version: '>=0.1.0'
+tags: []
+team_size: ''
+use_cases: []
+version: 1.0.0

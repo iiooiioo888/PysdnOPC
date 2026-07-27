@@ -1,0 +1,14 @@
+llm:
+  api_base: ''
+  api_key: ''
+  api_key_env: ''
+  context_window: 0
+  context_window_overrides: {}
+  default_model: deepseek/deepseek-chat
+  degrade_chain: {}
+  endpoints: {}
+  fallback: {}
+  max_tokens: 32768
+  routing: {}
+  temperature: 0.3
+  tier_routing: {}

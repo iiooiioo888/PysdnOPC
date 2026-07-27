@@ -1,0 +1,114 @@
+channels:
+  dingtalk:
+    allow_from: []
+    client_id: ''
+    client_secret: ''
+    enabled: false
+  discord:
+    allow_from: []
+    enabled: false
+    gateway_url: wss://gateway.discord.gg/?v=10&encoding=json
+    group_policy: mention
+    intents: 37377
+    token: ''
+  email:
+    allow_from: []
+    auto_reply_enabled: true
+    consent_granted: false
+    enabled: false
+    from_address: ''
+    imap_host: ''
+    imap_mailbox: INBOX
+    imap_password: ''
+    imap_port: 993
+    imap_use_ssl: true
+    imap_username: ''
+    mark_seen: true
+    max_body_chars: 12000
+    poll_interval_seconds: 30
+    smtp_host: ''
+    smtp_password: ''
+    smtp_port: 587
+    smtp_use_ssl: false
+    smtp_use_tls: true
+    smtp_username: ''
+    subject_prefix: 'Re: '
+  feishu:
+    allow_from: []
+    app_id: ''
+    app_secret: ''
+    enabled: false
+    encrypt_key: ''
+    react_emoji: THUMBSUP
+    verification_token: ''
+  matrix:
+    access_token: ''
+    allow_from: []
+    allow_room_mentions: false
+    device_id: ''
+    e2ee_enabled: true
+    enabled: false
+    group_allow_from: []
+    group_policy: open
+    homeserver: https://matrix.org
+    max_media_bytes: 20971520
+    sync_stop_grace_seconds: 2
+    user_id: ''
+  mochat:
+    agent_user_id: ''
+    allow_from: []
+    base_url: https://mochat.io
+    claw_token: ''
+    enabled: false
+    groups: {}
+    max_retry_attempts: 0
+    mention:
+      require_in_groups: false
+    panels: []
+    refresh_interval_ms: 30000
+    reply_delay_mode: non-mention
+    reply_delay_ms: 120000
+    retry_delay_ms: 500
+    sessions: []
+    socket_connect_timeout_ms: 10000
+    socket_disable_msgpack: false
+    socket_max_reconnect_delay_ms: 10000
+    socket_path: /socket.io
+    socket_reconnect_delay_ms: 1000
+    socket_url: ''
+    watch_limit: 100
+    watch_timeout_ms: 25000
+  qq:
+    allow_from: []
+    app_id: ''
+    enabled: false
+    secret: ''
+  send_progress: true
+  send_tool_hints: false
+  slack:
+    allow_from: []
+    app_token: ''
+    bot_token: ''
+    dm:
+      allow_from: []
+      enabled: true
+      policy: open
+    enabled: false
+    group_allow_from: []
+    group_policy: mention
+    mode: socket
+    react_emoji: eyes
+    reply_in_thread: true
+    user_token_read_only: true
+    webhook_path: /slack/events
+  telegram:
+    allow_from: []
+    enabled: false
+    proxy: null
+    reply_to_message: false
+    token: ''
+  whatsapp:
+    allow_from: []
+    bridge_token: ''
+    bridge_url: ws://localhost:3001
+    enabled: false

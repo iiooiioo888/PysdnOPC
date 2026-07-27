@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "patterns": {
+    "opc/core": {
+      "test_target": "tests/test_config.py",
+      "confidence": 0.8999999999999999,
+      "runs": 4,
+      "passes": 4,
+      "failures": 0,
+      "last_run": "2026-07-27T10:14:42.850258+00:00",
+      "last_outcome": "pass",
+      "avg_duration_ms": 2000,
+      "consecutive_failures": 0,
+      "unstable_until": 0
+    }
+  }
+}

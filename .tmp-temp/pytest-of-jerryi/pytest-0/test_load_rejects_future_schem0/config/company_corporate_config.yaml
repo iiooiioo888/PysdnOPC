@@ -1,0 +1,11 @@
+schema_version: 99
+company:
+  name: Test Co
+  topology: flat
+  company_profile: ''
+  execution_model: sequential
+  final_decider_role_id: null
+  company_profiles: []
+roles: []
+employees: []
+escalation_rules: []

@@ -1,0 +1,72 @@
+employees: []
+roles:
+- artifact_contract_ref: null
+  can_spawn: []
+  capabilities: []
+  coordinator_policy: null
+  handoff_template_ref: null
+  icon: null
+  id: ceo
+  memory_policy_ref: null
+  model: ''
+  name: CEO
+  preferred_external_agent: null
+  prompt_refs: []
+  reports_to: owner
+  responsibility: Strategy
+  role_type: worker
+  runtime_policy:
+    allowed_downstream_roles: []
+    coordination_hints: {}
+    default_turn_type: work
+    execution_strategy: auto
+    gate_preferences: {}
+    parallelism_constraints: []
+    review_role: null
+    setup_env_type: null
+    shell_timeout_override: null
+    signal_capabilities: []
+  skill_refs: []
+  tools: []
+- artifact_contract_ref: null
+  can_spawn: []
+  capabilities: []
+  coordinator_policy: null
+  handoff_template_ref: null
+  icon: null
+  id: engineer
+  memory_policy_ref: null
+  model: ''
+  name: Engineer
+  preferred_external_agent: null
+  prompt_refs: []
+  reports_to: ceo
+  responsibility: Build
+  role_type: worker
+  runtime_policy:
+    allowed_downstream_roles: []
+    coordination_hints: {}
+    default_turn_type: work
+    execution_strategy: auto
+    gate_preferences: {}
+    parallelism_constraints: []
+    review_role: null
+    setup_env_type: null
+    shell_timeout_override: null
+    signal_capabilities: []
+  skill_refs: []
+  tools: []
+talent_templates:
+- category: ''
+  description: Full-stack dev
+  domains: []
+  id: dev-template
+  metadata: {}
+  name: Developer
+  preferred_external_agent: null
+  prompt_ref: ''
+  source_path: ''
+  source_repo: ''
+  source_revision: ''
+  tags: []
+work_item_templates: []

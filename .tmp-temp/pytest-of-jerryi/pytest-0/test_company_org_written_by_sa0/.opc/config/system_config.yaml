@@ -1,0 +1,303 @@
+autonomy:
+  allow_external_agent_auto_approval: false
+  allow_native_tool_auto_approval: true
+  approval_confidence_threshold: 0.7
+  approval_model: ''
+  command_review_window: 20
+  enabled: true
+  learn_from_feedback: true
+  learned_policy_threshold: 0.8
+  max_auto_approve_risk: medium
+  mode: bounded
+  permissions_v2:
+    allow_tools: []
+    allowed_paths: []
+    dangerous_shell_patterns:
+    - \brm\s+-rf\b
+    - \bdrop\s+table\b
+    - \btruncate\b
+    - \bterraform\s+destroy\b
+    - \bgit\s+push\s+--force\b
+    denial_memory:
+      enabled: true
+      repeat_threshold: 2
+    denied_paths: []
+    deny_tools: []
+    enabled: true
+    fail_closed: true
+    guardian:
+      auto_allow_read_only: true
+      auto_retry_sandbox: true
+      cache_upgrade_context: true
+      enabled: true
+      max_sandbox_retries: 1
+  safe_command_prefixes:
+  - ls
+  - pwd
+  - echo
+  - rg
+  - find
+  - git status
+  - git diff
+  - python -V
+  - python3 -V
+  - node -v
+  - npm -v
+  - curl
+  - wget
+  - yt-dlp
+  - aria2c
+  - ffmpeg
+  - cd
+  - cat
+  - head
+  - tail
+  - grep
+  - wc
+  - sort
+  - uniq
+  - cut
+  - tr
+  - stat
+  - file
+  - which
+  - date
+  - du
+  - df
+  - tree
+  - basename
+  - dirname
+  - realpath
+  - readlink
+  - uname
+  - nproc
+  - whoami
+  - hostname
+  - git log
+  - git show
+  - git rev-parse
+  save_external_sessions: true
+  sensitive_keywords:
+  - token
+  - password
+  - secret
+  - api key
+  - credential
+  - private key
+  - payment
+  - invoice
+  - wire transfer
+  - database schema
+  - drop table
+  - truncate
+  - delete from
+  - rm -rf
+  - terraform destroy
+  - deploy to production
+  - send email
+  - external email
+  - publish
+  - post to
+  - webhook
+  tool_approval_exemptions:
+  - inbox
+  - send_dm
+  - ask_peer_and_wait
+  - reply_message
+  - delegate_work
+  - modify_work_item
+  - delete_work_item
+  - manager_board_read
+  - broadcast_issue
+  - start_meeting
+  - propose_task_adjustment
+  - route_work
+  - respond_meeting
+  - close_human_review
+  - read_inbox
+  - read_meeting
+  - list_colleagues
+  - request_user_input
+  - todo_read
+  - todo_write
+  tool_first_use_approval: true
+capabilities:
+  attach_remote_skill_summaries: true
+  enable_recovery: true
+  local_first: true
+  max_remote_skill_results: 5
+  promote_remote_skills: true
+  remote_skill_source: skillhub
+  skillhub:
+    api_base: https://www.skillhub.club/api/v1
+    api_key: ''
+    api_key_env: SKILLHUB_API_KEY
+    cache_remote_skills: true
+    enabled: false
+    method: hybrid
+    promote_after_successes: 2
+    search_limit: 5
+  tool_failure_threshold: 2
+system:
+  auto_approve_below_cost: 10.0
+  browser:
+    args: []
+    chrome_channel: chrome
+    chrome_executable_path: ''
+    headless: true
+    mode: embedded
+    user_data_dir: ''
+  budget:
+    degrade_threshold: 0.9
+    hard_stop: false
+    monthly_limit_usd: 0.0
+    session_limit_usd: 0.0
+    task_limit_usd: 0.0
+    warn_threshold: 0.8
+  context_compression_threshold: 0.85
+  default_channel: cli
+  display_timezone: UTC
+  escalation_timeout_seconds: 3600
+  heartbeat:
+    default_interval_sec: 300
+    enabled: false
+    max_concurrent_runs: 1
+  log_level: INFO
+  max_agent_iterations: 50
+  mcp_servers: []
+  native_runtime:
+    artifact_compaction:
+      artifact_char_budget: 12000
+      enabled: true
+      max_prompt_too_long_retries: 3
+      prompt_too_long_retry: true
+      reinject_active_subagents: true
+      reinject_permission_state: true
+      reinject_skills_delta: true
+      reinject_tool_surface_delta: true
+      reinject_verification_state: true
+      session_memory_fast_path: true
+    auto_extract_durable_memory: false
+    background_session_memory:
+      enabled: true
+      max_input_chars: 6000
+      update_interval_messages: 4
+    context_guard:
+      enabled: true
+      hard_threshold: 0.8
+      shell_stderr_char_budget: 6000
+      shell_stdout_char_budget: 12000
+      soft_threshold: 0.6
+      tool_output_char_budget: 12000
+      warn_remaining_pct: 15
+    context_usage_reporting:
+      emit_runtime_events: true
+      enabled: true
+    converge_on_parallel_failure: true
+    durable_memory_extract_min_messages: 4
+    durable_memory_max_input_chars: 12000
+    emit_runtime_events: true
+    enable_tool_hooks: true
+    enabled: true
+    event_protocol_version: v2
+    execution_environment:
+      sandbox:
+        allow_direct_fallback: true
+        allow_network: true
+        default_mode: 'off'
+        enabled: false
+        fail_if_unavailable: false
+        linux:
+          mode: workspace-write
+          wrapper: auto
+        macos:
+          mode: workspace-write
+          wrapper: auto
+        windows:
+          mode: elevated
+          wrapper: none
+      worktree_venv:
+        auto_detect_requirements: true
+        editable_project: true
+        enabled: false
+        fail_if_prepare_fails: false
+        provider: auto
+        requirements_files: []
+        system_site_packages: false
+        venv_dir: .opc-venv
+    history_snip_trigger_messages: 40
+    max_parallel_read_tools: 6
+    microcompact_chars: 8000
+    prefetch:
+      enabled: true
+      focused_memory: true
+      max_chars: 4000
+      project_memory_candidates: true
+      session_memory: true
+      skills_summary: true
+    prompt_harness:
+      artifact_messages_enabled: true
+      cache_static_prefix_only: true
+      emit_delta_messages: true
+      enabled: true
+      reinject_after_compaction: true
+      section_dedup_enabled: true
+      split_static_dynamic: true
+    prompt_prefix_stability:
+      emit_cache_fingerprint_events: true
+      enabled: true
+      separate_dynamic_context: true
+    reactive_compaction:
+      circuit_breaker_failures: 2
+      enabled: true
+      max_overflow_retries: 2
+    stream_llm: true
+    stream_rendering:
+      enabled: true
+      enter_age_ms: 120
+      enter_depth: 8
+      exit_age_ms: 40
+      exit_depth: 2
+      exit_hold_ms: 250
+      reenter_hold_ms: 250
+      tick_ms: 50
+    streaming_tool_start:
+      enabled: true
+      require_allow_prediction: true
+      safe_read_only_only: true
+    subagent_max_depth: 3
+    task_ledger:
+      emit_runtime_events: true
+      enabled: true
+      max_items: 24
+      persist_to_runtime_session: true
+      persist_to_task_metadata: true
+    tool_aware_microcompact:
+      assistant_char_budget: 3000
+      enabled: true
+      preserve_failure_outputs: true
+      preserve_recent_messages: 8
+      tool_result_char_budget: 4000
+    tool_result_budget_chars: 20000
+    verification_contract:
+      append_status_to_final: true
+      enabled: true
+      require_explicit_status: true
+    verification_policy:
+      enabled: true
+      min_todos_for_verification: 3
+      require_on_code_edits: true
+      require_on_risky_tools: true
+      skip_metadata_key: skip_verification
+      verifier_profile: verify
+  opc_home: ''
+  require_confirmation:
+  - deploy to production
+  - send external emails
+  - modify database schema
+  task_mode:
+    allow_parallel_dispatch: true
+    company_max_parallel_workers: 20
+    max_sub_agents: 8
+    multi_team_org_wall_clock_timeout_sec: 30.0
+    sub_agent_timeout_sec: 86400

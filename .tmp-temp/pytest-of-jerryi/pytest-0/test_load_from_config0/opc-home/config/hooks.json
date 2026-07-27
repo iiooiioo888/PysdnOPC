@@ -1,0 +1,1 @@
+{"hooks": [{"id": "h1", "event": "session.started", "action": "builtin"}, {"id": "h2", "event": "tool.file.edited", "action": "command", "command": "echo hi"}]}

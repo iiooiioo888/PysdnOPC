@@ -1,0 +1,7 @@
+contents:
+  roles: 1
+  work_item_templates: 0
+id: test-pkg
+name: Test Package
+opc_package: '1.0'
+version: 1.0.0

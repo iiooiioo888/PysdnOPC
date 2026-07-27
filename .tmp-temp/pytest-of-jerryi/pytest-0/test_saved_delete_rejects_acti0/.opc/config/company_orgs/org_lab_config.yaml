@@ -1,0 +1,31 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: lab
+organization_name: Test Co
+company:
+  name: Test Co
+  topology: flat
+  company_profile: custom
+  final_decider_role_id: null
+  company_profiles:
+  - corporate
+  - custom
+roles:
+- id: role_0
+  name: Role 0
+  responsibility: Work.
+  reports_to: owner
+- id: role_1
+  name: Role 1
+  responsibility: Work.
+  reports_to: owner
+employees: []
+escalation_rules: []
+runtime_policies: {}
+talent_templates: []
+teams: []
+team_runtime: {}
+installed_packages: []
+role_serial_queue_enabled: true
+metadata:
+  source: test

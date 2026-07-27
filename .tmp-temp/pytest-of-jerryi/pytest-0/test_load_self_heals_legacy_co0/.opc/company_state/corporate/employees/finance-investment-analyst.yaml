@@ -1,0 +1,27 @@
+schema_version: 1
+kind: company_employee
+organization_id: corporate
+employee:
+  employee_id: finance-investment-analyst
+  template_id: finance-investment-analyst
+  name: Investment Analyst
+  persona_name: ''
+  role_id: ceo
+  description: Investment research specialist.
+  category: finance
+  domains: []
+  tags: []
+  prompt_refs: []
+  skill_refs: []
+  preferred_external_agent: null
+  seniority: junior
+  status: active
+  metadata:
+    legacy_employee_ids:
+    - ceo-finance-investment-analyst
+    home_role_id: ceo
+    home_role_ids:
+    - ceo
+    staffed_role_ids:
+    - ceo
+    canonical_employee_id: finance-investment-analyst

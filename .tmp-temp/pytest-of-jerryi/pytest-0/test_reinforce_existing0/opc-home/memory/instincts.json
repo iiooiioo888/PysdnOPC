@@ -1,0 +1,15 @@
+{
+  "inst-test1": {
+    "id": "inst-test1",
+    "pattern": "test pattern",
+    "evidence": [
+      "new evidence"
+    ],
+    "confidence": 0.4,
+    "category": "coding",
+    "created_at": "",
+    "last_reinforced": "2026-07-27T10:14:27.911782+00:00",
+    "reinforcement_count": 2,
+    "metadata": {}
+  }
+}

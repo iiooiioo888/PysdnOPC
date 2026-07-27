@@ -1,0 +1,24 @@
+schema_version: 1
+kind: company_employee
+organization_id: lab
+employee:
+  employee_id: ava
+  template_id: ''
+  name: Ava Chen
+  persona_name: ''
+  role_id: researcher
+  description: ''
+  category: ''
+  domains: []
+  tags: []
+  prompt_refs: []
+  skill_refs: []
+  preferred_external_agent: null
+  seniority: junior
+  status: active
+  metadata:
+    home_role_id: researcher
+    home_role_ids:
+    - researcher
+    staffed_role_ids:
+    - researcher

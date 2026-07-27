@@ -1,0 +1,14 @@
+{
+  "hooks": [
+    {
+      "id": "saved",
+      "event": "test.event",
+      "matcher": "",
+      "action": "builtin",
+      "command": "",
+      "profile": "standard",
+      "enabled": true,
+      "timeout_seconds": 30.0
+    }
+  ]
+}

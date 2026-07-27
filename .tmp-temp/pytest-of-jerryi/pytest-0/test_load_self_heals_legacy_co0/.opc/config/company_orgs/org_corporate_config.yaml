@@ -1,0 +1,24 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: corporate
+organization_name: Corporate
+company:
+  name: Corporate
+  company_profile: corporate
+  execution_model: actor_runtime
+  company_profiles:
+  - corporate
+  - custom
+  topology: ''
+  final_decider_role_id: null
+roles: []
+employees: []
+escalation_rules: []
+runtime_policies: {}
+talent_templates: []
+teams: []
+team_runtime: {}
+installed_packages: []
+role_serial_queue_enabled: true
+metadata:
+  organization_config_file: company_orgs/org_corporate_config.yaml

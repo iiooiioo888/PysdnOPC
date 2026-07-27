@@ -1,0 +1,16 @@
+{
+  "inst-3d5a6f9ae3": {
+    "id": "inst-3d5a6f9ae3",
+    "pattern": "Error-fix cycle detected: consider writing failing test first before fixing",
+    "evidence": [
+      "session:sess-1",
+      "session:sess-2"
+    ],
+    "confidence": 0.4,
+    "category": "debugging",
+    "created_at": "2026-07-27T10:14:27.893779+00:00",
+    "last_reinforced": "2026-07-27T10:14:27.895786+00:00",
+    "reinforcement_count": 2,
+    "metadata": {}
+  }
+}

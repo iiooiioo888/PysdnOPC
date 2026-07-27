@@ -1,0 +1,17 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: quantum_harbor
+organization_name: Quantum Harbor
+company:
+  name: Quantum Harbor
+  company_profile: custom
+  execution_model: actor_runtime
+  company_profiles:
+  - corporate
+  - custom
+roles:
+- id: founder_ceo
+  name: Founder CEO
+  responsibility: Lead
+employees: []
+escalation_rules: []

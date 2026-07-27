@@ -1,0 +1,15 @@
+{
+  "inst-f258a2d847": {
+    "id": "inst-f258a2d847",
+    "pattern": "Heavy usage of tool 'shell' (6x): consider batching or automation",
+    "evidence": [
+      "session:sess-3"
+    ],
+    "confidence": 0.3,
+    "category": "workflow",
+    "created_at": "2026-07-27T10:14:27.882783+00:00",
+    "last_reinforced": "2026-07-27T10:14:27.882783+00:00",
+    "reinforcement_count": 1,
+    "metadata": {}
+  }
+}

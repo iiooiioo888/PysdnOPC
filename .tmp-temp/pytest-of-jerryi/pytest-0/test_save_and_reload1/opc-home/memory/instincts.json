@@ -1,0 +1,13 @@
+{
+  "inst-x": {
+    "id": "inst-x",
+    "pattern": "persist test",
+    "evidence": [],
+    "confidence": 0.7,
+    "category": "coding",
+    "created_at": "2026-01-01T00:00:00+00:00",
+    "last_reinforced": "2026-01-01T00:00:00+00:00",
+    "reinforcement_count": 1,
+    "metadata": {}
+  }
+}

@@ -1,0 +1,41 @@
+schema_version: 2
+kind: opc_org_architecture
+organization_id: lab
+organization_name: HKU Lab
+company:
+  name: HKU Lab
+  topology: flat
+  company_profile: custom
+  final_decider_role_id: null
+  company_profiles:
+  - corporate
+  - custom
+roles:
+- id: role_0
+  name: Role 0
+  responsibility: Work.
+  reports_to: owner
+- id: role_1
+  name: Role 1
+  responsibility: Work.
+  reports_to: owner
+employees:
+- employee_id: ava
+  name: Ava Chen
+  role_id: role_0
+- employee_id: role-0-default-employee
+  name: Role 0 Default Employee
+  role_id: role_0
+  metadata:
+    is_default_employee: true
+    auto_created_for_role: role_0
+    employee_origin: system_default
+escalation_rules: []
+runtime_policies: {}
+talent_templates: []
+teams: []
+team_runtime: {}
+installed_packages: []
+role_serial_queue_enabled: true
+metadata:
+  source: test

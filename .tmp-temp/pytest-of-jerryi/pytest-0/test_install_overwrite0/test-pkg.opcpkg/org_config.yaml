@@ -1,0 +1,9 @@
+roles:
+- id: analyst
+  name: Analyst
+  reports_to: owner
+  responsibility: Analyze data
+talent_templates:
+- description: Analyzes data
+  id: analyst-tmpl
+  name: Data Analyst

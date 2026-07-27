@@ -1,0 +1,44 @@
+{
+  "inst-m0": {
+    "id": "inst-m0",
+    "pattern": "pattern 0",
+    "evidence": [],
+    "confidence": 0.85,
+    "category": "testing",
+    "created_at": "",
+    "last_reinforced": "",
+    "reinforcement_count": 1,
+    "metadata": {
+      "evolved_to": "learned-testing-3ab703",
+      "status": "evolved"
+    }
+  },
+  "inst-m1": {
+    "id": "inst-m1",
+    "pattern": "pattern 1",
+    "evidence": [],
+    "confidence": 0.85,
+    "category": "testing",
+    "created_at": "",
+    "last_reinforced": "",
+    "reinforcement_count": 1,
+    "metadata": {
+      "evolved_to": "learned-testing-3ab703",
+      "status": "evolved"
+    }
+  },
+  "inst-m2": {
+    "id": "inst-m2",
+    "pattern": "pattern 2",
+    "evidence": [],
+    "confidence": 0.85,
+    "category": "testing",
+    "created_at": "",
+    "last_reinforced": "",
+    "reinforcement_count": 1,
+    "metadata": {
+      "evolved_to": "learned-testing-3ab703",
+      "status": "evolved"
+    }
+  }
+}

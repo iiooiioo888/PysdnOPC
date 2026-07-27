@@ -1,0 +1,15 @@
+{
+  "inst-43712754b9": {
+    "id": "inst-43712754b9",
+    "pattern": "Testing-heavy session: TDD workflow pattern observed",
+    "evidence": [
+      "session:sess-2"
+    ],
+    "confidence": 0.3,
+    "category": "testing",
+    "created_at": "2026-07-27T10:14:27.869778+00:00",
+    "last_reinforced": "2026-07-27T10:14:27.869778+00:00",
+    "reinforcement_count": 1,
+    "metadata": {}
+  }
+}
