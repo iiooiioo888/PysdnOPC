@@ -104,6 +104,23 @@ _FIND_BANNED_PREDICATES = {
 
 _RG_BANNED_FLAGS = {"--pre", "--hostname-bin"}
 
+# Docker subcommands that are purely read-only (inspect state, no mutation).
+_DOCKER_READ_ONLY_SUBCOMMANDS = {
+    "ps", "images", "inspect", "logs", "info", "version", "stats",
+    "top", "port", "diff", "history", "search", "events", "wait",
+}
+# Docker compound subcommands (two-word) that are read-only.
+_DOCKER_READ_ONLY_COMPOUND = {
+    "container ls", "container ps", "image ls", "volume ls",
+    "network ls", "system df", "system info",
+}
+# Docker subcommands that are high-risk / destructive.
+_DOCKER_HIGH_RISK_SUBCOMMANDS = {
+    "system prune", "volume rm", "volume prune", "image prune",
+    "container prune", "network prune", "builder prune",
+}
+
+
 # curl writes to stdout by default; these flags make it write files, upload
 # data, or read attacker-controlled config. Single chars cover combined short
 # flags like ``-sSfLo``.
@@ -398,6 +415,42 @@ def _rg_segment_read_only(tokens: list[str]) -> bool:
     return not any(token.split("=", 1)[0] in _RG_BANNED_FLAGS for token in tokens[1:])
 
 
+def _docker_segment_read_only(tokens: list[str]) -> bool:
+    """Classify a docker command segment as read-only.
+
+    Read-only docker commands (ps, images, inspect, logs, etc.) are safe for
+    auto-approval. High-risk commands (system prune, volume rm) and mutating
+    commands (run, build, push, rm) are NOT read-only.
+    """
+    rest = tokens[1:]  # strip 'docker'
+    # consume global options (--host, --context, --log-level, etc.)
+    while rest and rest[0].startswith("-"):
+        if rest[0] in {"--host", "-H", "--context", "--log-level", "--config",
+                       "--tls", "--tlscacert", "--tlscert", "--tlskey"} and len(rest) >= 2:
+            rest = rest[2:]
+            continue
+        if rest[0] in {"--tlsverify", "--version", "-v", "-D", "--debug"}:
+            rest = rest[1:]
+            continue
+        # Unknown global flag - fail closed
+        return False
+    if not rest:
+        return False
+    sub = rest[0]
+    # Single-word read-only subcommands
+    if sub in _DOCKER_READ_ONLY_SUBCOMMANDS:
+        return True
+    # Two-word compound subcommands
+    if len(rest) >= 2:
+        compound = f"{rest[0]} {rest[1]}"
+        if compound in _DOCKER_READ_ONLY_COMPOUND:
+            return True
+        # High-risk compound subcommands are never read-only
+        if compound in _DOCKER_HIGH_RISK_SUBCOMMANDS:
+            return False
+    return False
+
+
 def _curl_flags_clean(tokens: list[str]) -> bool:
     args = tokens[1:]
     index = 0
@@ -430,7 +483,7 @@ AUDITED_COMMAND_HEADS = (
     _GENERIC_READ_ONLY
     | _NETWORK_AUDITED
     | _INTERPRETERS
-    | {"git", "find", "sed", "awk", "gawk", "mawk", "nawk", "rg", "xxd", "npm", "pip", "pip3"}
+    | {"git", "find", "sed", "awk", "gawk", "mawk", "nawk", "rg", "xxd", "npm", "pip", "pip3", "docker"}
 )
 
 
@@ -477,6 +530,8 @@ def _segment_read_only(tokens: list[str], config_prefixes: Sequence[str]) -> boo
         return _rg_segment_read_only(tokens)
     if head == "xxd":
         return _xxd_segment_read_only(tokens)
+    if head == "docker":
+        return _docker_segment_read_only(tokens)
     if head in _NETWORK_AUDITED:
         segment_text = " ".join(tokens)
         if not _matches_config_prefix(head, config_prefixes) and not _matches_config_prefix(segment_text, config_prefixes):

@@ -217,7 +217,8 @@ from opc.layer4_tools.file_ops import create_file_tools  # 檔案操作工具
 from opc.layer4_tools.user_input import create_user_input_tool  # 使用者輸入工具
 from opc.layer4_tools.web_search import create_web_tools  # 網路搜尋工具
 from opc.layer4_tools.browser import browser_snapshot, create_browser_tools  # 瀏覽器工具
-from opc.layer4_tools.git_ops import create_git_tools  # Git 操作工具
+from opc.layer4_tools.git_ops import create_git_tools  # Git
+from opc.layer4_tools.docker_ops import create_docker_tools  # Docker 操作工具
 from opc.layer4_tools.python_exec import create_python_tool  # Python 執行工具
 from opc.layer4_tools.collaboration import (  # 協作工具
     build_external_cli_tool_contract_lines,
@@ -951,6 +952,8 @@ class OPCEngine(
         for tool in create_browser_tools():
             self.tool_registry.register(tool)
         for tool in create_git_tools():
+            self.tool_registry.register(tool)
+        for tool in create_docker_tools():
             self.tool_registry.register(tool)
         self.tool_registry.register(create_python_tool())
         for tool in create_todo_tools():

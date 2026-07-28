@@ -95,6 +95,8 @@ Thumbs.db
 .tmp/
 tmp/
 .tmp_*
+.tmp-temp/
+.tmp-npm-cache/
 .git_old/
 
 # Qoder local artifacts (keep settings.json for shared hook config)
