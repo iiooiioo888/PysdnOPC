@@ -6,6 +6,7 @@ Docker Compose up/down. All operations require approval confirmation.
 
 from __future__ import annotations
 
+import re
 import shlex
 from typing import Any
 
@@ -243,12 +244,371 @@ def is_high_risk_docker_command(command: str) -> bool:
             return True
     return False
 
+
+# ---------------------------------------------------------------------------
+# Risk assessment for approval callback
+# ---------------------------------------------------------------------------
+
+# Sensitive host ports that should not be exposed without explicit approval.
+_SENSITIVE_PORTS: frozenset[str] = frozenset({
+    "22",     # SSH
+    "2375",   # Docker daemon (unencrypted)
+    "2376",   # Docker daemon (TLS)
+    "3306",   # MySQL
+    "5432",   # PostgreSQL
+    "6379",   # Redis
+    "27017",  # MongoDB
+    "9200",   # Elasticsearch
+    "11211",  # Memcached
+})
+
+
+def _assess_image_risk(image: str, risk_factors: list[str], recommendations: list[str]) -> None:
+    """Assess risk factors related to the image reference."""
+    if not image:
+        return
+    # Check for :latest tag or missing tag
+    if ":" not in image:
+        risk_factors.append(
+            f"Image '{image}' has no explicit tag (defaults to ':latest')."
+        )
+        recommendations.append(
+            f"Pin a specific version tag for image '{image}' instead of relying on ':latest'."
+        )
+    elif image.endswith(":latest"):
+        risk_factors.append(
+            f"Image '{image}' uses the ':latest' tag which is not reproducible."
+        )
+        recommendations.append(
+            f"Pin a specific version tag for image '{image}' instead of ':latest'."
+        )
+
+
+def _assess_volumes_risk(
+    volumes: list[str] | None,
+    risk_factors: list[str],
+    recommendations: list[str],
+) -> None:
+    """Assess risk factors related to volume mounts."""
+    for vol in volumes or []:
+        try:
+            validate_volume_mount(vol)
+        except DockerSecurityViolation as exc:
+            risk_factors.append(f"Blocked volume mount '{vol}': {exc}")
+            recommendations.append(
+                f"Remove or replace volume mount '{vol}' — it violates security policy."
+            )
+            continue
+        # Even allowed volumes carry some risk — flag bind mounts to host paths
+        parts = vol.split(":")
+        if len(parts) >= 2 and parts[0].startswith("/"):
+            risk_factors.append(
+                f"Bind mount exposes host path '{parts[0]}' to the container."
+            )
+            recommendations.append(
+                f"Consider using a named volume instead of bind-mounting '{parts[0]}' "
+                f"to limit host filesystem exposure."
+            )
+
+
+def _assess_ports_risk(
+    ports: list[str] | None,
+    risk_factors: list[str],
+    recommendations: list[str],
+) -> None:
+    """Assess risk factors related to port mappings."""
+    for port_spec in ports or []:
+        # Port specs can be: "8080:80", "127.0.0.1:8080:80", "8080"
+        parts = port_spec.split(":")
+        host_port = parts[0] if len(parts) >= 1 else ""
+        # Strip IP prefix if present (e.g. "127.0.0.1" -> ignore, take numeric)
+        if not host_port.isdigit() and len(parts) >= 3:
+            host_port = parts[1]
+        if host_port in _SENSITIVE_PORTS:
+            risk_factors.append(
+                f"Port mapping exposes sensitive host port '{host_port}'."
+            )
+            recommendations.append(
+                f"Avoid exposing sensitive port '{host_port}' to the container, "
+                f"or bind it to 127.0.0.1 only."
+            )
+        # Flag binding to all interfaces (no 127.0.0.1 prefix)
+        if not port_spec.startswith("127.0.0.1") and not port_spec.startswith("localhost"):
+            container_port = parts[-1] if parts else ""
+            if container_port.isdigit():
+                risk_factors.append(
+                    f"Port '{port_spec}' binds to all network interfaces (0.0.0.0)."
+                )
+
+
+def _assess_capabilities_risk(
+    risk_factors: list[str],
+    recommendations: list[str],
+) -> None:
+    """Note that --privileged and dangerous capabilities are blocked at security level."""
+    risk_factors.append(
+        "Container execution grants kernel capabilities to the container process."
+    )
+    recommendations.append(
+        "Run containers with the minimum necessary capabilities; prefer '--cap-drop ALL' "
+        "and add only the specific capabilities needed."
+    )
+
+
+def assess_docker_risk(
+    tool_name: str,
+    arguments: dict[str, Any],
+) -> dict[str, Any]:
+    """Assess the risk profile of a docker tool call for approval prompts.
+
+    This function generates a detailed risk assessment that the approval
+    callback uses to present actionable information to the user. It does NOT
+    block operations — blocking is handled by :func:`check_docker_command_security`
+    and :func:`validate_volume_mount`. Instead, it identifies risk factors
+    and provides recommendations so the user can make an informed decision.
+
+    Returns a dict with three keys:
+        - ``summary``: str — one-line human-readable description of the operation.
+        - ``risk_factors``: list[str] — identified risk factors (may be empty).
+        - ``recommendations``: list[str] — actionable mitigation suggestions.
+    """
+    risk_factors: list[str] = []
+    recommendations: list[str] = []
+    args = arguments or {}
+
+    # --- Read-only tools: minimal risk ---
+    if tool_name in ("docker_image_ls", "docker_container_ls"):
+        summary = f"Read-only Docker inspection: {tool_name}"
+        return {
+            "summary": summary,
+            "risk_factors": [],
+            "recommendations": [],
+        }
+
+    # --- docker_container_run: full risk analysis ---
+    if tool_name == "docker_container_run":
+        image = str(args.get("image", ""))
+        volumes = args.get("volumes")
+        ports = args.get("ports")
+        command = str(args.get("command", ""))
+        name = str(args.get("name", ""))
+
+        _assess_image_risk(image, risk_factors, recommendations)
+        _assess_volumes_risk(volumes, risk_factors, recommendations)
+        _assess_ports_risk(ports, risk_factors, recommendations)
+        _assess_capabilities_risk(risk_factors, recommendations)
+
+        if command:
+            risk_factors.append(
+                f"Container will execute command: '{command}'."
+            )
+        if not args.get("detach", True):
+            risk_factors.append(
+                "Container runs in foreground (attached) mode."
+            )
+
+        summary = f"Run container from image '{image}'"
+        if name:
+            summary += f" as '{name}'"
+        if volumes:
+            summary += f" with {len(volumes)} volume mount(s)"
+        if ports:
+            summary += f", {len(ports)} port mapping(s)"
+
+    # --- docker_image_build ---
+    elif tool_name == "docker_image_build":
+        context = str(args.get("context", "."))
+        tag = str(args.get("tag", ""))
+        dockerfile = str(args.get("dockerfile", "Dockerfile"))
+
+        risk_factors.append(
+            f"Building image from context '{context}' with Dockerfile '{dockerfile}'."
+        )
+        if tag:
+            _assess_image_risk(tag, risk_factors, recommendations)
+        else:
+            risk_factors.append("Build will produce an untagged image.")
+            recommendations.append("Specify a meaningful tag for the built image.")
+        recommendations.append(
+            "Verify the Dockerfile does not embed secrets (e.g. API keys, passwords) "
+            "before building."
+        )
+        summary = f"Build Docker image from '{context}'" + (f" as '{tag}'" if tag else "")
+
+    # --- docker_image_pull ---
+    elif tool_name == "docker_image_pull":
+        image = str(args.get("image", ""))
+        _assess_image_risk(image, risk_factors, recommendations)
+        # Flag pulling from unknown registries
+        if image and "/" in image and "." not in image.split("/")[0]:
+            risk_factors.append(
+                f"Image '{image}' may originate from an untrusted registry."
+            )
+            recommendations.append(
+                "Verify the image provenance and scan for vulnerabilities after pulling."
+            )
+        summary = f"Pull Docker image '{image}'"
+
+    # --- docker_container_stop ---
+    elif tool_name == "docker_container_stop":
+        container = str(args.get("container", ""))
+        risk_factors.append(f"Stopping container '{container}'.")
+        recommendations.append(
+            f"Confirm container '{container}' is not a production-critical service before stopping."
+        )
+        summary = f"Stop container '{container}'"
+
+    # --- docker_container_rm ---
+    elif tool_name == "docker_container_rm":
+        container = str(args.get("container", ""))
+        force = bool(args.get("force", False))
+        risk_factors.append(f"Removing container '{container}'.")
+        if force:
+            risk_factors.append(
+                f"Force removal (--force) will kill and remove '{container}' if it is running."
+            )
+            recommendations.append(
+                "Stop the container gracefully before removing; use --force only as a last resort."
+            )
+        recommendations.append(
+            f"Verify no persistent data in container '{container}' will be lost."
+        )
+        summary = f"Remove container '{container}'" + (" (force)" if force else "")
+
+    # --- docker_compose_up ---
+    elif tool_name == "docker_compose_up":
+        compose_file = str(args.get("compose_file", "docker-compose.yml"))
+        services = args.get("services")
+        risk_factors.append(
+            f"Starting services from compose file '{compose_file}'."
+        )
+        recommendations.append(
+            "Review the compose file for volume mounts, privileged flags, and exposed ports "
+            "before starting."
+        )
+        if services:
+            summary = f"Start {len(services)} service(s) from '{compose_file}'"
+        else:
+            summary = f"Start all services from '{compose_file}'"
+
+    # --- docker_compose_down ---
+    elif tool_name == "docker_compose_down":
+        compose_file = str(args.get("compose_file", "docker-compose.yml"))
+        risk_factors.append(
+            f"Stopping and removing services from compose file '{compose_file}'."
+        )
+        recommendations.append(
+            "Verify no critical work is in progress on the compose stack before tearing down."
+        )
+        summary = f"Tear down compose stack from '{compose_file}'"
+
+    # --- Unknown docker tool ---
+    else:
+        summary = f"Docker operation: {tool_name}"
+        risk_factors.append(
+            f"Unknown docker tool '{tool_name}' — risk profile not fully assessed."
+        )
+
+    return {
+        "summary": summary,
+        "risk_factors": risk_factors,
+        "recommendations": recommendations,
+    }
+
+
 _DEFAULT_TIMEOUT = 600
 
 
 def _quote(value: str) -> str:
     """Shell-quote a user-supplied value to prevent injection."""
     return shlex.quote(str(value))
+
+
+# ---------------------------------------------------------------------------
+# Parameter validation
+# ---------------------------------------------------------------------------
+
+# Docker image reference: [registry/]name[:tag][@digest]
+_IMAGE_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$")
+
+# Docker container name: [a-zA-Z0-9][a-zA-Z0-9_.-]+
+_CONTAINER_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]+$")
+
+# Port mapping: [host_ip:]host_port:container_port[/protocol]
+_PORT_RE = re.compile(r"^[a-zA-Z0-9._:/-]+$")
+
+
+def _validate_image_name(image: str) -> None:
+    """Validate that the image name is non-empty and well-formed.
+
+    Raises ValueError on invalid input.
+    """
+    if not image or not image.strip():
+        raise ValueError(
+            "Docker container 'image' parameter must be a non-empty string."
+        )
+    image = image.strip()
+    if not _IMAGE_RE.match(image):
+        raise ValueError(
+            f"Docker image name '{image}' contains invalid characters. "
+            f"Allowed: alphanumeric, '.', '/', ':', '-', '_', '@'."
+        )
+
+
+def _validate_container_name(name: str) -> None:
+    """Validate that the container name follows Docker naming rules.
+
+    Raises ValueError on invalid input. Only validated when a name is
+    explicitly provided (empty string is allowed — Docker auto-generates
+    a name).
+    """
+    if not name:
+        return
+    name = name.strip()
+    if not _CONTAINER_NAME_RE.match(name):
+        raise ValueError(
+            f"Docker container name '{name}' is invalid. "
+            f"Names must start with [a-zA-Z0-9] and may contain "
+            f"[a-zA-Z0-9_.-] thereafter."
+        )
+
+
+def _validate_port_mapping(port: str) -> None:
+    """Validate that a port mapping string is well-formed.
+
+    Raises ValueError on invalid input.
+    """
+    if not port or not port.strip():
+        raise ValueError(
+            "Docker port mapping must be a non-empty string (e.g. '8080:80')."
+        )
+    port = port.strip()
+    if not _PORT_RE.match(port):
+        raise ValueError(
+            f"Docker port mapping '{port}' contains invalid characters. "
+            f"Expected format: [host_ip:]host_port:container_port[/protocol]."
+        )
+
+
+def _validate_container_id(container: str) -> None:
+    """Validate that the container identifier is non-empty and well-formed.
+
+    Raises ValueError on invalid input. Accepts both container names and
+    container IDs (hex strings).
+    """
+    if not container or not container.strip():
+        raise ValueError(
+            "Docker 'container' parameter must be a non-empty string "
+            "(container name or ID)."
+        )
+    container = container.strip()
+    # Container IDs are hex strings; container names follow Docker naming rules.
+    # Accept both forms plus abbreviated IDs.
+    if not (_CONTAINER_NAME_RE.match(container) or re.match(r"^[a-fA-F0-9]+$", container)):
+        raise ValueError(
+            f"Docker container identifier '{container}' is invalid. "
+            f"Must be a valid container name or hex container ID."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +670,21 @@ async def docker_container_run(
 ) -> dict[str, Any]:
     """Run a Docker container.
 
+    Parameter validation: image name, container name, port mappings, and
+    command are validated before command assembly to ensure correct format
+    and prevent injection.
+
     Security: validates volume mounts against the whitelist and runs a
     semantic security check on the assembled command before execution.
-    Raises DockerSecurityViolation on policy violations.
+    Raises ValueError on invalid parameters, DockerSecurityViolation on
+    policy violations.
     """
+    # --- Parameter validation ---
+    _validate_image_name(image)
+    _validate_container_name(name)
+    for p in ports or []:
+        _validate_port_mapping(p)
+
     # --- Security: validate volume mounts before building the command ---
     for v in volumes or []:
         validate_volume_mount(v)
@@ -331,7 +702,15 @@ async def docker_container_run(
         cmd += f" -e {_quote(k + '=' + val)}"
     cmd += f" {_quote(image)}"
     if command:
-        cmd += f" {command}"
+        # Split and re-quote each token to prevent shell injection while
+        # preserving the argument structure for the container entrypoint.
+        try:
+            parts = shlex.split(command)
+        except ValueError as exc:
+            raise ValueError(
+                f"Docker container 'command' parameter could not be parsed: {exc}"
+            ) from exc
+        cmd += " " + " ".join(shlex.quote(p) for p in parts)
 
     # --- Security: final semantic check on the assembled command ---
     check_docker_command_security(cmd)
@@ -354,7 +733,11 @@ async def docker_container_stop(
     container: str,
     task: Any | None = None,
 ) -> dict[str, Any]:
-    """Stop a running Docker container."""
+    """Stop a running Docker container.
+
+    Raises ValueError if the container identifier is empty or invalid.
+    """
+    _validate_container_id(container)
     cmd = f"docker container stop {_quote(container)}"
     return await shell_exec(cmd, timeout=60, task=task)
 
@@ -364,7 +747,11 @@ async def docker_container_rm(
     force: bool = False,
     task: Any | None = None,
 ) -> dict[str, Any]:
-    """Remove a Docker container."""
+    """Remove a Docker container.
+
+    Raises ValueError if the container identifier is empty or invalid.
+    """
+    _validate_container_id(container)
     cmd = "docker container rm"
     if force:
         cmd += " -f"

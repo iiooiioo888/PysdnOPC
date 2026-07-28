@@ -1209,6 +1209,15 @@ class OPCEngine(
             "requires_confirmation": tool.requires_confirmation,
             "description": tool.description,
         }
+        # --- Docker-specific risk assessment for detailed approval prompts ---
+        if tool.name.startswith("docker_"):
+            from opc.layer4_tools.docker_ops import assess_docker_risk
+            docker_risk = assess_docker_risk(tool.name, arguments)
+            metadata["docker_risk_assessment"] = docker_risk
+            metadata["risk_summary"] = docker_risk["summary"]
+            metadata["risk_factors"] = docker_risk["risk_factors"]
+            if docker_risk["recommendations"]:
+                metadata["recommendations"] = docker_risk["recommendations"]
         return await self.approval_engine.authorize_tool_call(
             task=task,
             tool_name=tool.name,

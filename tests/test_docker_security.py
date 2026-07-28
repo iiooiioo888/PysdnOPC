@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from opc.layer2_organization.shell_safety import is_read_only_shell_command
 from opc.layer4_tools.docker_ops import (
@@ -10,6 +11,7 @@ from opc.layer4_tools.docker_ops import (
     DEFAULT_VOLUME_WHITELIST,
     HIGH_RISK_SUBCOMMANDS,
     DockerSecurityViolation,
+    assess_docker_risk,
     check_docker_command_security,
     is_high_risk_docker_command,
     validate_volume_mount,
@@ -317,6 +319,281 @@ class DockerToolSecurityIntegrationTests(unittest.IsolatedAsyncioTestCase):
         # Should not be blocked by approval (may fail at shell level)
         if not result["success"]:
             self.assertNotIn("blocked", result.get("error", "").lower())
+
+
+class DockerRiskAssessmentTests(unittest.TestCase):
+    """Test assess_docker_risk for detailed approval callback information."""
+
+    def test_read_only_tools_have_no_risk_factors(self) -> None:
+        for tool_name in ("docker_image_ls", "docker_container_ls"):
+            result = assess_docker_risk(tool_name, {})
+            self.assertEqual(result["risk_factors"], [])
+            self.assertEqual(result["recommendations"], [])
+            self.assertIn("Read-only", result["summary"])
+
+    def test_returns_required_keys(self) -> None:
+        """Every result must have summary, risk_factors, and recommendations."""
+        for tool_name in (
+            "docker_image_ls", "docker_container_ls", "docker_container_run",
+            "docker_image_build", "docker_image_pull", "docker_container_stop",
+            "docker_container_rm", "docker_compose_up", "docker_compose_down",
+        ):
+            result = assess_docker_risk(tool_name, {})
+            self.assertIn("summary", result, f"{tool_name} missing summary")
+            self.assertIn("risk_factors", result, f"{tool_name} missing risk_factors")
+            self.assertIn("recommendations", result, f"{tool_name} missing recommendations")
+            self.assertIsInstance(result["summary"], str)
+            self.assertIsInstance(result["risk_factors"], list)
+            self.assertIsInstance(result["recommendations"], list)
+
+    def test_container_run_flags_latest_image_tag(self) -> None:
+        result = assess_docker_risk("docker_container_run", {"image": "ubuntu:latest"})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("latest", factors)
+        recs = " ".join(result["recommendations"])
+        self.assertIn("Pin", recs)
+
+    def test_container_run_flags_missing_tag(self) -> None:
+        result = assess_docker_risk("docker_container_run", {"image": "nginx"})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("no explicit tag", factors)
+
+    def test_container_run_flags_sensitive_volume(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "volumes": ["/etc/passwd:/data"]},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("Blocked volume mount", factors)
+        recs = " ".join(result["recommendations"])
+        self.assertIn("violates security policy", recs)
+
+    def test_container_run_flags_bind_mount_risk(self) -> None:
+        """Allowed bind mounts (e.g. /tmp) still surface as risk factors."""
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "volumes": ["/tmp/data:/data"]},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("Bind mount exposes host path", factors)
+        self.assertIn("/tmp/data", factors)
+
+    def test_container_run_flags_sensitive_port(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "ports": ["22:22"]},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("sensitive host port", factors)
+        self.assertIn("22", factors)
+
+    def test_container_run_flags_all_interface_binding(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "ports": ["8080:80"]},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("all network interfaces", factors)
+
+    def test_container_run_localhost_port_not_flagged_all_interfaces(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "ports": ["127.0.0.1:8080:80"]},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertNotIn("all network interfaces", factors)
+
+    def test_container_run_flags_command(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "command": "rm -rf /"},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("execute command", factors)
+        self.assertIn("rm -rf /", factors)
+
+    def test_container_run_flags_foreground_mode(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {"image": "ubuntu:22.04", "detach": False},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("foreground", factors)
+
+    def test_container_run_summary_includes_details(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_run",
+            {
+                "image": "ubuntu:22.04",
+                "name": "myapp",
+                "volumes": ["/tmp/data:/data"],
+                "ports": ["8080:80"],
+            },
+        )
+        self.assertIn("ubuntu:22.04", result["summary"])
+        self.assertIn("myapp", result["summary"])
+        self.assertIn("1 volume mount", result["summary"])
+        self.assertIn("1 port mapping", result["summary"])
+
+    def test_container_run_includes_capability_risk(self) -> None:
+        result = assess_docker_risk("docker_container_run", {"image": "ubuntu:22.04"})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("capabilities", factors.lower())
+        recs = " ".join(result["recommendations"])
+        self.assertIn("cap-drop", recs.lower())
+
+    def test_image_build_flags_secrets_recommendation(self) -> None:
+        result = assess_docker_risk("docker_image_build", {"context": ".", "tag": "myapp:1.0"})
+        recs = " ".join(result["recommendations"])
+        self.assertIn("secrets", recs.lower())
+        self.assertIn("myapp:1.0", result["summary"])
+
+    def test_image_build_untagged_image_flag(self) -> None:
+        result = assess_docker_risk("docker_image_build", {"context": "."})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("untagged", factors.lower())
+
+    def test_image_pull_flags_latest(self) -> None:
+        result = assess_docker_risk("docker_image_pull", {"image": "nginx:latest"})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("latest", factors)
+
+    def test_image_pull_flags_untrusted_registry(self) -> None:
+        result = assess_docker_risk("docker_image_pull", {"image": "myrepo/myapp:1.0"})
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("untrusted registry", factors.lower())
+
+    def test_image_pull_trusted_registry_not_flagged(self) -> None:
+        result = assess_docker_risk("docker_image_pull", {"image": "docker.io/nginx:1.25"})
+        factors = " ".join(result["risk_factors"])
+        self.assertNotIn("untrusted registry", factors.lower())
+
+    def test_container_stop_includes_container_name(self) -> None:
+        result = assess_docker_risk("docker_container_stop", {"container": "myapp"})
+        self.assertIn("myapp", result["summary"])
+        recs = " ".join(result["recommendations"])
+        self.assertIn("production-critical", recs)
+
+    def test_container_rm_flags_force(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_rm",
+            {"container": "myapp", "force": True},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("force", factors.lower())
+        self.assertIn("(force)", result["summary"])
+
+    def test_container_rm_without_force(self) -> None:
+        result = assess_docker_risk(
+            "docker_container_rm",
+            {"container": "myapp", "force": False},
+        )
+        factors = " ".join(result["risk_factors"])
+        self.assertNotIn("force removal", factors.lower())
+        self.assertNotIn("(force)", result["summary"])
+
+    def test_compose_up_includes_file(self) -> None:
+        result = assess_docker_risk("docker_compose_up", {"compose_file": "docker-compose.yml"})
+        self.assertIn("docker-compose.yml", result["summary"])
+        recs = " ".join(result["recommendations"])
+        self.assertIn("volume mounts", recs.lower())
+
+    def test_compose_up_with_services(self) -> None:
+        result = assess_docker_risk(
+            "docker_compose_up",
+            {"compose_file": "docker-compose.yml", "services": ["web", "db"]},
+        )
+        self.assertIn("2 service", result["summary"])
+
+    def test_compose_down_includes_file(self) -> None:
+        result = assess_docker_risk("docker_compose_down", {"compose_file": "docker-compose.yml"})
+        self.assertIn("docker-compose.yml", result["summary"])
+        self.assertIn("Tear down", result["summary"])
+
+    def test_unknown_docker_tool_fallback(self) -> None:
+        result = assess_docker_risk("docker_unknown_tool", {})
+        self.assertIn("docker_unknown_tool", result["summary"])
+        factors = " ".join(result["risk_factors"])
+        self.assertIn("Unknown", factors)
+
+    def test_empty_arguments_handled_gracefully(self) -> None:
+        """No KeyError or TypeError when arguments are empty or None."""
+        for tool_name in (
+            "docker_container_run", "docker_image_build", "docker_image_pull",
+            "docker_container_stop", "docker_container_rm",
+            "docker_compose_up", "docker_compose_down",
+        ):
+            result = assess_docker_risk(tool_name, {})
+            self.assertIsInstance(result["summary"], str)
+            result2 = assess_docker_risk(tool_name, None)  # type: ignore[arg-type]
+            self.assertIsInstance(result2["summary"], str)
+
+    def test_import_succeeds_from_core_path(self) -> None:
+        """Verify the import referenced by _core.py actually works."""
+        from opc.layer4_tools.docker_ops import assess_docker_risk as _adr
+        self.assertTrue(callable(_adr))
+
+
+class DockerApprovalCallbackRiskIntegrationTests(unittest.IsolatedAsyncioTestCase):
+    """Verify risk assessment metadata is injected into the approval flow."""
+
+    async def test_risk_assessment_metadata_in_approval(self) -> None:
+        """The registry-level approval callback should be able to access risk info."""
+        from opc.layer4_tools.docker_ops import create_docker_tools
+        from opc.layer4_tools.registry import ToolRegistry
+        from types import SimpleNamespace
+
+        registry = ToolRegistry()
+        for tool in create_docker_tools():
+            registry.register(tool)
+
+        captured_metadata: dict[str, Any] = {}
+
+        async def capturing_callback(tool_def, arguments, task, on_progress):
+            risk = assess_docker_risk(tool_def.name, arguments)
+            captured_metadata["risk"] = risk
+            decision = SimpleNamespace(
+                action=SimpleNamespace(value="deny"),
+                risk_level=SimpleNamespace(value="high"),
+                confidence=1.0,
+                policy_source="test",
+                rationale=risk["summary"],
+                metadata={
+                    "risk_summary": risk["summary"],
+                    "risk_factors": risk["risk_factors"],
+                    "recommendations": risk["recommendations"],
+                },
+            )
+            return False, decision
+
+        registry.set_approval_callback(capturing_callback)
+        result = await registry.execute(
+            "docker_container_run",
+            {"image": "ubuntu:latest", "volumes": ["/etc/passwd:/data"]},
+        )
+        self.assertFalse(result["success"])
+        self.assertIn("blocked", result["error"].lower())
+        # Verify risk assessment was captured
+        risk = captured_metadata["risk"]
+        self.assertIn("ubuntu", risk["summary"])
+        self.assertTrue(
+            any("Blocked volume" in f for f in risk["risk_factors"]),
+            "Sensitive volume should be flagged as a risk factor",
+        )
+        self.assertTrue(
+            any("latest" in f for f in risk["risk_factors"]),
+            ":latest tag should be flagged as a risk factor",
+        )
+        # The approval result should carry the risk metadata
+        approval = result.get("approval", {})
+        self.assertEqual(
+            approval.get("risk_summary"),
+            risk["summary"],
+        )
+        self.assertEqual(
+            approval.get("risk_factors"),
+            risk["risk_factors"],
+        )
 
 
 if __name__ == "__main__":
