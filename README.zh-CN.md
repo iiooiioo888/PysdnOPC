@@ -358,6 +358,8 @@ docker run --rm -v ./.opc:/app/.opc --env-file .env openopc chat -p demo --mode 
 
 `.opc/` 目錄以卷的形式掛載，配置、數據庫、記憶與日誌在容器重啟後保持持久。
 
+完整指南——持久化目錄結構、環境變數、執行階段修補丁、CI 映像建置與疑難排解——見 [docs/docker-deployment.md](docs/docker-deployment.md)。
+
 ## Office UI 指南
 
 <details>

@@ -366,6 +366,8 @@ docker run --rm -v ./.opc:/app/.opc --env-file .env openopc chat -p demo --mode 
 
 The `.opc/` directory is mounted as a volume so config, databases, memory, and logs persist across container restarts.
 
+For the full guide — persistence layout, environment variables, `start.sh` runtime patches, CI image builds, and troubleshooting — see [docs/docker-deployment.md](docs/docker-deployment.md).
+
 ## Office UI Guide
 
 <details>

@@ -1183,6 +1183,8 @@ class BudgetConfig(BaseModel):
           warn_threshold: 0.8      # 80% 時預警
           degrade_threshold: 0.9   # 90% 時降級模型
           hard_stop: false         # 超限後降級而非停止
+          role_limits_usd:         # 按角色預算上限（可選）
+            researcher: 20.0
     """
     task_limit_usd: float = 0.0  # 單任務上限（美元，0=不限制）
     session_limit_usd: float = 0.0  # 單會話上限（美元，0=不限制）
@@ -1190,6 +1192,7 @@ class BudgetConfig(BaseModel):
     warn_threshold: float = 0.8  # 預警閾值（0.0-1.0，預設 80%）
     degrade_threshold: float = 0.9  # 降級閾值（0.0-1.0，預設 90%）
     hard_stop: bool = False  # 超限後是否硬停止（False=降級到廉价模型繼續）
+    role_limits_usd: dict[str, float] = Field(default_factory=dict)  # 按角色預算上限（美元，0/缺省=不限制）
 
     def get_effective_limit(self, level: str) -> float:
         """取得指定層級的有效預算限制。
@@ -1227,6 +1230,19 @@ class BudgetConfig(BaseModel):
         if limit <= 0:
             return False
         return spent >= limit
+
+    def get_role_limit(self, role: str) -> float:
+        """取得指定角色的預算上限（美元，0 表示不限制）。"""
+        return float(self.role_limits_usd.get(role, 0.0) or 0.0)
+
+    def has_any_limit(self) -> bool:
+        """檢查是否配置了任何預算限制（層級或角色）。"""
+        return (
+            self.task_limit_usd > 0
+            or self.session_limit_usd > 0
+            or self.monthly_limit_usd > 0
+            or any(v > 0 for v in self.role_limits_usd.values())
+        )
 
 
 class SystemConfig(BaseModel):

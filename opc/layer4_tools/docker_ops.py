@@ -75,6 +75,8 @@ def _normalize_volume_path(path_str: str) -> str:
     import re
     from pathlib import PurePosixPath, PureWindowsPath
     path_str = path_str.strip()
+    if not path_str:
+        return "/"
     if re.match(r"^[A-Za-z]:\\\\", path_str):
         return str(PureWindowsPath(path_str)).lower().rstrip(chr(92))
     return str(PurePosixPath(path_str)).rstrip("/") or "/"
@@ -504,7 +506,7 @@ def assess_docker_risk(
 
     # --- Unknown docker tool ---
     else:
-        summary = f"Docker operation: {tool_name}"
+        summary = f"Unknown Docker operation: {tool_name}"
         risk_factors.append(
             f"Unknown docker tool '{tool_name}' — risk profile not fully assessed."
         )

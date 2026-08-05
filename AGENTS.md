@@ -130,6 +130,7 @@ full suite locally before merging changes to those modules.
 | Full README (EN) | `README.md` |
 | Full README (繁體中文) | `README.zh-CN.md` |
 | CLI & slash commands | `docs/cli-chat-slash.md` |
+| Docker deployment | `docs/docker-deployment.md` |
 | Channel configuration | `docs/channels.md`, `docs/channel-bridges.md` |
 | Company metadata ownership | `docs/company-metadata-ownership.md` |
 | Build config | `pyproject.toml` |
